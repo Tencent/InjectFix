@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{ECFB8D71-5866-42E8-A1A4-F38D0D4E203D}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>IFix.Core</RootNamespace>
+    <AssemblyName>IFix.Core</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\Lib\</OutputPath>
+    <BaseIntermediateOutputPath>obj\Any CPU\Debug\IFix.Core\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+    <DefineConstants>_DEBUG;TRACE;;UNITY_IPHONE;DEBUG</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\Lib\</OutputPath>
+    <BaseIntermediateOutputPath>obj\Any CPU\Release\IFix.Core\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+    <DefineConstants>;UNITY_IPHONE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Src\Builder\FileVirtualMachineBuilder.cs">
+      <Link>Src\Builder\FileVirtualMachineBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Builder\SimpleVirtualMachineBuilder.cs">
+      <Link>Src\Builder\SimpleVirtualMachineBuilder.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\AnonymousStorey.cs">
+      <Link>Src\Core\AnonymousStorey.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\DataDefine.cs">
+      <Link>Src\Core\DataDefine.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\GenericDelegate.cs">
+      <Link>Src\Core\GenericDelegate.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\Il2CppSetOptionAttribute.cs">
+      <Link>Src\Core\Il2CppSetOptionAttribute.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\Instruction.cs">
+      <Link>Src\Core\Instruction.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\ObjectClone.cs">
+      <Link>Src\Core\ObjectClone.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\ReflectionMethodInvoker.cs">
+      <Link>Src\Core\ReflectionMethodInvoker.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\StackOperation.cs">
+      <Link>Src\Core\StackOperation.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\SwitchFlags.cs">
+      <Link>Src\Core\SwitchFlags.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\Utils.cs">
+      <Link>Src\Core\Utils.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\VirtualMachine.cs">
+      <Link>Src\Core\VirtualMachine.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\WrappersManager.cs">
+      <Link>Src\Core\WrappersManager.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Version.cs">
+      <Link>Src\Version.cs</Link>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

@@ -1,0 +1,6 @@
+<linker>
+       <assembly fullname="mscorlib" preserve="all"/>
+       <assembly fullname="System" preserve="all"/>
+       <assembly fullname="UnityEngine" preserve="all"/>
+       <assembly fullname="UnityEngine.UI" preserve="all"/>
+</linker>
