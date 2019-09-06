@@ -1,0 +1,10 @@
+language: csharp
+script:
+  - cd Source/VSProj/vs2013
+  - msbuild /property:Configuration=Release IFix.sln
+before_install:
+  - sudo apt-get install nunit-console
+before_script:
+  - nuget restore IFix.sln
+after_script:
+  - nunit-console ../Lib/IFix.UnitTest.dll
