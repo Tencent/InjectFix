@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7F74F7B1-6BD7-8656-145D-BF0C009F52D9}</ProjectGuid>
+    <ProjectGuid>{9F93F48D-0B00-B088-D4F3-47E6401FD2F0}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>IFix.TestDLL</RootNamespace>
-    <AssemblyName>IFix.TestDLL</AssemblyName>
+    <RootNamespace>IFix.TestDLL.Redirect</RootNamespace>
+    <AssemblyName>IFix.TestDLL.Redirect</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -18,7 +18,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\Lib\</OutputPath>
-    <BaseIntermediateOutputPath>obj\Any CPU\Debug\IFix.TestDLL\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>obj\Any CPU\Debug\IFix.TestDLL.Redirect\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
     <DefineConstants>_DEBUG;DEBUG;TRACE;</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -29,7 +29,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\Lib\</OutputPath>
-    <BaseIntermediateOutputPath>obj\Any CPU\Release\IFix.TestDLL\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>obj\Any CPU\Release\IFix.TestDLL.Redirect\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
     <DefineConstants></DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -40,8 +40,8 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Src\TestDLL\BaseTest.cs">
-      <Link>Src\TestDLL\BaseTest.cs</Link>
+    <Compile Include="..\Src\TestDLL\RedirectBaseTest.cs">
+      <Link>Src\TestDLL\RedirectBaseTest.cs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

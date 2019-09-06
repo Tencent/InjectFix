@@ -96,7 +96,7 @@ targetdir "./Lib"
 
 files
 {
-    "Src/TestDLL/*.cs",
+    "Src/TestDLL/BaseTest.cs",
 }
 
 defines
@@ -107,6 +107,29 @@ links
 {
     "System",
     "System.Core",
+    "IFix.Core",
+}
+
+project "IFix.TestDLL.Redirect"
+language "C#"
+kind "SharedLib"
+framework "3.5"
+targetdir "./Lib"
+
+files
+{
+    "Src/TestDLL/RedirectBaseTest.cs",
+}
+
+defines
+{
+}
+
+links
+{
+    "System",
+    "System.Core",
+    "IFix.Core",
 }
 
 project "IFix.UnitTest"
@@ -143,7 +166,7 @@ configuration { "Debug*" }
     prebuildcommands
     { 
         "mkdir ..\\Data",
-        "..\\Bin\\IFix.exe -inject ..\\Lib\\IFix.Core.dll ..\\Lib\\IFix.TestDLL.dll no_cfg ..\\Data\\IFix.TestDLL.Redirect.dif ..\\Data\\IFix.TestDLL.Redirect.dll",
+        "..\\Bin\\IFix.exe -inject ..\\Lib\\IFix.Core.dll ..\\Lib\\IFix.TestDLL.Redirect.dll no_cfg ..\\Data\\IFix.TestDLL.Redirect.dif ..\\Data\\IFix.TestDLL.Redirect.dll",
     }
  
 configuration { "Release*" }
@@ -152,7 +175,7 @@ configuration { "Release*" }
     prebuildcommands
     { 
         "mkdir ..\\Data",
-        "..\\Bin\\IFix.exe -inject ..\\Lib\\IFix.Core.dll ..\\Lib\\IFix.TestDLL.dll no_cfg ..\\Data\\IFix.TestDLL.Redirect.dif ..\\Data\\IFix.TestDLL.Redirect.dll",
+        "..\\Bin\\IFix.exe -inject ..\\Lib\\IFix.Core.dll ..\\Lib\\IFix.TestDLL.Redirect.dll no_cfg ..\\Data\\IFix.TestDLL.Redirect.dif ..\\Data\\IFix.TestDLL.Redirect.dll",
     }
 
 project "IFix.PerfTest"

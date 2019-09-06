@@ -9,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace IFix.Test
+namespace IFix.Test.Redirect
 {
     public delegate int TestDelegate(int a, out float b, ref long c, Action cb);
 

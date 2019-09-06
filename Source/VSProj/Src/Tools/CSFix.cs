@@ -88,7 +88,7 @@ namespace IFix
                 if (mode == ProcessMode.Inject)
                 {
                     //对测试用例特殊处理：测试用例默认全解析执行
-                    configure = dllName == "IFix.TestDLL.dll" ?
+                    configure = args[3] == "no_cfg" ?
                         GenerateConfigure.Empty() : GenerateConfigure.FromFile(args[3]);
 
                     if (isInheritInject)
@@ -103,27 +103,6 @@ namespace IFix
                     {
                         Console.WriteLine(dllName + " process yet!");
                         return;
-                    }
-
-                    //测试用例特殊处理
-                    //测试用例大多数都是分别调用原生和解析方法，然后对比结果。
-                    //解析方法会生成一个新的程序集来加载，名字空间也会更改
-                    if (dllName == "IFix.TestDLL.dll")
-                    {
-                        foreach (var type in (
-                            from module in assembly.Modules
-                            from type in module.Types
-                            select type))
-                        {
-                            if (type.Namespace == "IFix.Test")
-                            {
-                                type.Namespace = "IFix.Test.Redirect";
-                            }
-                        }
-
-                        //Console.WriteLine(assembly.Name.Name);
-                        assembly.Name = new AssemblyNameDefinition("IFix.TestDLL.Redirect",
-                            new System.Version("1.0.0.0")); ;
                     }
 
                     tranlater.Serialize(args[4]);
