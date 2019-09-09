@@ -1,5 +1,7 @@
 ![Logo](./Pic/logo.png)
 
+[(English Documents Available)](README_en.md)
+
 ## Unity代码逻辑热修复
 
 可用于Unity业务的bug修复，支持Unity全系列，全平台。
