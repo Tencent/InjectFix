@@ -91,6 +91,6 @@ This file will remain unchanged for the most part, with the only change being th
 
 ##Explore iFix in the editor
 
-In the above process, the patch is loaded on the phone, but if you want to quickly explore the hotfix capability of iFix in the editor, check this document: ["Explore Hotfix in The Editor"](./example_en. md)
+In the above process, the patch is loaded on the phone, but if you want to quickly explore the hotfix capability of iFix in the editor, check this document: ["Explore Hotfix in The Editor"](./example_en.md)
 
 
