@@ -1,10 +1,9 @@
 language: csharp
 script:
   - msbuild /property:Configuration=Release IFix.sln
+  - ./testrunner/NUnit.ConsoleRunner/tools/nunit3-console.exe ../Lib/IFix.UnitTest.dll
 before_script:
   - cd Source/VSProj/vs2013
   - chmod +x inject_redirect_dll
   - nuget restore IFix.sln
   - nuget install NUnit.Runners -Version 3.2.0 -OutputDirectory testrunner -ExcludeVersion
-after_script:
-  - ./testrunner/NUnit.ConsoleRunner/tools/nunit3-console.exe ../Lib/IFix.UnitTest.dll
