@@ -277,13 +277,6 @@ namespace IFix.Core
 
             using (BinaryReader reader = new BinaryReader(stream))
             {
-                var version = reader.ReadString();
-                if (version != IFix.Version.FILE_FORMAT)
-                {
-                    throw new Exception("Version not match, VM version is " + IFix.Version.FILE_FORMAT
-                        + ", patch version is " + version);
-                }
-
                 var instructionMagic = reader.ReadUInt64();
                 if (instructionMagic != Instruction.INSTRUCTION_FORMAT_MAGIC)
                 {

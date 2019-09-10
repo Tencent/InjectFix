@@ -3275,7 +3275,6 @@ namespace IFix
         {
             using (BinaryWriter writer = new BinaryWriter(output))
             {
-                writer.Write(Version.FILE_FORMAT);
                 writer.Write(IFix.Core.Instruction.INSTRUCTION_FORMAT_MAGIC);
                 writer.Write(itfBridgeType.GetAssemblyQualifiedName());
 
