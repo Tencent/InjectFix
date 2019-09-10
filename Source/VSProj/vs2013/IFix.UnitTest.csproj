@@ -78,8 +78,7 @@
   </Target>
   -->
   <PropertyGroup>
-    <PreBuildEvent>mkdir $(SolutionDir)\..\Data
-$(SolutionDir)\..\Bin\IFix.exe -inject $(SolutionDir)\..\Lib\IFix.Core.dll $(SolutionDir)\..\Lib\IFix.TestDLL.Redirect.dll no_cfg $(SolutionDir)\..\Data\IFix.TestDLL.Redirect.dif $(SolutionDir)\..\Data\IFix.TestDLL.Redirect.dll</PreBuildEvent>
+    <PreBuildEvent>$(SolutionDir)/inject_redirect_dll</PreBuildEvent>
   </PropertyGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

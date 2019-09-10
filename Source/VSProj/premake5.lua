@@ -165,8 +165,7 @@ configuration { "Debug*" }
     clr "Unsafe"
     prebuildcommands
     { 
-        "mkdir $(SolutionDir)\\..\\Data",
-        "$(SolutionDir)\\..\\Bin\\IFix.exe -inject $(SolutionDir)\\..\\Lib\\IFix.Core.dll $(SolutionDir)\\..\\Lib\\IFix.TestDLL.Redirect.dll no_cfg $(SolutionDir)\\..\\Data\\IFix.TestDLL.Redirect.dif $(SolutionDir)\\..\\Data\\IFix.TestDLL.Redirect.dll",
+        "$(SolutionDir)/inject_redirect_dll",
     }
  
 configuration { "Release*" }
@@ -174,8 +173,7 @@ configuration { "Release*" }
     clr "Unsafe"
     prebuildcommands
     { 
-        "mkdir $(SolutionDir)\\..\\Data",
-        "$(SolutionDir)\\..\\Bin\\IFix.exe -inject $(SolutionDir)\\..\\Lib\\IFix.Core.dll $(SolutionDir)\\..\\Lib\\IFix.TestDLL.Redirect.dll no_cfg $(SolutionDir)\\..\\Data\\IFix.TestDLL.Redirect.dif $(SolutionDir)\\..\\Data\\IFix.TestDLL.Redirect.dll",
+        "$(SolutionDir)/inject_redirect_dll",
     }
 
 project "IFix.PerfTest"

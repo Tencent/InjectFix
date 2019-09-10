@@ -5,6 +5,7 @@ before_install:
   - sudo apt-get install nunit-console
 before_script:
   - cd Source/VSProj/vs2013
+  - chmod +x *.sh
   - nuget restore IFix.sln
 after_script:
   - nunit-console ../Lib/IFix.UnitTest.dll
