@@ -1,5 +1,9 @@
 ![Logo](./Pic/logo.png)
 
+[![license](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Tencent/InjectFix/blob/master/LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-blue.svg)](https://github.com/Tencent/InjectFix/pulls)
+[![Build status](https://travis-ci.org/Tencent/InjectFix.svg?branch=master)](https://travis-ci.org/Tencent/InjectFix)
+
 ## Unity code logic hotfix
 
 Can be used for bug fixes in Unity, supporting Unity’s full range
