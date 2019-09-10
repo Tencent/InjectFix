@@ -138,7 +138,7 @@ kind "SharedLib"
 framework "3.5"
 targetdir "./Lib"
 
-dependson { "IFix.Core", "IFix.TestDLL", "IFix" }
+dependson { "IFix.Core", "IFix.TestDLL", "IFix.TestDLL.Redirect", "IFix" }
 
 files
 {
