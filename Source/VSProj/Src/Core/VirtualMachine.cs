@@ -564,6 +564,7 @@ namespace IFix.Core
                                 //        _Info("a.obj = " + (obj == null ? "null" : obj.ToString()));
                                 //    }
                                 //}
+                                throwRuntimeException(new NotImplementedException(), true);
                                 copy(evaluationStackBase, evaluationStackPointer, argumentBase + pc->Operand,
                                     managedStack);
                                 //if (methodIndex == 197)
