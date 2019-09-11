@@ -35,3 +35,7 @@
 
 [如何使用？](./Doc/quick_start.md)
 
+## 技术支持
+
+请通过[issue](https://github.com/Tencent/InjectFix/issues)来咨询及反馈问题，便于后续跟踪及检索。
+
