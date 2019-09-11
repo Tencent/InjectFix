@@ -10,6 +10,7 @@ using IFix.Core;
 using System.IO;
 using System.Diagnostics;
 
+// 跑不同仔细看文档Doc/example.md
 public class Helloworld : MonoBehaviour {
 
     // check and load patchs
