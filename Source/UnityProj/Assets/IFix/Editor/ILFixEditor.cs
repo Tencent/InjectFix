@@ -79,6 +79,7 @@ namespace IFix.Editor
                 UnityEngine.Debug.LogError("can not find mono!");
             }
             var inject_tool_path = "./IFixToolKit/IFix.exe";
+            //"--runtime = v4.0.30319"
             if (!File.Exists(inject_tool_path))
             {
                 UnityEngine.Debug.LogError("please install the ToolKit");
@@ -87,7 +88,11 @@ namespace IFix.Editor
 
             Process hotfix_injection = new Process();
             hotfix_injection.StartInfo.FileName = mono_path;
+#if UNITY_5_6_OR_NEWER
+            hotfix_injection.StartInfo.Arguments = "--runtime=v4.0.30319 \"" + inject_tool_path + "\" \""
+#else
             hotfix_injection.StartInfo.Arguments = "\"" + inject_tool_path + "\" \""
+#endif
                 + string.Join("\" \"", args.ToArray()) + "\"";
             hotfix_injection.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             hotfix_injection.StartInfo.RedirectStandardOutput = true;
