@@ -17,9 +17,13 @@ namespace IFix
 {
     public static class Program
     {
+        private static string ConfuseKey = string.Empty;
+
         static string[] Shuffle(string[] codes)
         {
-            Random r = new Random(DateTime.Now.Millisecond);
+            Random r = string.IsNullOrEmpty(ConfuseKey) ? 
+                        new Random(DateTime.Now.Millisecond) : new Random(ConfuseKey.GetHashCode() + 1);
+            
             for (int i = codes.Length - 1; i >= 0; i--)
             {
                 int cardIndex = r.Next(i);
@@ -35,6 +39,10 @@ namespace IFix
         static void Main(string[] args)
         {
             var des = args[1];
+
+            if (args.Length >= 3)
+                ConfuseKey = args[2];
+
             //已经生成了就不重新生成了
             if (File.Exists(des))
             {
@@ -73,7 +81,8 @@ namespace IFix
                 }
 
                 //生成随机的magic code
-                Random r = new Random(DateTime.Now.Millisecond);
+                Random r = string.IsNullOrEmpty(ConfuseKey) ?
+                            new Random(DateTime.Now.Millisecond) : new Random(ConfuseKey.GetHashCode());
                 ulong magic = (uint)r.Next();
                 magic = (magic << 32);
                 magic = magic | ((uint)r.Next());
