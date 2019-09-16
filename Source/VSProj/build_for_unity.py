@@ -31,14 +31,14 @@ def main():
 
     # 编译 ShuffleInstruction
     os.system(
-        f"{global_config['gmcs']} ShuffleInstruction.cs -out:./ShuffleInstruction.exe")
+        "%s ShuffleInstruction.cs -out:./ShuffleInstruction.exe" % (global_config['gmcs']))
 
     # 生成混淆后的 Instruction.cs
     os.system(
-        f"{global_config['mono']} ShuffleInstruction.exe Src/Core/Instruction.cs Instruction.cs {global_config['ConfuseKey']}")
+        "%s ShuffleInstruction.exe Src/Core/Instruction.cs Instruction.cs %s" % (global_config['mono'], global_config['ConfuseKey']))
 
     # 构建 Dll
-    cmd_dll = f"{global_config['gmcs']} -define:UNITY_IPHONE -unsafe -target:library -out:{global_config['DllOutput']} Src/Builder/*.cs Src/Version.cs Instruction.cs \
+    cmd_dll = "%s -define:UNITY_IPHONE -unsafe -target:library -out:%s Src/Builder/*.cs Src/Version.cs Instruction.cs \
     Src/Core/AnonymousStorey.cs \
     Src/Core/DataDefine.cs \
     Src/Core/GenericDelegate.cs \
@@ -49,7 +49,7 @@ def main():
     Src/Core/SwitchFlags.cs \
     Src/Core/Utils.cs \
     Src/Core/VirtualMachine.cs \
-    Src/Core/WrappersManager.cs"
+    Src/Core/WrappersManager.cs" % (global_config['gmcs'], global_config['DllOutput'])
     os.system(cmd_dll)
 
     # 构建 Toolkit
@@ -62,7 +62,7 @@ def main():
             copyfile(os.path.join('ThirdParty', file), os.path.join(
                 global_config['ToolKitOutput'], file))
 
-    cmd_tool = f"{global_config['gmcs']} -define:UNITY_IPHONE -unsafe -reference:ThirdParty/Mono.Cecil.dll,ThirdParty/Mono.Cecil.Mdb.dll,ThirdParty/Mono.Cecil.Pdb.dll -out:{global_config['ToolKitOutput']}/IFix.exe -debug Instruction.cs Src/Tools/*.cs Src/Version.cs"
+    cmd_tool = "%s -define:UNITY_IPHONE -unsafe -reference:ThirdParty/Mono.Cecil.dll,ThirdParty/Mono.Cecil.Mdb.dll,ThirdParty/Mono.Cecil.Pdb.dll -out:%s/IFix.exe -debug Instruction.cs Src/Tools/*.cs Src/Version.cs" % (global_config['gmcs'], global_config['ToolKitOutput'])
 
     os.system(cmd_tool)
 
