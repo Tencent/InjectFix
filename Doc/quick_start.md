@@ -55,11 +55,15 @@ public int Add(int a, int b)
 }
 ~~~
 
+#### 如果要修复的函数不含条件编译宏
+
 执行"InjectFix/Fix"菜单。
 
 补丁制作成功后会放到工程目录下，文件名为“{Dll Name}.patch.bytes”（比如：“Assembly-CSharp.patch.bytes”），上传补丁到手机，加载就能看到效果。
 
-注意事项：如果要Patch的函数存在条件编译宏，比如这样的代码：
+#### 如果要修复的函数存在条件编译宏
+
+比如这样的代码：
 
 ~~~csharp
 [Patch]
@@ -77,17 +81,7 @@ public void Job(int a)
 
 如果还是直接在编辑器下直接生成补丁，将会比手机上运行多调用了个Foo，少调用了个Bar，这可能会导致各种问题：逻辑不对，调用了编辑器专用函数而导致找不到要调用的函数等等。
 
-这时可以按对应平台的编译参数把Assembly-CSharp.dll编译出来，然后调用IFix.Editor.IFixEditor.GenPatch去生成补丁。
-
-Unity编译是在工程的Temp目录新建一个文件，把命令行参数放到那个文件，然后执行类似（目录根据自己的unity安装情况而定）如下命令进行编译：
-
-~~~bash
-"D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\bin\mono.exe" "D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\lib\mono\4.5\mcs.exe"  @Temp/UnityTempFile-55a959adddae39f4aaa18507dd165989
-~~~
-
-你可以尝试一次编辑器下的手机版本打包，然后到工程目录下的Temp目录把那个临时文件拷贝出来（编译完会自动删掉，所以要手快）。
-
-这个文件大多数地方都不会变的，变的主要是C#文件列表，可以改为动态生成这个文件：C#文件列表根据当前项目生成，其它保持不变。然后用这个文件作为输入来编译。
+这种情况请按[FAQ](faq.md)的[《补丁制作的条件编译宏如何处理》](./faq.md#%E8%A1%A5%E4%B8%81%E5%88%B6%E4%BD%9C%E7%9A%84%E6%9D%A1%E4%BB%B6%E7%BC%96%E8%AF%91%E5%AE%8F%E5%A6%82%E4%BD%95%E5%A4%84%E7%90%86)处理。
 
 ## 编辑器下体验iFix
 
