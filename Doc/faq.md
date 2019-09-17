@@ -14,3 +14,19 @@
 ## 生成 Patch 的时候遇到`Error: the new assembly must not be inject, please reimport the project!`报错
 
 生成 Patch 的 dll，不能进行注入
+
+## 补丁制作的条件编译宏如何处理
+
+如果是Unity2018.3版本及以上，由于Unity开放了C#编译接口，所以InjectFix在Unity2018.3版本直接支持Android和iOS的补丁生成，直接执行对应菜单即可。
+
+但如果低于Unity2018.3版本，则要用比较麻烦的方式：按对应平台的编译参数把Assembly-CSharp.dll编译出来，然后调用IFix.Editor.IFixEditor.GenPatch去生成补丁。
+
+Unity编译是在工程的Temp目录新建一个文件，把命令行参数放到那个文件，然后执行类似（目录根据自己的unity安装情况而定）如下命令进行编译：
+
+~~~bash
+"D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\bin\mono.exe" "D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\lib\mono\4.5\mcs.exe"  @Temp/UnityTempFile-55a959adddae39f4aaa18507dd165989
+~~~
+
+你可以尝试一次编辑器下的手机版本打包，然后到工程目录下的Temp目录把那个临时文件拷贝出来（编译完会自动删掉，所以要手快）。
+
+这个文件大多数地方都不会变的，变的主要是C#文件列表，可以改为动态生成这个文件：C#文件列表根据当前项目生成，其它保持不变。然后用这个文件作为输入来编译。
