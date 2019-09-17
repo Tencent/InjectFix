@@ -46,8 +46,8 @@ namespace IFix.Editor
         void doPatch()
         {
             IFixEditor.Platform platform = platformIndex == 0 ? IFixEditor.Platform.ios : IFixEditor.Platform.android;
-            string patchPath = "Temp/tmp_live_dot_net_patch";
-            IFixEditor.GenPlatformPatch(platform, patchPath);
+            string patchPath = "Temp/Assembly-CSharp.patch.bytes";
+            IFixEditor.GenPlatformPatch(platform, "Temp/");
 
             IPAddress ip;
             if (!IPAddress.TryParse(strIp, out ip))

@@ -51,5 +51,18 @@ public class Helloworld : MonoBehaviour {
         //AnotherClass in Assembly-CSharp-firstpass.dll
         var ret = anotherClass.Call(i => i + 1);
         UnityEngine.Debug.Log("anotherClass.Call, ret = " + ret);
+
+        //test for InjectFix/Fix(Android) InjectFix/Fix(IOS) Menu for unity 2018.3 or newer
+#if UNITY_2018_3_OR_NEWER
+#if UNITY_IOS
+        UnityEngine.Debug.Log("UNITY_IOS");
+#endif
+#if UNITY_EDITOR
+        UnityEngine.Debug.Log("UNITY_EDITOR");
+#endif
+#if UNITY_ANDROID
+        UnityEngine.Debug.Log("UNITY_ANDROID");
+#endif
+#endif
     }
 }
