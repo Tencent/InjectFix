@@ -250,6 +250,20 @@ namespace IFix.Editor
 
                 var core_path = "./Assets/Plugins/IFix.Core.dll";
                 var assembly_path = string.Format("./Library/ScriptAssemblies/{0}.dll", assembly);
+                {
+                    var dll = string.Format("./Library/ScriptAssemblies/{0}.dll", assembly);
+                    if (File.Exists(dll) == false)
+                    {
+                        dll = string.Format("./Assets/MyLib/{0}.dll", assembly);
+                        if (File.Exists(dll) == false)
+                        {
+                            throw new Exception("can not find dll: " + assembly);
+                        }
+                    }
+                    assembly_path = dll;
+                }
+
+
                 var patch_path = string.Format("./{0}.ill.bytes", assembly);
                 List<string> args = new List<string>() { "-inject", core_path, assembly_path,
                     processCfgPath, patch_path, assembly_path };
@@ -296,8 +310,9 @@ namespace IFix.Editor
         //另外可以直接调用InjectAssembly对其它程序集进行注入。
         static string[] injectAssemblys = new string[]
         {
+            "testdll",
             "Assembly-CSharp",
-            "Assembly-CSharp-firstpass"
+            "Assembly-CSharp-firstpass",
         };
 
         /// <summary>
@@ -711,6 +726,9 @@ namespace IFix.Editor
 
             File.Delete(processCfgPath);
 
+            // 直接拷贝到IFix/Resources里去
+            File.Copy(patchPath, "Assets/IFix/Resources/" + patchPath, true);
+
             AssetDatabase.Refresh();
         }
 
@@ -719,7 +737,17 @@ namespace IFix.Editor
         {
             foreach (var assembly in injectAssemblys)
             {
-                GenPatch(assembly, string.Format("./Library/ScriptAssemblies/{0}.dll", assembly), 
+                var dll = string.Format("./Library/ScriptAssemblies/{0}.dll", assembly);
+                if(File.Exists(dll) == false)
+                {
+                    dll = string.Format("./Assets/MyLib/{0}.dll", assembly);
+                    if(File.Exists(dll) == false)
+                    {
+                        throw new Exception("can not find dll: " + assembly);
+                    }
+                }
+
+                GenPatch(assembly, dll, 
                     "./Assets/Plugins/IFix.Core.dll", string.Format("{0}.patch.bytes", assembly));
             }
         }
