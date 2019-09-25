@@ -56,6 +56,11 @@ public class Helloworld : MonoBehaviour {
             var sw = Stopwatch.StartNew();
             PatchManager.Load(new MemoryStream(patch.bytes));
             UnityEngine.Debug.Log("patch testdll, using " + sw.ElapsedMilliseconds + " ms");
+
+            if (m_text)
+            {
+                m_text.text = "patch testdll, using " + sw.ElapsedMilliseconds + " ms";
+            }
         }
     }
 
