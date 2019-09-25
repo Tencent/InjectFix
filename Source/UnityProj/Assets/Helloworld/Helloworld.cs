@@ -9,6 +9,7 @@ using UnityEngine;
 using IFix.Core;
 using System.IO;
 using System.Diagnostics;
+using System.Text;
 
 // 跑不同仔细看文档Doc/example.md
 public class Helloworld : MonoBehaviour {
@@ -16,26 +17,39 @@ public class Helloworld : MonoBehaviour {
     // check and load patchs
     void Start () {
         VirtualMachine.Info = (s) => UnityEngine.Debug.Log(s);
-        //try to load patch for Assembly-CSharp.dll
-        var patch = Resources.Load<TextAsset>("Assembly-CSharp.patch");
-        if (patch != null)
-        {
-            UnityEngine.Debug.Log("loading Assembly-CSharp.patch ...");
-            var sw = Stopwatch.StartNew();
-            PatchManager.Load(new MemoryStream(patch.bytes));
-            UnityEngine.Debug.Log("patch Assembly-CSharp.patch, using " + sw.ElapsedMilliseconds + " ms");
-        }
-        //try to load patch for Assembly-CSharp-firstpass.dll
-        patch = Resources.Load<TextAsset>("Assembly-CSharp-firstpass.patch");
-        if (patch != null)
-        {
-            UnityEngine.Debug.Log("loading Assembly-CSharp-firstpass ...");
-            var sw = Stopwatch.StartNew();
-            PatchManager.Load(new MemoryStream(patch.bytes));
-            UnityEngine.Debug.Log("patch Assembly-CSharp-firstpass, using " + sw.ElapsedMilliseconds + " ms");
-        }
-        //try to load patch for testdll.dll
-        patch = Resources.Load<TextAsset>("testdll.patch");
+        ////try to load patch for Assembly-CSharp.dll
+        //var patch = Resources.Load<TextAsset>("Assembly-CSharp.patch");
+        //if (patch != null)
+        //{
+        //    UnityEngine.Debug.Log("loading Assembly-CSharp.patch ...");
+        //    var sw = Stopwatch.StartNew();
+        //    PatchManager.Load(new MemoryStream(patch.bytes));
+        //    UnityEngine.Debug.Log("patch Assembly-CSharp.patch, using " + sw.ElapsedMilliseconds + " ms");
+        //}
+        ////try to load patch for Assembly-CSharp-firstpass.dll
+        //patch = Resources.Load<TextAsset>("Assembly-CSharp-firstpass.patch");
+        //if (patch != null)
+        //{
+        //    UnityEngine.Debug.Log("loading Assembly-CSharp-firstpass ...");
+        //    var sw = Stopwatch.StartNew();
+        //    PatchManager.Load(new MemoryStream(patch.bytes));
+        //    UnityEngine.Debug.Log("patch Assembly-CSharp-firstpass, using " + sw.ElapsedMilliseconds + " ms");
+        //}
+        ////try to load patch for testdll.dll
+        //patch = Resources.Load<TextAsset>("testdll.patch");
+        //if (patch != null)
+        //{
+        //    UnityEngine.Debug.Log("loading testdll ...");
+        //    var sw = Stopwatch.StartNew();
+        //    PatchManager.Load(new MemoryStream(patch.bytes));
+        //    UnityEngine.Debug.Log("patch testdll, using " + sw.ElapsedMilliseconds + " ms");
+        //}
+        //test();
+    }
+
+    public void LoadPatch()
+    {
+        var patch = Resources.Load<TextAsset>("testdll.patch");
         if (patch != null)
         {
             UnityEngine.Debug.Log("loading testdll ...");
@@ -43,7 +57,21 @@ public class Helloworld : MonoBehaviour {
             PatchManager.Load(new MemoryStream(patch.bytes));
             UnityEngine.Debug.Log("patch testdll, using " + sw.ElapsedMilliseconds + " ms");
         }
-        test();
+    }
+
+    public UnityEngine.UI.Text m_text;
+
+    public void RunTest()
+    {
+        var test = new testdll.Test();
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("cal:");
+        sb.AppendLine("2 + 10 = " + test.Add(2, 10));
+        sb.AppendLine("Min(2, 10) = " + testdll.Test.Min(2, 10));
+        if (m_text)
+        {
+            m_text.text = sb.ToString();
+        }
     }
 
     // [IFix.Patch]
