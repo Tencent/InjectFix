@@ -1,4 +1,4 @@
-@set UNITY_HOME=D:\Program Files\Unity523f1
+@set UNITY_HOME=C:\Program Files\Unity.5.6.7f1
 @set GMCS="%UNITY_HOME%\Editor\Data\Mono\bin\gmcs"
 @set MONO="%UNITY_HOME%\Editor\Data\MonoBleedingEdge\bin\mono"
 @set DLL_OUTPUT=..\UnityProj\Assets\Plugins\IFix.Core.dll
