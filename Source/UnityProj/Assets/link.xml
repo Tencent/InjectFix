@@ -1,0 +1,4 @@
+<linker>
+   <assembly fullname="testdll" preserve="all" />
+   <assembly fullname="IFix.Core" preserve="all" />
+</linker>
