@@ -311,8 +311,8 @@ namespace IFix.Editor
         static string[] injectAssemblys = new string[]
         {
             "testdll",
-            "Assembly-CSharp",
-            "Assembly-CSharp-firstpass",
+            //"Assembly-CSharp",
+            //"Assembly-CSharp-firstpass",
         };
 
         /// <summary>

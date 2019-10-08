@@ -19,14 +19,16 @@ public class HelloworldCfg
     {
         get
         {
-            return new List<Type>()
-            {
-                // typeof(Helloworld),
-                typeof(testdll.Test),
-                typeof(IFix.Test.Calculator),
-                //AnotherClass在Pro Standard Assets下，会编译到Assembly-CSharp-firstpass.dll下，用来演示多dll的修复
-                typeof(AnotherClass),
-            };
+            return typeof(testdll.Test).Assembly.GetTypes();
+
+            //return new List<Type>()
+            //{
+            //    // typeof(Helloworld),
+            //    typeof(testdll.Test),
+            //    typeof(IFix.Test.Calculator),
+            //    //AnotherClass在Pro Standard Assets下，会编译到Assembly-CSharp-firstpass.dll下，用来演示多dll的修复
+            //    typeof(AnotherClass),
+            //};
         }
     }
 }
