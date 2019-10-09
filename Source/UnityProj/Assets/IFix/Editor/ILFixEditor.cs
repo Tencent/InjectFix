@@ -373,7 +373,11 @@ namespace IFix.Editor
         //cecil里的类名表示和.net标准并不一样，这里做些转换
         static string GetCecilTypeName(Type type)
         {
-            if (type.IsGenericType)
+            if (type.IsByRef && type.GetElementType().IsGenericType)
+            {
+                return GetCecilTypeName(type.GetElementType()) + "&";
+            }
+            else if (type.IsGenericType)
             {
                 if (type.IsGenericTypeDefinition)
                 {
