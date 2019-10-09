@@ -657,6 +657,42 @@ namespace IFix.Editor
             }
         }
 
+        static bool hasGenericParameter(Type type)
+        {
+            if (type.IsByRef || type.IsArray)
+            {
+                return hasGenericParameter(type.GetElementType());
+            }
+            if (type.IsGenericType)
+            {
+                foreach (var typeArg in type.GetGenericArguments())
+                {
+                    if (hasGenericParameter(typeArg))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return type.IsGenericParameter;
+        }
+
+        static bool hasGenericParameter(MethodBase method)
+        {
+            if (method.IsGenericMethodDefinition || method.IsGenericMethod) return true;
+            if (!method.IsConstructor && hasGenericParameter((method as MethodInfo).ReturnType)) return true;
+
+            foreach (var param in method.GetParameters())
+            {
+                if (hasGenericParameter(param.ParameterType))
+                {
+                    return true;
+                }
+            }
+            return false;
+
+        }
+
         /// <summary>
         /// 生成patch
         /// </summary>
@@ -669,7 +705,7 @@ namespace IFix.Editor
             string corePath = "./Assets/Plugins/IFix.Core.dll", string patchPath = "Assembly-CSharp.patch.bytes")
         {
             var patchMethods = Configure.GetTagMethods(typeof(PatchAttribute), assembly).ToList();
-            var genericMethod = patchMethods.FirstOrDefault(m => m.IsGenericMethodDefinition || m.IsGenericMethod);
+            var genericMethod = patchMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
                 throw new InvalidDataException("not support generic method: " + genericMethod);
@@ -681,7 +717,7 @@ namespace IFix.Editor
             }
 
             var newMethods = Configure.GetTagMethods(typeof(InterpretAttribute), assembly).ToList();
-            genericMethod = newMethods.FirstOrDefault(m => m.IsGenericMethodDefinition || m.IsGenericMethod);
+            genericMethod = newMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
                 throw new InvalidDataException("not support generic method: " + genericMethod);
