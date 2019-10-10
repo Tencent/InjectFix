@@ -1102,7 +1102,6 @@ namespace IFix
                 {
                     var msIl = msIls[i];
                     //Console.WriteLine("msIl:" + msIl.OpCode.Code + ", idx:" + code.Count);
-                    if (method.Name == "ToString" && method.DeclaringType.Name == "ValueTypeCounter") Console.WriteLine("il code:" + msIl.OpCode.Code + ",operand:" + msIl.Operand);
 
                     string strCode = msIls[i].OpCode.Code.ToString();
                     if (strCode.EndsWith("_S"))
