@@ -183,42 +183,33 @@ namespace IFix.Core
                     }
                 }
             }
-            catch (TargetException  e)
-            {
-                Console.WriteLine("exception method: " + method + ", in " + method.DeclaringType + ", msg:"
-                    + e.InnerException);
-                for (int i = 0; i < paramCount; i++)
-                {
-                    Console.WriteLine("arg " + i + " type: " + (args[i] == null ? "null" : args[i].GetType()
-                        .ToString()) + " value: " + args[i]);
-                }
-                throw e;
-
-                //    //VirtualMachine._Info("exception method: " + method + ", in " + method.DeclaringType + ", msg:"
-                //        + e.InnerException);
-                //    //for (int i = 0; i < paramCount; i++)
-                //    //{
-                //    //    VirtualMachine._Info("arg " + i + " type: " + (args[i] == null ? "null" : args[i].GetType()
-                //    //        .ToString()) + " value: " + args[i]);
-                //    //}
-                //    if (e.InnerException is System.ArgumentException && args.Length == 2 && args[1] is object[])
-                //    {
-                //        //VirtualMachine._Info("exception method: " + method + ", in " + method.DeclaringType
-                //        //    + ", msg:" + e.InnerException);
-                //        if (instance is MethodBase)
-                //        {
-                //            MethodBase mb = instance as MethodBase;
-                //            VirtualMachine._Info("exception method: " + mb + ", in " + mb.DeclaringType);
-                //        }
-                //        args = args[1] as object[];
-                //        for (int i = 0; i < args.Length; i++)
-                //        {
-                //            VirtualMachine._Info("arg " + i + " type: " + (args[i] == null ? 
-                //            "null" : args[i].GetType().ToString()) + " value: " + args[i]);
-                //        }
-                //    }
-                //    throw e;
-            }
+            //catch (TargetException  e)
+            //{
+            //    //VirtualMachine._Info("exception method: " + method + ", in " + method.DeclaringType + ", msg:"
+            //        + e.InnerException);
+            //    //for (int i = 0; i < paramCount; i++)
+            //    //{
+            //    //    VirtualMachine._Info("arg " + i + " type: " + (args[i] == null ? "null" : args[i].GetType()
+            //    //        .ToString()) + " value: " + args[i]);
+            //    //}
+            //    if (e.InnerException is System.ArgumentException && args.Length == 2 && args[1] is object[])
+            //    {
+            //        //VirtualMachine._Info("exception method: " + method + ", in " + method.DeclaringType
+            //        //    + ", msg:" + e.InnerException);
+            //        if (instance is MethodBase)
+            //        {
+            //            MethodBase mb = instance as MethodBase;
+            //            VirtualMachine._Info("exception method: " + mb + ", in " + mb.DeclaringType);
+            //        }
+            //        args = args[1] as object[];
+            //        for (int i = 0; i < args.Length; i++)
+            //        {
+            //            VirtualMachine._Info("arg " + i + " type: " + (args[i] == null ? 
+            //            "null" : args[i].GetType().ToString()) + " value: " + args[i]);
+            //        }
+            //    }
+            //    throw e;
+            //}
             finally
             {
                 //for (int i = 0; i < paramCount; i++)

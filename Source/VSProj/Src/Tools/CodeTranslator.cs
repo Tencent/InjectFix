@@ -1421,7 +1421,25 @@ namespace IFix
                                 var methodIdInfo = getMethodId(methodToCall, method, or != null || directCallVirtual,
                                     injectTypePassToNext);
 
-                                if (msIl.OpCode.Code == Code.Call && baseProxy != null 
+                                bool callingBaseMethod = false;
+
+                                try
+                                {
+                                    var callingType = methodToCall.DeclaringType;
+                                    var baseType = method.DeclaringType.BaseType;
+                                    while (baseType != null)
+                                    {
+                                        if (callingType.IsSameType(baseType))
+                                        {
+                                            callingBaseMethod = true;
+                                            break;
+                                        }
+                                        baseType = baseType.Resolve().BaseType;
+                                    }
+                                }
+                                catch { }
+
+                                if (callingBaseMethod && msIl.OpCode.Code == Code.Call && baseProxy != null 
                                     && isTheSameDeclare(methodToCall, method))
                                 {
                                     code.Add(new Core.Instruction
