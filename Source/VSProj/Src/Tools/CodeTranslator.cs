@@ -1044,6 +1044,7 @@ namespace IFix
             }
             //if (!methodToInjectType.TryGetValue(method, out injectType)
             //    || injectType == InjectType.Redirect || mode == ProcessMode.Patch)
+            try
             {
                 var code = new List<Core.Instruction>();
                 codes.Add(methodId, code);
@@ -1663,6 +1664,17 @@ namespace IFix
                 {
                     addInterpretMethod(method, methodId);
                     Console.WriteLine("patched: " + method);
+                }
+            }
+            catch(Exception e)
+            {
+                if (mode == ProcessMode.Inject)
+                {
+                    Console.WriteLine("Warning: process " + method + " il throw " + e);
+                }
+                else
+                {
+                    throw e;
                 }
             }
 
