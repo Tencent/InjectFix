@@ -28,7 +28,7 @@ namespace IFix.Core
             //    | BindingFlags.NonPublic);
             //var p = Expression.Parameter(typeof(object), "obj");
             //var mce = Expression.Call(p, methodInfo);
-            //cloneFunc = Expression.Lambda<Func<object, object>>(mce, p).Compile();//TODO: 需要用到jit么？
+            //cloneFunc = Expression.Lambda<Func<object, object>>(mce, p).Compile();//TODO: 闇�瑕佺敤鍒癹it涔堬紵
         }
 
         public object Clone(object obj)

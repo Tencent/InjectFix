@@ -9,19 +9,19 @@ using System;
 
 namespace IFix
 {
-    //ÇĞ»»µ½½âÎöÖ´ĞĞ
+    //åˆ‡æ¢åˆ°è§£ææ‰§è¡Œ
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
     public class InterpretAttribute : Attribute
     {
     }
 
-    //Ö±½ÓÔÚÒª×ö³É²¹¶¡µÄ·½·¨ÉÏ´ò±êÇ©
+    //ç›´æ¥åœ¨è¦åšæˆè¡¥ä¸çš„æ–¹æ³•ä¸Šæ‰“æ ‡ç­¾
     [AttributeUsage(AttributeTargets.Method)]
     public class PatchAttribute : Attribute
     {
     }
 
-    //¿ÉÒÔÊÖ¶¯Ö¸¶¨ÒªÉú³Édelegate£¨Ö÷ÒªÓÃÓÚ±Õ°ü£©¡¢interface£¨±ÈÈçµü´úÆ÷Óï·¨ÌÇ£©µÄÇÅ½Ó
+    //å¯ä»¥æ‰‹åŠ¨æŒ‡å®šè¦ç”Ÿæˆdelegateï¼ˆä¸»è¦ç”¨äºé—­åŒ…ï¼‰ã€interfaceï¼ˆæ¯”å¦‚è¿­ä»£å™¨è¯­æ³•ç³–ï¼‰çš„æ¡¥æ¥
     [AttributeUsage(AttributeTargets.Class)]
     public class CustomBridgeAttribute : Attribute
     {

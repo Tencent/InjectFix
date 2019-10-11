@@ -60,7 +60,7 @@ There are two steps: Inject and Fix.
 
 In practice, Inject is a one-time operation when sending the package. It is to pre-process the code, because only the code that has been pre-processed can load patches normally.
 
-Fix is ​​the process to generate a patch based on the dll compiled from the modified code.
+Fix is 鈥嬧€媡he process to generate a patch based on the dll compiled from the modified code.
 
 Do not execute Inject between the modified code and Fix, otherwise iFix will consider this to be an online version and refuse to generate a patch. In view of this limitation, we have made some adjustments in the experience flow in the editor: first modify the code to the correct logic and generate a patch. Then revert the code and execute Inject to simulate the problematic online version.
 

@@ -7,10 +7,10 @@
 
 namespace IFix.Test
 {
-    //HelloworldCfg.cs里配置了这个类型
+    //HelloworldCfg.cs閲岄厤缃簡杩欎釜绫诲瀷
     public class Calculator
     {
-        //修改成正确的逻辑后，打开如下注释，生成的补丁将修正该函数
+        //淇敼鎴愭纭殑閫昏緫鍚庯紝鎵撳紑濡備笅娉ㄩ噴锛岀敓鎴愮殑琛ヤ竵灏嗕慨姝ｈ鍑芥暟
         //[Patch]
         public int Add(int a, int b)
         {

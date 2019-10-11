@@ -9,16 +9,16 @@ using System;
 
 namespace IFix.Core
 {
-    //¸Ã½Ó¿ÚÓÉ×¢ÈëÆ÷×Ô¶¯ÊµÏÖ
+    //è¯¥æ¥å£ç”±æ³¨å…¥å™¨è‡ªåŠ¨å®ç°
     public interface WrappersManager
     {
-        //´´½¨Ò»¸ödelegate£¬Èç¹ûanon·Ç¿Õ¾ÍÊÇ±Õ°ü
+        //åˆ›å»ºä¸€ä¸ªdelegateï¼Œå¦‚æœanonéç©ºå°±æ˜¯é—­åŒ…
         Delegate CreateDelegate(Type type, int id, object anon);
-        //´´½¨Ò»¸öinterfaceÇÅ½ÓÆ÷
+        //åˆ›å»ºä¸€ä¸ªinterfaceæ¡¥æ¥å™¨
         AnonymousStorey CreateBridge(int fieldNum, int[] slots, VirtualMachine virtualMachine);
-        //´´½¨Ò»¸öwrapper¶ÔÏó£¨»áÓÉ²¹¶¡¼ÓÔØÂß¼­µ÷ÓÃ£¬´´½¨ºó·ÅÈëwrapperÊı×é£©
+        //åˆ›å»ºä¸€ä¸ªwrapperå¯¹è±¡ï¼ˆä¼šç”±è¡¥ä¸åŠ è½½é€»è¾‘è°ƒç”¨ï¼Œåˆ›å»ºåæ”¾å…¥wrapperæ•°ç»„ï¼‰
         object CreateWrapper(int id);
-        //³õÊ¼»¯wrapperÊı×é
+        //åˆå§‹åŒ–wrapperæ•°ç»„
         object InitWrapperArray(int len);
     }
 }

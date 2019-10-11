@@ -8,7 +8,7 @@
 using UnityEngine;
 using IFix;
 
-//ÓÃÀ´ÑİÊ¾ĞŞ¸Ä´úÂëºó£¬Á¢¼´Ë¢ĞÂµ½Õæ»ú
+//ç”¨æ¥æ¼”ç¤ºä¿®æ”¹ä»£ç åï¼Œç«‹å³åˆ·æ–°åˆ°çœŸæœº
 public class RotateCube : MonoBehaviour
 {
     public Light theLight;
@@ -16,9 +16,9 @@ public class RotateCube : MonoBehaviour
     [Patch]
     void Update()
     {
-        //Ğı×ª
+        //æ—‹è½¬
         transform.Rotate(Vector3.up * Time.deltaTime * 20);
-        //¸Ä±äÑÕÉ«
+        //æ”¹å˜é¢œè‰²
         theLight.color = new Color(Mathf.Sin(Time.time) / 2 + 0.5f, 0, 0, 1);
     }
 }

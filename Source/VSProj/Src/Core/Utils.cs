@@ -11,15 +11,15 @@ using System.Collections.Generic;
 
 namespace IFix.Core
 {
-    //ĞéÄâ»úÊ¹ÓÃ¸ø¹¤¾ßÀà
+    //è™šæ‹Ÿæœºä½¿ç”¨ç»™å·¥å…·ç±»
     public static class Utils
     {
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸ö·½·¨ÊÇ·ñÄÜ¸³Öµµ½Ò»¸ödelegate±äÁ¿
+        /// åˆ¤æ–­ä¸€ä¸ªæ–¹æ³•æ˜¯å¦èƒ½èµ‹å€¼åˆ°ä¸€ä¸ªdelegateå˜é‡
         /// </summary>
-        /// <param name="delegateMethod">delegate±äÁ¿µÄÀàĞÍÀïÍ·µÄinvoke·½·¨</param>
-        /// <param name="method">´ı¸³ÖµµÄ·½·¨</param>
-        /// <returns>ÊÇ·ñÄÜ¸³Öµ</returns>
+        /// <param name="delegateMethod">delegateå˜é‡çš„ç±»å‹é‡Œå¤´çš„invokeæ–¹æ³•</param>
+        /// <param name="method">å¾…èµ‹å€¼çš„æ–¹æ³•</param>
+        /// <returns>æ˜¯å¦èƒ½èµ‹å€¼</returns>
         public static bool IsAssignable(MethodInfo delegateMethod, MethodInfo method)
         {
             if (delegateMethod == null || method == null)
@@ -49,15 +49,15 @@ namespace IFix.Core
             return true;
         }
 
-        //ÊÊÅäÆ÷µÄ»º´æ£¬Èç¹û²»×ö»º´æ£¬Ã¿´Î¶¼µ÷ÓÃIsAssignableÒ»¸ö¸öµÄÈ¡Æ¥Åä»á·Ç³£Âı
+        //é€‚é…å™¨çš„ç¼“å­˜ï¼Œå¦‚æœä¸åšç¼“å­˜ï¼Œæ¯æ¬¡éƒ½è°ƒç”¨IsAssignableä¸€ä¸ªä¸ªçš„å–åŒ¹é…ä¼šéå¸¸æ…¢
         static Dictionary<Type, MethodInfo> delegateAdptCache = new Dictionary<Type, MethodInfo>();
 
         /// <summary>
-        /// ´ÓÒ»¸öwrapper¶ÔÏóÀïÍ·£¬²éÕÒÄÜ¹»ÊÊÅäµ½ÌØ¶¨delegateµÄ·½·¨
+        /// ä»ä¸€ä¸ªwrapperå¯¹è±¡é‡Œå¤´ï¼ŒæŸ¥æ‰¾èƒ½å¤Ÿé€‚é…åˆ°ç‰¹å®šdelegateçš„æ–¹æ³•
         /// </summary>
-        /// <param name="obj">wrapper¶ÔÏó</param>
-        /// <param name="delegateType">delegateÀàĞÍ</param>
-        /// <param name="perfix">·½·¨Ç°×º£¬ÄÜ¹»ÅÅ³ıµôÒ»Ğ©·½·¨£¬±ÈÈç¹¹Ôìº¯Êı</param>
+        /// <param name="obj">wrapperå¯¹è±¡</param>
+        /// <param name="delegateType">delegateç±»å‹</param>
+        /// <param name="perfix">æ–¹æ³•å‰ç¼€ï¼Œèƒ½å¤Ÿæ’é™¤æ‰ä¸€äº›æ–¹æ³•ï¼Œæ¯”å¦‚æ„é€ å‡½æ•°</param>
         /// <returns></returns>
         public static Delegate TryAdapterToDelegate(object obj, Type delegateType, string perfix)
         {

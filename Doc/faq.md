@@ -1,32 +1,32 @@
-## Ö´ÐÐPatch for android»òÕßPatch for iosÊ±£¬±¨¡°"please put template file for android/ios in IFixToolKit directory!¡±
+## æ‰§è¡ŒPatch for androidæˆ–è€…Patch for iosæ—¶ï¼ŒæŠ¥â€œ"please put template file for android/ios in IFixToolKit directory!â€
 
-½â¾öÕâ¸ö´íÎóÐèÒªÖÆ×÷Ò»¸ö±àÒëÄ£°æÎÄ¼þ·Åµ½IFixToolKitÄ¿Â¼£º
+è§£å†³è¿™ä¸ªé”™è¯¯éœ€è¦åˆ¶ä½œä¸€ä¸ªç¼–è¯‘æ¨¡ç‰ˆæ–‡ä»¶æ”¾åˆ°IFixToolKitç›®å½•ï¼š
 
-* ¼ÙÈçÄãÖÆ×÷µÄÊÇandroidµÄÄ£°æ£¬ÇëÖ´ÐÐÒ»´ÎÆÕÍ¨µÄandroid¹¹½¨£¬ÔÚ¹¹½¨µÄ¹ý³ÌÖÐ£¬µ½¡°¹¤³ÌÄ¿Â¼/Temp¡±Ä¿Â¼°ÑUnityTempFile´òÍ·µÄÎÄ¼þ¶¼¿½±´³öÀ´£¬ÆäÖÐÒ»¸ö¡°UnityTempFile¿ªÍ·¡±µÄÎÄ¼þ¾ÍÊÇÄã¸Õ¸Õ´ò°üÃüÁîÐÐÎÄ¼þ£¬¿ÉÒÔ¸ù¾ÝÎÄ¼þÊ±¼ä»òÕßÎÄ¼þÀïÍ·µÄÃüÁîÐÐ²ÎÊý£¨ios»áÓÐÕâÃ´Ò»ÐÐ£º-define:UNITY_IOS£¬android»áÓÐ-define:UNITY_ANDROID£¬¶øÇÒ±ØÐëÃ»ÓÐUNITY_EDITOR£©ÕÒµ½Ëü£¬¿½±´µ½IFixToolKitÄ¿Â¼£¬Èç¹ûÄãÔÚwindow»ñÈ¡µÄUnityTempFile£¬ÖØÃüÃûÎªandroid.win.tpl£¬Èç¹ûÊÇmacÏÂ»ñÈ¡µÄ£¬ÖØÃüÃûÎªandroid.osx.tpl£»£¨Õâ²½¶ÔÓÚÒ»¸öÏîÄ¿£¬Èç¹ûÄã²»Éý¼¶unity°æ±¾£¬²»¸ü¸ÄÌõ¼þ±àÒëºê£¬½öÐè×öÒ»´Î¼´¿É£©
-* iosµÄÄ£°æÎÄ¼þ¸ÄÃûÎªios.osx.tpl£¬Èç¹ûÄãÏ£ÍûÔÚwindowÏÂÖÆ×÷ios²¹¶¡£¬¸´ÖÆÒ»·Ý¸ÄÃûÎªios.win.tpl£¬´ò¿ªÕâ¸öÎÄ¼þ£¬°ÑÁ´½ÓµÄÒýÇædll£¬ÏµÍ³¼¶dllµÄÂ·¾¶°´windowµÄunity°²×°Ä¿Â¼ÐÞ¸Ä¡£
+* å‡å¦‚ä½ åˆ¶ä½œçš„æ˜¯androidçš„æ¨¡ç‰ˆï¼Œè¯·æ‰§è¡Œä¸€æ¬¡æ™®é€šçš„androidæž„å»ºï¼Œåœ¨æž„å»ºçš„è¿‡ç¨‹ä¸­ï¼Œåˆ°â€œå·¥ç¨‹ç›®å½•/Tempâ€ç›®å½•æŠŠUnityTempFileæ‰“å¤´çš„æ–‡ä»¶éƒ½æ‹·è´å‡ºæ¥ï¼Œå…¶ä¸­ä¸€ä¸ªâ€œUnityTempFileå¼€å¤´â€çš„æ–‡ä»¶å°±æ˜¯ä½ åˆšåˆšæ‰“åŒ…å‘½ä»¤è¡Œæ–‡ä»¶ï¼Œå¯ä»¥æ ¹æ®æ–‡ä»¶æ—¶é—´æˆ–è€…æ–‡ä»¶é‡Œå¤´çš„å‘½ä»¤è¡Œå‚æ•°ï¼ˆiosä¼šæœ‰è¿™ä¹ˆä¸€è¡Œï¼š-define:UNITY_IOSï¼Œandroidä¼šæœ‰-define:UNITY_ANDROIDï¼Œè€Œä¸”å¿…é¡»æ²¡æœ‰UNITY_EDITORï¼‰æ‰¾åˆ°å®ƒï¼Œæ‹·è´åˆ°IFixToolKitç›®å½•ï¼Œå¦‚æžœä½ åœ¨windowèŽ·å–çš„UnityTempFileï¼Œé‡å‘½åä¸ºandroid.win.tplï¼Œå¦‚æžœæ˜¯macä¸‹èŽ·å–çš„ï¼Œé‡å‘½åä¸ºandroid.osx.tplï¼›ï¼ˆè¿™æ­¥å¯¹äºŽä¸€ä¸ªé¡¹ç›®ï¼Œå¦‚æžœä½ ä¸å‡çº§unityç‰ˆæœ¬ï¼Œä¸æ›´æ”¹æ¡ä»¶ç¼–è¯‘å®ï¼Œä»…éœ€åšä¸€æ¬¡å³å¯ï¼‰
+* iosçš„æ¨¡ç‰ˆæ–‡ä»¶æ”¹åä¸ºios.osx.tplï¼Œå¦‚æžœä½ å¸Œæœ›åœ¨windowä¸‹åˆ¶ä½œiosè¡¥ä¸ï¼Œå¤åˆ¶ä¸€ä»½æ”¹åä¸ºios.win.tplï¼Œæ‰“å¼€è¿™ä¸ªæ–‡ä»¶ï¼ŒæŠŠé“¾æŽ¥çš„å¼•æ“Ždllï¼Œç³»ç»Ÿçº§dllçš„è·¯å¾„æŒ‰windowçš„unityå®‰è£…ç›®å½•ä¿®æ”¹ã€‚
 
-## IL2CPP ³öÏÖ±¨´í`IL2CPP error for method 'System.Object IFix.Core.EvaluationStackOperation::ToObject(IFix.Core.Value*,IFix.Core.Value*,System.Object[],System.Type,IFix.Core.VirtualMachine,System.Boolean)'`
+## IL2CPP å‡ºçŽ°æŠ¥é”™`IL2CPP error for method 'System.Object IFix.Core.EvaluationStackOperation::ToObject(IFix.Core.Value*,IFix.Core.Value*,System.Object[],System.Type,IFix.Core.VirtualMachine,System.Boolean)'`
 
-Ó¦¸ÃÊÇ×Ô¼ºÊÖ¶¯±àÒë`IFix.Core.dll`µ¼ÖÂ
+åº”è¯¥æ˜¯è‡ªå·±æ‰‹åŠ¨ç¼–è¯‘`IFix.Core.dll`å¯¼è‡´
 
-ÐÞ¸ÄiFix.CoreÔ´´úÂëºó£¬ÐèÒªÍ¨¹ý`build_for_unity.bat`½Å±¾½øÐÐ¹¹½¨
+ä¿®æ”¹iFix.Coreæºä»£ç åŽï¼Œéœ€è¦é€šè¿‡`build_for_unity.bat`è„šæœ¬è¿›è¡Œæž„å»º
 
-## Éú³É Patch µÄÊ±ºòÓöµ½`Error: the new assembly must not be inject, please reimport the project!`±¨´í
+## ç”Ÿæˆ Patch çš„æ—¶å€™é‡åˆ°`Error: the new assembly must not be inject, please reimport the project!`æŠ¥é”™
 
-Éú³É Patch µÄ dll£¬²»ÄÜ½øÐÐ×¢Èë
+ç”Ÿæˆ Patch çš„ dllï¼Œä¸èƒ½è¿›è¡Œæ³¨å…¥
 
-## ²¹¶¡ÖÆ×÷µÄÌõ¼þ±àÒëºêÈçºÎ´¦Àí
+## è¡¥ä¸åˆ¶ä½œçš„æ¡ä»¶ç¼–è¯‘å®å¦‚ä½•å¤„ç†
 
-Èç¹ûÊÇUnity2018.3°æ±¾¼°ÒÔÉÏ£¬ÓÉÓÚUnity¿ª·ÅÁËC#±àÒë½Ó¿Ú£¬ËùÒÔInjectFixÔÚUnity2018.3°æ±¾Ö±½ÓÖ§³ÖAndroidºÍiOSµÄ²¹¶¡Éú³É£¬Ö±½ÓÖ´ÐÐ¶ÔÓ¦²Ëµ¥¼´¿É¡£
+å¦‚æžœæ˜¯Unity2018.3ç‰ˆæœ¬åŠä»¥ä¸Šï¼Œç”±äºŽUnityå¼€æ”¾äº†C#ç¼–è¯‘æŽ¥å£ï¼Œæ‰€ä»¥InjectFixåœ¨Unity2018.3ç‰ˆæœ¬ç›´æŽ¥æ”¯æŒAndroidå’ŒiOSçš„è¡¥ä¸ç”Ÿæˆï¼Œç›´æŽ¥æ‰§è¡Œå¯¹åº”èœå•å³å¯ã€‚
 
-µ«Èç¹ûµÍÓÚUnity2018.3°æ±¾£¬ÔòÒªÓÃ±È½ÏÂé·³µÄ·½Ê½£º°´¶ÔÓ¦Æ½Ì¨µÄ±àÒë²ÎÊý°ÑAssembly-CSharp.dll±àÒë³öÀ´£¬È»ºóµ÷ÓÃIFix.Editor.IFixEditor.GenPatchÈ¥Éú³É²¹¶¡¡£
+ä½†å¦‚æžœä½ŽäºŽUnity2018.3ç‰ˆæœ¬ï¼Œåˆ™è¦ç”¨æ¯”è¾ƒéº»çƒ¦çš„æ–¹å¼ï¼šæŒ‰å¯¹åº”å¹³å°çš„ç¼–è¯‘å‚æ•°æŠŠAssembly-CSharp.dllç¼–è¯‘å‡ºæ¥ï¼Œç„¶åŽè°ƒç”¨IFix.Editor.IFixEditor.GenPatchåŽ»ç”Ÿæˆè¡¥ä¸ã€‚
 
-Unity±àÒëÊÇÔÚ¹¤³ÌµÄTempÄ¿Â¼ÐÂ½¨Ò»¸öÎÄ¼þ£¬°ÑÃüÁîÐÐ²ÎÊý·Åµ½ÄÇ¸öÎÄ¼þ£¬È»ºóÖ´ÐÐÀàËÆ£¨Ä¿Â¼¸ù¾Ý×Ô¼ºµÄunity°²×°Çé¿ö¶ø¶¨£©ÈçÏÂÃüÁî½øÐÐ±àÒë£º
+Unityç¼–è¯‘æ˜¯åœ¨å·¥ç¨‹çš„Tempç›®å½•æ–°å»ºä¸€ä¸ªæ–‡ä»¶ï¼ŒæŠŠå‘½ä»¤è¡Œå‚æ•°æ”¾åˆ°é‚£ä¸ªæ–‡ä»¶ï¼Œç„¶åŽæ‰§è¡Œç±»ä¼¼ï¼ˆç›®å½•æ ¹æ®è‡ªå·±çš„unityå®‰è£…æƒ…å†µè€Œå®šï¼‰å¦‚ä¸‹å‘½ä»¤è¿›è¡Œç¼–è¯‘ï¼š
 
 ~~~bash
 "D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\bin\mono.exe" "D:\Program Files\Unity201702\Editor\Data\MonoBleedingEdge\lib\mono\4.5\mcs.exe"  @Temp/UnityTempFile-55a959adddae39f4aaa18507dd165989
 ~~~
 
-Äã¿ÉÒÔ³¢ÊÔÒ»´Î±à¼­Æ÷ÏÂµÄÊÖ»ú°æ±¾´ò°ü£¬È»ºóµ½¹¤³ÌÄ¿Â¼ÏÂµÄTempÄ¿Â¼°ÑÄÇ¸öÁÙÊ±ÎÄ¼þ¿½±´³öÀ´£¨±àÒëÍê»á×Ô¶¯É¾µô£¬ËùÒÔÒªÊÖ¿ì£©¡£
+ä½ å¯ä»¥å°è¯•ä¸€æ¬¡ç¼–è¾‘å™¨ä¸‹çš„æ‰‹æœºç‰ˆæœ¬æ‰“åŒ…ï¼Œç„¶åŽåˆ°å·¥ç¨‹ç›®å½•ä¸‹çš„Tempç›®å½•æŠŠé‚£ä¸ªä¸´æ—¶æ–‡ä»¶æ‹·è´å‡ºæ¥ï¼ˆç¼–è¯‘å®Œä¼šè‡ªåŠ¨åˆ æŽ‰ï¼Œæ‰€ä»¥è¦æ‰‹å¿«ï¼‰ã€‚
 
-Õâ¸öÎÄ¼þ´ó¶àÊýµØ·½¶¼²»»á±äµÄ£¬±äµÄÖ÷ÒªÊÇC#ÎÄ¼þÁÐ±í£¬¿ÉÒÔ¸ÄÎª¶¯Ì¬Éú³ÉÕâ¸öÎÄ¼þ£ºC#ÎÄ¼þÁÐ±í¸ù¾Ýµ±Ç°ÏîÄ¿Éú³É£¬ÆäËü±£³Ö²»±ä¡£È»ºóÓÃÕâ¸öÎÄ¼þ×÷ÎªÊäÈëÀ´±àÒë¡£
+è¿™ä¸ªæ–‡ä»¶å¤§å¤šæ•°åœ°æ–¹éƒ½ä¸ä¼šå˜çš„ï¼Œå˜çš„ä¸»è¦æ˜¯C#æ–‡ä»¶åˆ—è¡¨ï¼Œå¯ä»¥æ”¹ä¸ºåŠ¨æ€ç”Ÿæˆè¿™ä¸ªæ–‡ä»¶ï¼šC#æ–‡ä»¶åˆ—è¡¨æ ¹æ®å½“å‰é¡¹ç›®ç”Ÿæˆï¼Œå…¶å®ƒä¿æŒä¸å˜ã€‚ç„¶åŽç”¨è¿™ä¸ªæ–‡ä»¶ä½œä¸ºè¾“å…¥æ¥ç¼–è¯‘ã€‚

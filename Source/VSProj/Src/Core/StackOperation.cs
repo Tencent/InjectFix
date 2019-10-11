@@ -40,8 +40,8 @@ namespace IFix.Core
             ManagedStack = new object[VirtualMachine.MAX_EVALUATION_STACK_SIZE];
         }
 
-        //È¥µôÎö¹¹£¬Õý³£¶øÑÔ£¬¾²Ì¬±äÁ¿²»»áÎö¹¹£¬Èç¹ûÕû¸öÐéÄâ»úÊÍ·ÅµÄ»°£¬Í¨¹ýMarshal.AllocHGlobal·ÖÅäµÄ·ÇÍÐ¹Ü
-        //ÄÚ´æÓ¦¸ÃÒ²»á×Ô¶¯ÊÍ·Å°É£¿
+        //åŽ»æŽ‰æžæž„ï¼Œæ­£å¸¸è€Œè¨€ï¼Œé™æ€å˜é‡ä¸ä¼šæžæž„ï¼Œå¦‚æžœæ•´ä¸ªè™šæ‹Ÿæœºé‡Šæ”¾çš„è¯ï¼Œé€šè¿‡Marshal.AllocHGlobalåˆ†é…çš„éžæ‰˜ç®¡
+        //å†…å­˜åº”è¯¥ä¹Ÿä¼šè‡ªåŠ¨é‡Šæ”¾å§ï¼Ÿ
         //~ThreadStackInfo()
         //{
         //    //VirtualMachine._Info("~ThreadStackInfo");
@@ -55,11 +55,11 @@ namespace IFix.Core
         //    Marshal.FreeHGlobal(unmanagedStackHandler);
         //}
 
-        //±¾À´ThreadStaticÊÇºÜºÏÊÊµÄ·½°¸£¬µ«¾ÝËµUnityÏÂµÄThreadStatic»áCrash£¬
-        //UnityÎÄµµ£ºhttps://docs.unity3d.com/Manual/Attributes.html
-        //Ïà¹ØissueÁ´½Ó£ºhttps://issuetracker.unity3d.com/issues/
+        //æœ¬æ¥ThreadStaticæ˜¯å¾ˆåˆé€‚çš„æ–¹æ¡ˆï¼Œä½†æ®è¯´Unityä¸‹çš„ThreadStaticä¼šCrashï¼Œ
+        //Unityæ–‡æ¡£ï¼šhttps://docs.unity3d.com/Manual/Attributes.html
+        //ç›¸å…³issueé“¾æŽ¥ï¼šhttps://issuetracker.unity3d.com/issues/
         //                 e-document-threadstatic-attribute-must-not-be-used-i-will-cause-crashes
-        //issueÄÚÈÝ£º
+        //issueå†…å®¹ï¼š
         //This is a known limitation of the liveness check, as the we don't handle thread static or
         //context static variables as roots when performing the collection. 
         //The crash will happen in mono_unity_liveness_calculation_from_statics
@@ -224,8 +224,8 @@ namespace IFix.Core
         internal static unsafe object ToObject(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, Type type, VirtualMachine virtualMachine, bool valueTypeClone = true)
         {
-            //Î´³õÊ¼»¯µÄlocalÒýÓÃ¿ÉÄÜ×÷Îªout²ÎÊý·´Éäµ÷ÓÃ
-            //TODO: ÑéÖ¤ÖµÀàÐÍout²ÎÊý£¬¶ÔÓ¦²ÎÊýÎ»ÖÃÊÇ·ñ¿ÉÒÔÊÇnull£¿
+            //æœªåˆå§‹åŒ–çš„localå¼•ç”¨å¯èƒ½ä½œä¸ºoutå‚æ•°åå°„è°ƒç”¨
+            //TODO: éªŒè¯å€¼ç±»åž‹outå‚æ•°ï¼Œå¯¹åº”å‚æ•°ä½ç½®æ˜¯å¦å¯ä»¥æ˜¯nullï¼Ÿ
             switch (evaluationStackPointer->Type)
             {
                 case ValueType.Integer:
@@ -407,7 +407,7 @@ namespace IFix.Core
         }
 
         public static void UpdateReference(Value* evaluationStackBase, Value* evaluationStackPointer,
-            object[] managedStack, object obj, VirtualMachine virtualMachine, Type type) //·´Éä×¨ÓÃ
+            object[] managedStack, object obj, VirtualMachine virtualMachine, Type type) //åå°„ä¸“ç”¨
         {
             switch (evaluationStackPointer->Type)
             {
@@ -460,7 +460,7 @@ namespace IFix.Core
                         }
                         break;
                     }
-                case ValueType.StaticFieldReference://¸üÐÂÍê±Ï£¬Ö±½Óreturn
+                case ValueType.StaticFieldReference://æ›´æ–°å®Œæ¯•ï¼Œç›´æŽ¥return
                     {
                         var fieldIndex = evaluationStackPointer->Value1;
                         if (fieldIndex >= 0)
@@ -487,7 +487,7 @@ namespace IFix.Core
 
         internal object[] managedStack;
 
-        internal Value* currentTop;//ÓÃÓÚpush×´Ì¬
+        internal Value* currentTop;//ç”¨äºŽpushçŠ¶æ€
 
         internal Value** topWriteBack;
 
@@ -706,7 +706,7 @@ namespace IFix.Core
             return (T)GetObject(offset);
         }
 
-        public void PushObjectAsResult(object obj, Type type) //·´Éä×¨ÓÃ
+        public void PushObjectAsResult(object obj, Type type) //åå°„ä¸“ç”¨
         {
             EvaluationStackOperation.PushObject(evaluationStackBase, argumentBase, managedStack, obj, type);
             currentTop = argumentBase + 1;
@@ -720,7 +720,7 @@ namespace IFix.Core
             currentTop++;
         }
 
-        public void UpdateReference(int offset, object obj, VirtualMachine virtualMachine, Type type) //·´Éä×¨ÓÃ
+        public void UpdateReference(int offset, object obj, VirtualMachine virtualMachine, Type type) //åå°„ä¸“ç”¨
         {
             EvaluationStackOperation.UpdateReference(ThreadStackInfo.Stack.UnmanagedStack->Base,
                 argumentBase + offset, managedStack, obj, virtualMachine, type);
@@ -728,7 +728,7 @@ namespace IFix.Core
 
         public static void End(ref Call call)
         {
-            //TopµÄÎ¬»¤
+            //Topçš„ç»´æŠ¤
             //ThreadStackInfo.Stack.UnmanagedStack->Top = call.argumentBase;
         }
     }
