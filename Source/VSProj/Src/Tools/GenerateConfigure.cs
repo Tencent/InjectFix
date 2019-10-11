@@ -21,7 +21,7 @@ namespace IFix
             return new EmptyGenerateConfigure();
         }
 
-        //½ö½ö¼òµ¥µÄ´ÓÎÄ¼ş¼ÓÔØÀàÃû¶øÒÑ
+        //ä»…ä»…ç®€å•çš„ä»æ–‡ä»¶åŠ è½½ç±»åè€Œå·²
         public static GenerateConfigure FromFile(string filename)
         {
             DefaultGenerateConfigure generateConfigure = new DefaultGenerateConfigure();
@@ -48,23 +48,23 @@ namespace IFix
         }
 
         /// <summary>
-        /// Èç¹ûÒ»¸ö·½·¨´òÁËÖ¸¶¨µÄ±êÇ©£¬·µ»ØÆäÅäÖÃµÄ±êÖ¾Î»
+        /// å¦‚æœä¸€ä¸ªæ–¹æ³•æ‰“äº†æŒ‡å®šçš„æ ‡ç­¾ï¼Œè¿”å›å…¶é…ç½®çš„æ ‡å¿—ä½
         /// </summary>
-        /// <param name="tag">±êÇ©</param>
-        /// <param name="method">Òª²éÑ¯µÄ·½·¨</param>
-        /// <param name="flag">Êä³ö²ÎÊı£¬ÓÃ»§ÅäÖÃµÄ±êÖ¾Î»</param>
+        /// <param name="tag">æ ‡ç­¾</param>
+        /// <param name="method">è¦æŸ¥è¯¢çš„æ–¹æ³•</param>
+        /// <param name="flag">è¾“å‡ºå‚æ•°ï¼Œç”¨æˆ·é…ç½®çš„æ ‡å¿—ä½</param>
         /// <returns></returns>
         public abstract bool TryGetConfigure(string tag, MethodReference method, out int flag);
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸ö·½·¨ÊÇ·ñÊÇĞÂÔö·½·¨
+        /// åˆ¤æ–­ä¸€ä¸ªæ–¹æ³•æ˜¯å¦æ˜¯æ–°å¢æ–¹æ³•
         /// </summary>
-        /// <param name="method">Òª²éÑ¯µÄ·½·¨</param>
+        /// <param name="method">è¦æŸ¥è¯¢çš„æ–¹æ³•</param>
         /// <returns></returns>
         public abstract bool IsNewMethod(MethodReference method);
     }
 
-    //ÄÚ²¿²âÊÔ×¨ÓÃ
+    //å†…éƒ¨æµ‹è¯•ä¸“ç”¨
     public class EmptyGenerateConfigure : GenerateConfigure
     {
         public override bool TryGetConfigure(string tag, MethodReference method, out int flag)
@@ -79,7 +79,7 @@ namespace IFix
         }
     }
 
-    //×¢ÈëÅäÖÃÊ¹ÓÃ
+    //æ³¨å…¥é…ç½®ä½¿ç”¨
     public class DefaultGenerateConfigure : GenerateConfigure
     {
         internal Dictionary<string, Dictionary<string, int>> configures
@@ -99,7 +99,7 @@ namespace IFix
         }
     }
 
-    //patchÅäÖÃÊ¹ÓÃ
+    //patché…ç½®ä½¿ç”¨
     public class PatchGenerateConfigure : GenerateConfigure
     {
         public override bool TryGetConfigure(string tag, MethodReference method, out int flag)
@@ -121,7 +121,7 @@ namespace IFix
             return newMethods.Contains(method);
         }
 
-        //ÔİÊ±²»Ö§³ÖredirectÀàĞÍµÄ·½·¨
+        //æš‚æ—¶ä¸æ”¯æŒredirectç±»å‹çš„æ–¹æ³•
         HashSet<MethodReference> redirectMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> switchMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> newMethods = new HashSet<MethodReference>();
@@ -144,14 +144,14 @@ namespace IFix
             }
             return null;
         }
-        //²ÎÊıÀàĞÍĞÅÏ¢
+        //å‚æ•°ç±»å‹ä¿¡æ¯
         class ParameterMatchInfo
         {
             public bool IsOut;
             public string ParameterType;
         }
 
-        //·½·¨Ç©ÃûĞÅÏ¢
+        //æ–¹æ³•ç­¾åä¿¡æ¯
         class MethodMatchInfo
         {
             public string Name;
@@ -159,7 +159,7 @@ namespace IFix
             public ParameterMatchInfo[] Parameters;
         }
 
-        //ÅĞ¶ÏÒ»¸ö·½·¨ÊÇ·ñÄÜ¹»ÔÚmatchInfoÀïÍ·ÄÜ²éÑ¯µ½
+        //åˆ¤æ–­ä¸€ä¸ªæ–¹æ³•æ˜¯å¦èƒ½å¤Ÿåœ¨matchInfoé‡Œå¤´èƒ½æŸ¥è¯¢åˆ°
         bool isMatch(Dictionary<string, MethodMatchInfo[]> matchInfo, MethodReference method)
         {
             MethodMatchInfo[] mmis;
@@ -187,7 +187,7 @@ namespace IFix
             return false;
         }
 
-        //¶ÁÈ¡·½·¨ĞÅÏ¢£¬Ö÷ÒªÊÇ·½·¨µÄÇ©ÃûĞÅÏ¢£¬Ãû×Ö+²ÎÊıÀàĞÍ+·µ»ØÖµÀàĞÍ
+        //è¯»å–æ–¹æ³•ä¿¡æ¯ï¼Œä¸»è¦æ˜¯æ–¹æ³•çš„ç­¾åä¿¡æ¯ï¼Œåå­—+å‚æ•°ç±»å‹+è¿”å›å€¼ç±»å‹
         static Dictionary<string, MethodMatchInfo[]> readMatchInfo(BinaryReader reader)
         {
             Dictionary<string, MethodMatchInfo[]> matchInfo = new Dictionary<string, MethodMatchInfo[]>();
@@ -219,7 +219,7 @@ namespace IFix
             return matchInfo;
         }
 
-        //¶ÁÈ¡ÅäÖÃĞÅÏ¢£¨ÒªpatchµÄ·½·¨ÁĞ±í£¬ĞÂÔö·½·¨ÁĞ±í£©
+        //è¯»å–é…ç½®ä¿¡æ¯ï¼ˆè¦patchçš„æ–¹æ³•åˆ—è¡¨ï¼Œæ–°å¢æ–¹æ³•åˆ—è¡¨ï¼‰
         public PatchGenerateConfigure(AssemblyDefinition newAssembly, string cfgPath)
         {
             Dictionary<string, MethodMatchInfo[]> patchMethodInfo = null;

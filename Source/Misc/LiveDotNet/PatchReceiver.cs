@@ -5,9 +5,9 @@
  * This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this source code package.
  */
 
-//!!½ö½ö¼òµ¥µÄ¿ªtcp£¬½ÓÊÕµ½Êı¾İÃ»×öĞ£Ñé¾ÍÖ±½ÓÖ´ĞĞ
-//!!ËùÒÔÇĞ¼ÇÕâ¸ö½ö½öÓÃÓÚÆ½Ê±¿ª·¢µ÷ÊÔÊ¹ÓÃ
-//!!×îÖÕÓÎÏ··¢²¼°üÎñ±ØÉ¾³ı
+//!!ä»…ä»…ç®€å•çš„å¼€tcpï¼Œæ¥æ”¶åˆ°æ•°æ®æ²¡åšæ ¡éªŒå°±ç›´æ¥æ‰§è¡Œ
+//!!æ‰€ä»¥åˆ‡è®°è¿™ä¸ªä»…ä»…ç”¨äºå¹³æ—¶å¼€å‘è°ƒè¯•ä½¿ç”¨
+//!!æœ€ç»ˆæ¸¸æˆå‘å¸ƒåŒ…åŠ¡å¿…åˆ é™¤
 #warning "Please remove PatchReceiver.cs from release package."
 
 using UnityEngine;
@@ -22,32 +22,32 @@ namespace IFix
 {
     public class PatchReceiver : MonoBehaviour
     {
-        //Ä¬ÈÏµÄ²¹¶¡ÎÄ¼ş±£´æÃû
+        //é»˜è®¤çš„è¡¥ä¸æ–‡ä»¶ä¿å­˜å
         const string PERSISTENT_FILE_NAME = "__LAST_RUN_SAVED_PATCH";
 
-        //½ÓÊÕ»º³åÇøµÄ´óĞ¡
+        //æ¥æ”¶ç¼“å†²åŒºçš„å¤§å°
         const int BUFFER_SIZE = 1024;
 
         Stream patch = null;
 
-        //ĞèÒª¸úLiveDotNet.csµÄ¶Ë¿ÚÅäÌ×
+        //éœ€è¦è·ŸLiveDotNet.csçš„ç«¯å£é…å¥—
         public int Port = 8080;
 
-        //Õâ¸öÉèÖÃÎªtrueµÄ»°£¬²¹¶¡ÎÄ¼ş»á±£´æµ½ÎÄ¼ş£¬ÖØÆôÓ¦ÓÃºóÈÔÈ»ÉúĞ§
+        //è¿™ä¸ªè®¾ç½®ä¸ºtrueçš„è¯ï¼Œè¡¥ä¸æ–‡ä»¶ä¼šä¿å­˜åˆ°æ–‡ä»¶ï¼Œé‡å¯åº”ç”¨åä»ç„¶ç”Ÿæ•ˆ
         public bool Persistent = false;
 
         Socket listener = null;
 
         string lastRunSavePath;
 
-        //1¡¢¼àÌı
-        //2¡¢accpetµ½Á´½Óºó£¬½ÓÊÕ¸ÃÁ´½ÓËùÓĞÊı¾İ
-        //3¡¢°ÑÊı¾İ×÷Îª²¹¶¡°ü¼ÓÔØ
+        //1ã€ç›‘å¬
+        //2ã€accpetåˆ°é“¾æ¥åï¼Œæ¥æ”¶è¯¥é“¾æ¥æ‰€æœ‰æ•°æ®
+        //3ã€æŠŠæ•°æ®ä½œä¸ºè¡¥ä¸åŒ…åŠ è½½
         void ReceivePatch()
         {
             byte[] bytes = new byte[BUFFER_SIZE];
 
-            //¼àÌıËùÓĞµØÖ·
+            //ç›‘å¬æ‰€æœ‰åœ°å€
             IPAddress ipAddress = IPAddress.Parse("0.0.0.0");
             IPEndPoint localEndPoint = new IPEndPoint(ipAddress, Port);
 
@@ -107,7 +107,7 @@ namespace IFix
             }
         }
 
-        //Èç¹ûÉèÖÃÁË³Ö¾Ã»¯£¬ÔÚAwakeÊ±¼ÓÔØÉÏ´Î±£´æµÄ²¹¶¡ÎÄ¼ş
+        //å¦‚æœè®¾ç½®äº†æŒä¹…åŒ–ï¼Œåœ¨Awakeæ—¶åŠ è½½ä¸Šæ¬¡ä¿å­˜çš„è¡¥ä¸æ–‡ä»¶
         void Awake()
         {
             lastRunSavePath = Application.persistentDataPath + Path.DirectorySeparatorChar + PERSISTENT_FILE_NAME;
@@ -119,7 +119,7 @@ namespace IFix
                 }
             }
             DontDestroyOnLoad(gameObject);
-            //Æô¶¯Ïß³ÌÀ´½ÓÊÕ²¹¶¡£¬²»¿¨Ö÷Ïß³Ì£¬Á½ÕßÍ¨¹ıpatch±äÁ¿À´½»½ÓÊı¾İ
+            //å¯åŠ¨çº¿ç¨‹æ¥æ¥æ”¶è¡¥ä¸ï¼Œä¸å¡ä¸»çº¿ç¨‹ï¼Œä¸¤è€…é€šè¿‡patchå˜é‡æ¥äº¤æ¥æ•°æ®
             new Thread(ReceivePatch).Start();
         }
 

@@ -9,6 +9,6 @@ namespace IFix
 {
     public class Version
     {
-        public const string FILE_FORMAT = "0.0.6";//ÎÄ¼ş¸ñÊ½°æ±¾ºÅ
+        public const string FILE_FORMAT = "0.0.6";//æ–‡ä»¶æ ¼å¼ç‰ˆæœ¬å·
     }
 }

@@ -14,10 +14,10 @@ using System;
 
 namespace IFix.Editor
 {
-    //ÊäÈëÈı¸öĞÅÏ¢£º
-    //  1¡¢Æ½Ì¨£¨ios¡¢android£©
-    //  2¡¢ÊÖ»úµÄipµØÖ·
-    //  3¡¢¶Ë¿ÚĞÅÏ¢£¬¶Ë¿ÚĞÅÏ¢ÒªºÍPatchReceiverÅäÖÃ¶ÔÓ¦ÉÏ
+    //è¾“å…¥ä¸‰ä¸ªä¿¡æ¯ï¼š
+    //  1ã€å¹³å°ï¼ˆiosã€androidï¼‰
+    //  2ã€æ‰‹æœºçš„ipåœ°å€
+    //  3ã€ç«¯å£ä¿¡æ¯ï¼Œç«¯å£ä¿¡æ¯è¦å’ŒPatchReceiveré…ç½®å¯¹åº”ä¸Š
     public class LiveDotNet : EditorWindow
     {
         private int platformIndex = 0;
@@ -41,8 +41,8 @@ namespace IFix.Editor
                 doPatch();
         }
 
-        //1¡¢IFixEditor.GenPlatformPatch»áÉú³ÉÉú³É²¹¶¡ÎÄ¼ş
-        //2¡¢·¢ËÍ¸øÊÖ»ú
+        //1ã€IFixEditor.GenPlatformPatchä¼šç”Ÿæˆç”Ÿæˆè¡¥ä¸æ–‡ä»¶
+        //2ã€å‘é€ç»™æ‰‹æœº
         void doPatch()
         {
             IFixEditor.Platform platform = platformIndex == 0 ? IFixEditor.Platform.ios : IFixEditor.Platform.android;
@@ -60,9 +60,9 @@ namespace IFix.Editor
             File.Delete(patchPath);
         }
 
-        //1¡¢¶ÔÊÖ»ú½¨Á¢TCPÁ´½Ó
-        //2¡¢·¢ËÍÕû¸ö°ü
-        //3¡¢¹Ø±ÕÁ´½Ó
+        //1ã€å¯¹æ‰‹æœºå»ºç«‹TCPé“¾æ¥
+        //2ã€å‘é€æ•´ä¸ªåŒ…
+        //3ã€å…³é—­é“¾æ¥
         void doSend(byte[] bytes, IPEndPoint remoteEndPoint)
         {
             try

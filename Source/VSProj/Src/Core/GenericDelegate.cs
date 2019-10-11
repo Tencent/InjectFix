@@ -10,22 +10,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-//ifix»á·ÖÎö±Õ°ü£¬Õë¶Ô±Õ°ü¶ÔÓ¦µÄdelegateÉú³ÉÊÊÅäÆ÷
-//µ«ÊÇÓĞµÄÇé¿öÊÇÔ­À´ÄÇ¸öµØ·½²»ÊÇÓÃ±Õ°ü£¬ĞŞ¸´Ê±ÓÃÁË±Õ°ü£¬ÕâÊ±»á±¨ÕÒ²»µ½ÊÊÅäÆ÷µÄ´íÎó¡£
-//ÕâÖÖÎÊÌâ¿ÉÒÔÍ¨¹ıCustomBridageÅäÖÃÀ´±ÜÃâ£¬µ«ÊÇºÜ¶àÊ±ºòÓÃ»§ÎŞ·¨Ô¤ÖªÕâÖÖÇé¿ö¡£
-//ÕâÀï¾ÍÊÇÎªÁË¼õÉÙÕâÖÖÇé¿öµÄÓ°Ïì£º²ÎÊı¸öÊı²»³¬¹ı4¸ö£¬ÇÒ¾ùÎªÒıÓÃÀàĞÍ£¬
-//ÎŞ·µ»ØÖµ»òÕß·µ»ØÖµÊÇÒıÓÃÀàĞÍ£¬ÕâÀïÄÜ¹»×öµ½£¨Í¨¹ı·ºĞÍ£©×Ô¶¯Éú³ÉÊÊÅäÆ÷¡£
+//ifixä¼šåˆ†æé—­åŒ…ï¼Œé’ˆå¯¹é—­åŒ…å¯¹åº”çš„delegateç”Ÿæˆé€‚é…å™¨
+//ä½†æ˜¯æœ‰çš„æƒ…å†µæ˜¯åŸæ¥é‚£ä¸ªåœ°æ–¹ä¸æ˜¯ç”¨é—­åŒ…ï¼Œä¿®å¤æ—¶ç”¨äº†é—­åŒ…ï¼Œè¿™æ—¶ä¼šæŠ¥æ‰¾ä¸åˆ°é€‚é…å™¨çš„é”™è¯¯ã€‚
+//è¿™ç§é—®é¢˜å¯ä»¥é€šè¿‡CustomBridageé…ç½®æ¥é¿å…ï¼Œä½†æ˜¯å¾ˆå¤šæ—¶å€™ç”¨æˆ·æ— æ³•é¢„çŸ¥è¿™ç§æƒ…å†µã€‚
+//è¿™é‡Œå°±æ˜¯ä¸ºäº†å‡å°‘è¿™ç§æƒ…å†µçš„å½±å“ï¼šå‚æ•°ä¸ªæ•°ä¸è¶…è¿‡4ä¸ªï¼Œä¸”å‡ä¸ºå¼•ç”¨ç±»å‹ï¼Œ
+//æ— è¿”å›å€¼æˆ–è€…è¿”å›å€¼æ˜¯å¼•ç”¨ç±»å‹ï¼Œè¿™é‡Œèƒ½å¤Ÿåšåˆ°ï¼ˆé€šè¿‡æ³›å‹ï¼‰è‡ªåŠ¨ç”Ÿæˆé€‚é…å™¨ã€‚
 
 namespace IFix.Core
 {
     internal class GenericDelegateFactory
     {
-        //ÎŞ·µ»ØÖµ·ºĞÍ·½·¨
+        //æ— è¿”å›å€¼æ³›å‹æ–¹æ³•
         static MethodInfo[] genericAction = null;
-        //ÓĞ·µ»ØÖµ·ºĞÍ·½·¨
+        //æœ‰è¿”å›å€¼æ³›å‹æ–¹æ³•
         static MethodInfo[] genericFunc = null;
 
-        //·ºĞÍdelegateÊÊÅäÆ÷¹¹ÔìÆ÷µÄ»º´æ
+        //æ³›å‹delegateé€‚é…å™¨æ„é€ å™¨çš„ç¼“å­˜
         static Dictionary<Type, Func<GenericDelegate, Delegate>> genericDelegateCreatorCache
             = new Dictionary<Type, Func<GenericDelegate, Delegate>>();
 
@@ -54,7 +54,7 @@ namespace IFix.Core
             Func<GenericDelegate, Delegate> genericDelegateCreator;
             if (!genericDelegateCreatorCache.TryGetValue(delegateType, out genericDelegateCreator))
             {
-                //Èç¹û·ºĞÍ·½·¨Êı×éÎ´³õÊ¼»¯
+                //å¦‚æœæ³›å‹æ–¹æ³•æ•°ç»„æœªåˆå§‹åŒ–
                 if (genericAction == null)
                 {
                     PreventStripping(null);
@@ -73,20 +73,20 @@ namespace IFix.Core
                     || parameters.Any(p => p.ParameterType.IsValueType || p.ParameterType.IsByRef)
                     )
                 {
-                    //Èç¹û²»ÔÚÖ§³ÖµÄ·¶Î§£¬ÔòÉú³ÉÒ»¸öÓÀÔ¶·µ»Ø¿ÕµÄ¹¹ÔìÆ÷
+                    //å¦‚æœä¸åœ¨æ”¯æŒçš„èŒƒå›´ï¼Œåˆ™ç”Ÿæˆä¸€ä¸ªæ°¸è¿œè¿”å›ç©ºçš„æ„é€ å™¨
                     genericDelegateCreator = (x) => null;
                 }
                 else
                 {
                     if (delegateMethod.ReturnType == typeof(void) && parameters.Length == 0)
                     {
-                        //¶ÔÎŞ²ÎÎŞ·µ»ØÖµÌØÊâ´¦Àí
+                        //å¯¹æ— å‚æ— è¿”å›å€¼ç‰¹æ®Šå¤„ç†
                         var methodInfo = genericAction[0];
                         genericDelegateCreator = (o) => Delegate.CreateDelegate(delegateType, o, methodInfo);
                     }
                     else
                     {
-                        //¸ù¾İ²ÎÊı¸öÊı£¬·µ»ØÖµÕÒµ½·ºĞÍÊµÏÖ
+                        //æ ¹æ®å‚æ•°ä¸ªæ•°ï¼Œè¿”å›å€¼æ‰¾åˆ°æ³›å‹å®ç°
                         var typeArgs = parameters.Select(pinfo => pinfo.ParameterType);
                         MethodInfo genericMethodInfo = null;
                         if (delegateMethod.ReturnType == typeof(void))
@@ -96,39 +96,39 @@ namespace IFix.Core
                         else
                         {
                             genericMethodInfo = genericFunc[parameters.Length];
-                            //Èç¹ûÊÇÓĞ·µ»ØÖµ£¬ĞèÒª¼ÓÉÏ·µ»ØÖµ×÷Îª·ºĞÍÊµ²Î
+                            //å¦‚æœæ˜¯æœ‰è¿”å›å€¼ï¼Œéœ€è¦åŠ ä¸Šè¿”å›å€¼ä½œä¸ºæ³›å‹å®å‚
                             typeArgs = typeArgs.Concat(new Type[] { delegateMethod.ReturnType });
                         }
-                        //ÊµÀı»¯·ºĞÍ·½·¨
+                        //å®ä¾‹åŒ–æ³›å‹æ–¹æ³•
                         var methodInfo = genericMethodInfo.MakeGenericMethod(typeArgs.ToArray());
-                        //¹¹ÔìÆ÷
+                        //æ„é€ å™¨
                         genericDelegateCreator = (o) => Delegate.CreateDelegate(delegateType, o, methodInfo);
                     }
                 }
-                //»º´æ¹¹ÔìÆ÷£¬ÏÂ´Îµ÷ÓÃÖ±½Ó·µ»Ø
+                //ç¼“å­˜æ„é€ å™¨ï¼Œä¸‹æ¬¡è°ƒç”¨ç›´æ¥è¿”å›
                 genericDelegateCreatorCache[delegateType] = genericDelegateCreator;
             }
-            //´´½¨delegate
+            //åˆ›å»ºdelegate
             return genericDelegateCreator(new GenericDelegate(virtualMachine, methodId, anonObj));
         }
     }
 
-    //·ºĞÍÊÊÅäÆ÷
+    //æ³›å‹é€‚é…å™¨
     internal class GenericDelegate
     {
-        //Ö¸ÏòµÄĞéÄâ»ú¶ÔÏó
+        //æŒ‡å‘çš„è™šæ‹Ÿæœºå¯¹è±¡
         VirtualMachine virtualMachine;
 
-        //ĞéÄâ»ú·½·¨id
+        //è™šæ‹Ÿæœºæ–¹æ³•id
         int methodId;
 
-        //°ó¶¨µÄÄäÃû¶ÔÏó
+        //ç»‘å®šçš„åŒ¿åå¯¹è±¡
         object anonObj;
 
-        //Ô¤¼ÆËã£¬ÊÇ·ñÒª°ÑanonObj pushµÄ±êÖ¾Î´
+        //é¢„è®¡ç®—ï¼Œæ˜¯å¦è¦æŠŠanonObj pushçš„æ ‡å¿—æœª
         bool pushSelf;
 
-        //Ô¤¼ÆËã£¬Èç¹ûÓĞanonObj²ÎÊı¸öÊıÔòÒª+1
+        //é¢„è®¡ç®—ï¼Œå¦‚æœæœ‰anonObjå‚æ•°ä¸ªæ•°åˆ™è¦+1
         int extraArgNum;
 
         internal GenericDelegate(VirtualMachine virtualMachine, int methodId, object anonObj)
@@ -153,16 +153,16 @@ namespace IFix.Core
         public void Action<T1>(T1 p1)
             where T1 : class
         {
-            //´´½¨call¶ÔÏó
+            //åˆ›å»ºcallå¯¹è±¡
             Call call = Call.Begin();
             if (pushSelf)
             {
-                //Èç¹ûÓĞ°ó¶¨µÄÄäÃû¶ÔÏó£¬push
+                //å¦‚æœæœ‰ç»‘å®šçš„åŒ¿åå¯¹è±¡ï¼Œpush
                 call.PushObject(anonObj);
             }
-            //pushµÚÒ»¸ö²ÎÊı
+            //pushç¬¬ä¸€ä¸ªå‚æ•°
             call.PushObject(p1);
-            //µ÷ÓÃÖ¸¶¨idµÄĞéÄâ»ú·½·¨
+            //è°ƒç”¨æŒ‡å®šidçš„è™šæ‹Ÿæœºæ–¹æ³•
             virtualMachine.Execute(methodId, ref call, 1 + extraArgNum);
         }
 
@@ -237,7 +237,7 @@ namespace IFix.Core
             }
             call.PushObject(p1);
             virtualMachine.Execute(methodId, ref call, 1 + extraArgNum);
-            //´ÓÕ»ÉÏ»ñÈ¡½á¹û
+            //ä»æ ˆä¸Šè·å–ç»“æœ
             return (TResult)call.GetObject();
         }
 

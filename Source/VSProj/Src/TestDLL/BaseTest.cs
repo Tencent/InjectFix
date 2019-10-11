@@ -155,11 +155,11 @@ namespace IFix.Test
             return "6";
         }
 
-        //TODO: ·ºÐÍ+ÒýÓÃ¼°Êý×é
+        //TODO: æ³›åž‹+å¼•ç”¨åŠæ•°ç»„
 
-        //TODO: ·ºÐÍÊµ²ÎÍ¬Ê±º¬º¯Êý·ºÐÍ²ÎÊý¼°Àà·ºÐÍ²ÎÊý
+        //TODO: æ³›åž‹å®žå‚åŒæ—¶å«å‡½æ•°æ³›åž‹å‚æ•°åŠç±»æ³›åž‹å‚æ•°
 
-        //TODO: ÓÉÓÚÄ¿Ç°·ºÐÍº¯Êý²»½âÎöÖ´ÐÐ£¬ËùÒÔ·ºÐÍÊµ²ÎÔÚ·ºÐÍº¯Êý¼ä´«µÝ²»ÓÃ¿¼ÂÇ£¬µ«ºóÐøÈç¹ûÒªÖ§³Ö·ºÐÍº¯ÊýµÄ½âÎöÖ´ÐÐµÄ»°£¬Òª¼ÓÈëÕâµãµÄ¿¼ÂÇ
+        //TODO: ç”±äºŽç›®å‰æ³›åž‹å‡½æ•°ä¸è§£æžæ‰§è¡Œï¼Œæ‰€ä»¥æ³›åž‹å®žå‚åœ¨æ³›åž‹å‡½æ•°é—´ä¼ é€’ä¸ç”¨è€ƒè™‘ï¼Œä½†åŽç»­å¦‚æžœè¦æ”¯æŒæ³›åž‹å‡½æ•°çš„è§£æžæ‰§è¡Œçš„è¯ï¼Œè¦åŠ å…¥è¿™ç‚¹çš„è€ƒè™‘
 
         //public void F<T4>(List<T4> a)
         //{
@@ -445,14 +445,14 @@ namespace IFix.Test
             r = t;
         }
 
-        //1¡¢leaveµÄÄ¿±ê²»Ò»¶¨½ô¸úfinally block£¬¿ÉÒÔÊÇÈÎºÎµØ·½
-        //2¡¢leaveÒªÕÒµ½×îÄÚ²ãµÄfinallyÌø×ª
-        //3¡¢endfinallyÓÐÁ½ÖÖÇé¿ö£¬Èç¹ûÊÇleaveÌø¹ýÀ´£¬ÔòÌøµ½leaveµÄÄ¿±ê£¬Èç¹û²»ÊÇ£¬ÔòÖØÐÂÅ×Òì³£
-        //4¡¢ÎªÁË¼õÉÙ×¢Èë´úÂë×¢Èë²à²»try-catch£¬ÓÉ½âÎöÆ÷ÇåÕ»£¬°üÀ¨ÒýÓÃ²ÎÊý£¬ËùÒÔÒª´«ÈëÒýÓÃ²ÎÊýµÄ¸öÊý
-        //5¡¢Õý³£leave²»Ó¦¸ÃÓÐ²éÕÒfinallyµÄ²Ù×÷£¬·ñÔò·Ç³£Âý
-        //6¡¢Ò»¸öfinally blockÀïÍ·µÄleaveÖ¸Áî£¬¿ÉÒÔÓÐ²»Í¬µÄÄ¿±êµØÖ·£¬±ÈÈç£ºtry{}catch{goto}
-        //7¡¢leaveÈç¹ûÔÚÒ»¸öfinally blockÄÚ£¬¶øÄ¿±êµØÖ·ÔÚfinallyµÄtry blockÖ®Íâ£¬ÄÇÃ´Õâ¸öfinally blockÔÚÌø×ªÇ°Ö´ÐÐ£¬
-        //   Èç¹ûÓÐ¶à¸öÕâÑùµÄfinally£¬Ôò´ÓÄÚµ½ÍâÖ´ÐÐ£¨Å×Òì³£ÆäÊµÒ²¿ÉÒÔÀí½âÎªÌø³öÁËfinally£©
+        //1ã€leaveçš„ç›®æ ‡ä¸ä¸€å®šç´§è·Ÿfinally blockï¼Œå¯ä»¥æ˜¯ä»»ä½•åœ°æ–¹
+        //2ã€leaveè¦æ‰¾åˆ°æœ€å†…å±‚çš„finallyè·³è½¬
+        //3ã€endfinallyæœ‰ä¸¤ç§æƒ…å†µï¼Œå¦‚æžœæ˜¯leaveè·³è¿‡æ¥ï¼Œåˆ™è·³åˆ°leaveçš„ç›®æ ‡ï¼Œå¦‚æžœä¸æ˜¯ï¼Œåˆ™é‡æ–°æŠ›å¼‚å¸¸
+        //4ã€ä¸ºäº†å‡å°‘æ³¨å…¥ä»£ç æ³¨å…¥ä¾§ä¸try-catchï¼Œç”±è§£æžå™¨æ¸…æ ˆï¼ŒåŒ…æ‹¬å¼•ç”¨å‚æ•°ï¼Œæ‰€ä»¥è¦ä¼ å…¥å¼•ç”¨å‚æ•°çš„ä¸ªæ•°
+        //5ã€æ­£å¸¸leaveä¸åº”è¯¥æœ‰æŸ¥æ‰¾finallyçš„æ“ä½œï¼Œå¦åˆ™éžå¸¸æ…¢
+        //6ã€ä¸€ä¸ªfinally blocké‡Œå¤´çš„leaveæŒ‡ä»¤ï¼Œå¯ä»¥æœ‰ä¸åŒçš„ç›®æ ‡åœ°å€ï¼Œæ¯”å¦‚ï¼štry{}catch{goto}
+        //7ã€leaveå¦‚æžœåœ¨ä¸€ä¸ªfinally blockå†…ï¼Œè€Œç›®æ ‡åœ°å€åœ¨finallyçš„try blockä¹‹å¤–ï¼Œé‚£ä¹ˆè¿™ä¸ªfinally blockåœ¨è·³è½¬å‰æ‰§è¡Œï¼Œ
+        //   å¦‚æžœæœ‰å¤šä¸ªè¿™æ ·çš„finallyï¼Œåˆ™ä»Žå†…åˆ°å¤–æ‰§è¡Œï¼ˆæŠ›å¼‚å¸¸å…¶å®žä¹Ÿå¯ä»¥ç†è§£ä¸ºè·³å‡ºäº†finallyï¼‰
         public static void ExceptionBase(ref int p)
         {
             while (p != 100)
