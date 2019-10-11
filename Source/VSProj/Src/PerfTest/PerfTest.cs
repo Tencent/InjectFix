@@ -14,7 +14,7 @@ namespace IFix.Test
 {
     public class PerfTest
     {
-        //»ù×¼²âÊÔ£¬¿Õ·½·¨µ÷ÓÃ
+        //åŸºå‡†æµ‹è¯•ï¼Œç©ºæ–¹æ³•è°ƒç”¨
         static void Base()
         {
             int LOOPS = 10000000;
@@ -31,12 +31,12 @@ namespace IFix.Test
             }
         }
 
-        //Í¨¹ıCall¶ÔÏóµ÷ÓÃadd·½·¨£¬¸Ã·½·¨Âß¼­ÈçÏÂ£¬SimpleVirtualMachineBuilderÍ¨¹ıÓ²±àÂëÖ¸Áî»ñµÃ
+        //é€šè¿‡Callå¯¹è±¡è°ƒç”¨addæ–¹æ³•ï¼Œè¯¥æ–¹æ³•é€»è¾‘å¦‚ä¸‹ï¼ŒSimpleVirtualMachineBuilderé€šè¿‡ç¡¬ç¼–ç æŒ‡ä»¤è·å¾—
         //int add(int a, int b)
         //{
         //    return a + b;
         //}
-        //Ô­Éú·½·¨Í¨¹ıÕâÖÖ·½Ê½µ÷ÓÃĞéÄâ»ú·½·¨
+        //åŸç”Ÿæ–¹æ³•é€šè¿‡è¿™ç§æ–¹å¼è°ƒç”¨è™šæ‹Ÿæœºæ–¹æ³•
         static void SafeCall()
         {
             int LOOPS = 10000000;
@@ -55,8 +55,8 @@ namespace IFix.Test
             Console.WriteLine("SafeCall " + "  : " + (LOOPS / (int)sw.Elapsed.TotalMilliseconds * 1000) + "\r\n");
         }
 
-        //Ö±½ÓÍ¨¹ıÖ¸Õë²Ù×÷Õ»£¬µ÷ÓÃadd·½·¨
-        //ĞéÄâ»úÄÚ²¿·½·¨¼äµ÷ÓÃÊÇÍ¨¹ıÕâÖÖ·½Ê½
+        //ç›´æ¥é€šè¿‡æŒ‡é’ˆæ“ä½œæ ˆï¼Œè°ƒç”¨addæ–¹æ³•
+        //è™šæ‹Ÿæœºå†…éƒ¨æ–¹æ³•é—´è°ƒç”¨æ˜¯é€šè¿‡è¿™ç§æ–¹å¼
         unsafe static void UnsafeCall()
         {
             IntPtr nativePointer = System.Runtime.InteropServices.Marshal.AllocHGlobal(sizeof(Value)

@@ -53,15 +53,15 @@ namespace IFix
                 bool readSymbols = true;
                 try
                 {
-                    //³¢ÊÔ¶ÁÈ¡·ûºÅ
+                    //å°è¯•è¯»å–ç¬¦å·
                     assembly = AssemblyDefinition.ReadAssembly(assmeblyPath,
                         new ReaderParameters { ReadSymbols = true });
                 }
                 catch
                 {
-                    //Èç¹û¶ÁÈ¡²»µ½·ûºÅÔò²»¶Á
+                    //å¦‚æœè¯»å–ä¸åˆ°ç¬¦å·åˆ™ä¸è¯»
                     Console.WriteLine("Warning: read " + assmeblyPath + " with symbol fail");
-                    //Ğ´ÈëµÄÊ±ºòÓÃÕâ¸ö±êÖ¾
+                    //å†™å…¥çš„æ—¶å€™ç”¨è¿™ä¸ªæ ‡å¿—
                     readSymbols = false;
                     assembly = AssemblyDefinition.ReadAssembly(assmeblyPath,
                         new ReaderParameters { ReadSymbols = false });
@@ -71,7 +71,7 @@ namespace IFix
                 bool isInheritInject = args[0] == "-inherit_inject";
                 int searchPathStart = isInheritInject ? 7 : 6;
 
-                //Íùresolver¼ÓÈë³ÌĞò¼¯ËÑË÷Â·¾¶
+                //å¾€resolveråŠ å…¥ç¨‹åºé›†æœç´¢è·¯å¾„
                 foreach (var path in args.Skip(searchPathStart))
                 {
                     try
@@ -87,7 +87,7 @@ namespace IFix
 
                 if (mode == ProcessMode.Inject)
                 {
-                    //¶Ô²âÊÔÓÃÀıÌØÊâ´¦Àí£º²âÊÔÓÃÀıÄ¬ÈÏÈ«½âÎöÖ´ĞĞ
+                    //å¯¹æµ‹è¯•ç”¨ä¾‹ç‰¹æ®Šå¤„ç†ï¼šæµ‹è¯•ç”¨ä¾‹é»˜è®¤å…¨è§£ææ‰§è¡Œ
                     configure = args[3] == "no_cfg" ?
                         GenerateConfigure.Empty() : GenerateConfigure.FromFile(args[3]);
 
@@ -96,8 +96,8 @@ namespace IFix
                         throw new Exception("Do Not Support already!");
                     }
 
-                    //×¢ÈëÂß¼­
-                    //TODO: tranlaterµÄÃû×Ö²»Ì«ºÏÊÊ
+                    //æ³¨å…¥é€»è¾‘
+                    //TODO: tranlaterçš„åå­—ä¸å¤ªåˆé€‚
                     if (tranlater.Process(assembly, ilfixAassembly, configure, mode)
                         == CodeTranslator.ProcessResult.Processed)
                     {
@@ -112,13 +112,13 @@ namespace IFix
                 }
                 else
                 {
-                    //²¹¶¡Éú³ÉÁ÷³Ì
+                    //è¡¥ä¸ç”Ÿæˆæµç¨‹
                     configure = new PatchGenerateConfigure(assembly, args[4]);
 
                     if (tranlater.Process(assembly, ilfixAassembly, configure, mode)
                         == CodeTranslator.ProcessResult.Processed)
                     {
-                        //·¢ÏÖ³ÌĞò¼¯ÒÑ¾­±»×¢Èë£¬Ö÷ÒªÊÇ·ÀÖ¹ÒÑ¾­×¢ÈëµÄº¯Êı°üº¬µÄ×¢ÈëÂß¼­»áµ¼ÖÂËÀÑ­»·
+                        //å‘ç°ç¨‹åºé›†å·²ç»è¢«æ³¨å…¥ï¼Œä¸»è¦æ˜¯é˜²æ­¢å·²ç»æ³¨å…¥çš„å‡½æ•°åŒ…å«çš„æ³¨å…¥é€»è¾‘ä¼šå¯¼è‡´æ­»å¾ªç¯
                         Console.WriteLine("Error: the new assembly must not be inject, please reimport the project!");
                         return;
                     }
@@ -134,8 +134,8 @@ namespace IFix
             }
             finally
             {
-                //ÇåÀí·ûºÅ¶ÁÈ¡Æ÷
-                //Èç¹û²»ÇåÀí£¬ÔÚwindowÏÂ»áËø¶¨ÎÄ¼ş
+                //æ¸…ç†ç¬¦å·è¯»å–å™¨
+                //å¦‚æœä¸æ¸…ç†ï¼Œåœ¨windowä¸‹ä¼šé”å®šæ–‡ä»¶
                 if (assembly != null && assembly.MainModule.SymbolReader != null)
                 {
                     assembly.MainModule.SymbolReader.Dispose();

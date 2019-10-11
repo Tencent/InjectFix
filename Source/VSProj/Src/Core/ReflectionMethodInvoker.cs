@@ -134,7 +134,7 @@ namespace IFix.Core
 
                 if (isInstantiate || (method.IsConstructor && method.DeclaringType.IsValueType))
                 {
-                    ret = ctor.Invoke(args);//TODO: Delegate´´½¨ÓÃDelegate.CreateDelegate
+                    ret = ctor.Invoke(args);//TODO: Delegateåˆ›å»ºç”¨Delegate.CreateDelegate
                 }
                 else
                 {
@@ -144,10 +144,10 @@ namespace IFix.Core
                         instance = EvaluationStackOperation.ToObject(call.evaluationStackBase, call.argumentBase,
                             managedStack, method.DeclaringType, virtualMachine, false);
                     }
-                    //NullableÈÔÈ»ÊÇÖµÀàĞÍ£¬Ö»ÊÇĞÂÔöÁËÊÇ·ñÎªnullµÄ±êÖ¾Î»£¬ÈÔÈ»Í¨¹ı´«µØÖ·µÄ·½Ê½½øĞĞ·½·¨µ÷ÓÃ£¬
-                    //µ«ÕâÔÚ·´Éäµ÷ÓÃĞĞ²»Í¨£¬²ÎÊıÊÇobjectÀàĞÍ£¬boxingµ½object¾ÍÊÇnull£¬ËùÒÔ»á´¥·¢
-                    //¡°Non-static method requires a target¡±Òì³£
-                    //ËùÒÔÕâÖ»ÄÜÌØÊâ´¦ÀíÒ»ÏÂ
+                    //Nullableä»ç„¶æ˜¯å€¼ç±»å‹ï¼Œåªæ˜¯æ–°å¢äº†æ˜¯å¦ä¸ºnullçš„æ ‡å¿—ä½ï¼Œä»ç„¶é€šè¿‡ä¼ åœ°å€çš„æ–¹å¼è¿›è¡Œæ–¹æ³•è°ƒç”¨ï¼Œ
+                    //ä½†è¿™åœ¨åå°„è°ƒç”¨è¡Œä¸é€šï¼Œå‚æ•°æ˜¯objectç±»å‹ï¼Œboxingåˆ°objectå°±æ˜¯nullï¼Œæ‰€ä»¥ä¼šè§¦å‘
+                    //â€œNon-static method requires a targetâ€å¼‚å¸¸
+                    //æ‰€ä»¥è¿™åªèƒ½ç‰¹æ®Šå¤„ç†ä¸€ä¸‹
                     if (isNullableHasValue)
                     {
                         ret = (instance != null);

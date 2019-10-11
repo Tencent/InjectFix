@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using IFix;
 using System;
 
-//1¡¢ÅäÖÃÀà±ØĞë´ò[Configure]±êÇ©
-//2¡¢±ØĞë·ÅEditorÄ¿Â¼
+//1ã€é…ç½®ç±»å¿…é¡»æ‰“[Configure]æ ‡ç­¾
+//2ã€å¿…é¡»æ”¾Editorç›®å½•
 [Configure]
 public class HelloworldCfg
 {
@@ -23,7 +23,7 @@ public class HelloworldCfg
             {
                 typeof(Helloworld),
                 typeof(IFix.Test.Calculator),
-                //AnotherClassÔÚPro Standard AssetsÏÂ£¬»á±àÒëµ½Assembly-CSharp-firstpass.dllÏÂ£¬ÓÃÀ´ÑİÊ¾¶àdllµÄĞŞ¸´
+                //AnotherClassåœ¨Pro Standard Assetsä¸‹ï¼Œä¼šç¼–è¯‘åˆ°Assembly-CSharp-firstpass.dllä¸‹ï¼Œç”¨æ¥æ¼”ç¤ºå¤šdllçš„ä¿®å¤
                 typeof(AnotherClass),
             };
         }

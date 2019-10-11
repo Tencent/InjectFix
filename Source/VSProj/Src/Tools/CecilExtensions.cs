@@ -18,10 +18,10 @@ namespace IFix
     static internal class CecilExtensions
     {
         /// <summary>
-        /// ÒÔcontextTypeÎªÉÏÏÂÎÄ£¬²éÕÒ·ºĞÍ²ÎÊı¶ÔÓ¦µÄÊµ²Î
+        /// ä»¥contextTypeä¸ºä¸Šä¸‹æ–‡ï¼ŒæŸ¥æ‰¾æ³›å‹å‚æ•°å¯¹åº”çš„å®å‚
         /// </summary>
-        /// <param name="gp">·ºĞÍ²ÎÊı</param>
-        /// <param name="contextType">ÉÏÏÂÎÄÀàĞÍ</param>
+        /// <param name="gp">æ³›å‹å‚æ•°</param>
+        /// <param name="contextType">ä¸Šä¸‹æ–‡ç±»å‹</param>
         /// <returns></returns>
         public static TypeReference ResolveGenericArgument(this GenericParameter gp, TypeReference contextType)
         {
@@ -54,10 +54,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÒÔcontextMethodÎªÉÏÏÂÎÄ£¬²éÕÒ·ºĞÍ²ÎÊı¶ÔÓ¦µÄÊµ²Î
+        /// ä»¥contextMethodä¸ºä¸Šä¸‹æ–‡ï¼ŒæŸ¥æ‰¾æ³›å‹å‚æ•°å¯¹åº”çš„å®å‚
         /// </summary>
-        /// <param name="gp">·ºĞÍ²ÎÊı</param>
-        /// <param name="contextMethod">ÉÏÏÂÎÄº¯Êı</param>
+        /// <param name="gp">æ³›å‹å‚æ•°</param>
+        /// <param name="contextMethod">ä¸Šä¸‹æ–‡å‡½æ•°</param>
         /// <returns></returns>
         public static TypeReference ResolveGenericArgument(this GenericParameter gp, MethodReference contextMethod)
         {
@@ -70,8 +70,8 @@ namespace IFix
         }
 
         /// <summary>
-        /// Ìî³ä·ºĞÍ²ÎÊı£¬Èç¹ûÖ±½ÓTypeReferenceÈ¡FullNameµÄ»°£¬·ºĞÍ²ÎÊı£¨±ÈÈçÃû×ÖÎªT£©²»»áÊµÀı»¯£¨ÈÔÈ»ÎªT£©£¬
-        /// ÕâÑùÔÚ²¹¶¡²éÕÒ·ºĞÍ·½·¨Ê±»áÓĞÎÊÌâ
+        /// å¡«å……æ³›å‹å‚æ•°ï¼Œå¦‚æœç›´æ¥TypeReferenceå–FullNameçš„è¯ï¼Œæ³›å‹å‚æ•°ï¼ˆæ¯”å¦‚åå­—ä¸ºTï¼‰ä¸ä¼šå®ä¾‹åŒ–ï¼ˆä»ç„¶ä¸ºTï¼‰ï¼Œ
+        /// è¿™æ ·åœ¨è¡¥ä¸æŸ¥æ‰¾æ³›å‹æ–¹æ³•æ—¶ä¼šæœ‰é—®é¢˜
         /// </summary>
         /// <param name="type"></param>
         /// <param name="contextMethod"></param>
@@ -141,10 +141,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ºöÂÔ³ÌĞò¼¯°æ±¾ºÅÀ´¶Ô±ÈÁ½¸öÀàĞÍÊÇ·ñÖ¸ÏòÍ¬ÑùµÄÀàĞÍ
+        /// å¿½ç•¥ç¨‹åºé›†ç‰ˆæœ¬å·æ¥å¯¹æ¯”ä¸¤ä¸ªç±»å‹æ˜¯å¦æŒ‡å‘åŒæ ·çš„ç±»å‹
         /// </summary>
-        /// <param name="left">²ÎÊı1</param>
-        /// <param name="right">²ÎÊı2</param>
+        /// <param name="left">å‚æ•°1</param>
+        /// <param name="right">å‚æ•°2</param>
         /// <returns></returns>
         public static bool AreEqualIgnoreAssemblyVersion(this TypeReference left, TypeReference right)
         {
@@ -172,12 +172,12 @@ namespace IFix
         }
 
         /// <summary>
-        /// »ñÈ¡Ò»¸öÀàĞÍµÄAssemblyQualifiedName
+        /// è·å–ä¸€ä¸ªç±»å‹çš„AssemblyQualifiedName
         /// </summary>
-        /// <param name="typeReference">Òª»ñÈ¡AssemblyQualifiedNameµÄtype</param>
-        /// <param name="contextType">ÉÏÏÂÎÄÀàĞÍ£¬ÍùÍùÊÇÆäÍâ²ãÀà</param>
-        /// <param name="skipAssemblyQualified">ºöÂÔ³ÌĞò¼¯Ãû</param>
-        /// <param name="skipAssemblyQualifiedOnce">ÓÃÓÚ·ºĞÍÀàĞÍµÄµİ¹éÊ±£¬ºöÂÔ³ÌĞò¼¯£¬ÒòÎª·ºĞÍÀàĞÍÊÇÌîĞ´Íê·ºĞÍ²ÎÊıºó£¬ÔÙÌîĞ´³ÌĞò¼¯</param>
+        /// <param name="typeReference">è¦è·å–AssemblyQualifiedNameçš„type</param>
+        /// <param name="contextType">ä¸Šä¸‹æ–‡ç±»å‹ï¼Œå¾€å¾€æ˜¯å…¶å¤–å±‚ç±»</param>
+        /// <param name="skipAssemblyQualified">å¿½ç•¥ç¨‹åºé›†å</param>
+        /// <param name="skipAssemblyQualifiedOnce">ç”¨äºæ³›å‹ç±»å‹çš„é€’å½’æ—¶ï¼Œå¿½ç•¥ç¨‹åºé›†ï¼Œå› ä¸ºæ³›å‹ç±»å‹æ˜¯å¡«å†™å®Œæ³›å‹å‚æ•°åï¼Œå†å¡«å†™ç¨‹åºé›†</param>
         /// <returns></returns>
         public static string GetAssemblyQualifiedName(this TypeReference typeReference,
             TypeReference contextType = null, bool skipAssemblyQualified = false,
@@ -261,9 +261,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸öÀàĞÍÊÇ·ñÊÇdelegate
+        /// åˆ¤æ–­ä¸€ä¸ªç±»å‹æ˜¯å¦æ˜¯delegate
         /// </summary>
-        /// <param name="typeDefinition">ÒªÅĞ¶ÏµÄÀàĞÍ</param>
+        /// <param name="typeDefinition">è¦åˆ¤æ–­çš„ç±»å‹</param>
         /// <returns></returns>
         public static bool IsDelegate(this TypeDefinition typeDefinition)
         {
@@ -275,9 +275,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸öÀàĞÍÊÇ²»ÊÇ·ºĞÍ
+        /// åˆ¤æ–­ä¸€ä¸ªç±»å‹æ˜¯ä¸æ˜¯æ³›å‹
         /// </summary>
-        /// <param name="type">ÒªÅĞ¶ÏµÄÀàĞÍ</param>
+        /// <param name="type">è¦åˆ¤æ–­çš„ç±»å‹</param>
         /// <returns></returns>
         public static bool IsGeneric(this TypeReference type)
         {
@@ -307,9 +307,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸öÀàĞÍµÄ·ºĞÍÊµ²ÎÊÇ·ñÓĞÀ´×Ôº¯ÊıµÄ·ºĞÍÊµ²Î
+        /// åˆ¤æ–­ä¸€ä¸ªç±»å‹çš„æ³›å‹å®å‚æ˜¯å¦æœ‰æ¥è‡ªå‡½æ•°çš„æ³›å‹å®å‚
         /// </summary>
-        /// <param name="type">ÒªÅĞ¶ÏµÄÀàĞÍ</param>
+        /// <param name="type">è¦åˆ¤æ–­çš„ç±»å‹</param>
         /// <returns></returns>
         public static bool HasGenericArgumentFromMethod(this TypeReference type)
         {
@@ -340,9 +340,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸ö·½·¨ÊÇ²»ÊÇ·ºĞÍ
+        /// åˆ¤æ–­ä¸€ä¸ªæ–¹æ³•æ˜¯ä¸æ˜¯æ³›å‹
         /// </summary>
-        /// <param name="method">ÒªÅĞ¶ÏµÄ·½·¨</param>
+        /// <param name="method">è¦åˆ¤æ–­çš„æ–¹æ³•</param>
         /// <returns></returns>
         public static bool IsGeneric(this MethodReference method)
         {
@@ -366,9 +366,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸ö×Ö¶ÎµÄÀàĞÍÊÇ²»ÊÇ·ºĞÍ
+        /// åˆ¤æ–­ä¸€ä¸ªå­—æ®µçš„ç±»å‹æ˜¯ä¸æ˜¯æ³›å‹
         /// </summary>
-        /// <param name="field">ÒªÅĞ¶Ï×Ö¶Î</param>
+        /// <param name="field">è¦åˆ¤æ–­å­—æ®µ</param>
         /// <returns></returns>
         public static bool IsGeneric(this FieldReference field)
         {
@@ -376,10 +376,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÁ½¸öÀàĞÍÊÇ²»ÊÇÍ¬Ò»¸ö
+        /// åˆ¤æ–­ä¸¤ä¸ªç±»å‹æ˜¯ä¸æ˜¯åŒä¸€ä¸ª
         /// </summary>
-        /// <param name="left">ÀàĞÍ1</param>
-        /// <param name="right">ÀàĞÍ2</param>
+        /// <param name="left">ç±»å‹1</param>
+        /// <param name="right">ç±»å‹2</param>
         /// <returns></returns>
         public static bool IsSameType(this TypeReference left, TypeReference right)
         {
@@ -389,10 +389,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÁ½¸öÀàĞÍµÄÃû×ÖÊÇ·ñÏàÍ¬
+        /// åˆ¤æ–­ä¸¤ä¸ªç±»å‹çš„åå­—æ˜¯å¦ç›¸åŒ
         /// </summary>
-        /// <param name="left">ÀàĞÍ1</param>
-        /// <param name="right">ÀàĞÍ2</param>
+        /// <param name="left">ç±»å‹1</param>
+        /// <param name="right">ç±»å‹2</param>
         /// <returns></returns>
         public static bool IsSameName(this TypeReference left, TypeReference right)
         {
@@ -400,10 +400,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÁ½¸ö·½·¨£¬Èç¹û½öÅĞ¶ÏÆä²ÎÊıÀàĞÍ¼°·µ»ØÖµÀàĞÍµÄÃû×Ö£¬ÊÇ·ñÏàµÈ
+        /// åˆ¤æ–­ä¸¤ä¸ªæ–¹æ³•ï¼Œå¦‚æœä»…åˆ¤æ–­å…¶å‚æ•°ç±»å‹åŠè¿”å›å€¼ç±»å‹çš„åå­—ï¼Œæ˜¯å¦ç›¸ç­‰
         /// </summary>
-        /// <param name="left">·½·¨1</param>
-        /// <param name="right">·½·¨2</param>
+        /// <param name="left">æ–¹æ³•1</param>
+        /// <param name="right">æ–¹æ³•2</param>
         /// <returns></returns>
         public static bool IsTheSame(this MethodReference left, MethodReference right)
         {
@@ -438,9 +438,9 @@ namespace IFix
         }
 
         /// <summary>
-        /// ÅĞ¶ÏÒ»¸ö·½·¨ÊÇ·ñÊÇÎö¹¹º¯Êı
+        /// åˆ¤æ–­ä¸€ä¸ªæ–¹æ³•æ˜¯å¦æ˜¯ææ„å‡½æ•°
         /// </summary>
-        /// <param name="method">·½·¨</param>
+        /// <param name="method">æ–¹æ³•</param>
         /// <returns></returns>
         public static bool IsFinalizer(this MethodDefinition method)
         {
@@ -449,10 +449,10 @@ namespace IFix
         }
 
         /// <summary>
-        /// ³¢ÊÔµ¼ÈëÒ»¸öÀàĞÍ
+        /// å°è¯•å¯¼å…¥ä¸€ä¸ªç±»å‹
         /// </summary>
-        /// <param name="toImport">Òªµ¼ÈëµÄÀàĞÍ</param>
-        /// <param name="module">µ¼Èëµ½ÄÄ¸ömodule</param>
+        /// <param name="toImport">è¦å¯¼å…¥çš„ç±»å‹</param>
+        /// <param name="module">å¯¼å…¥åˆ°å“ªä¸ªmodule</param>
         /// <returns></returns>
         // #lizard forgives
         public static TypeReference TryImport(this TypeReference toImport, ModuleDefinition module)
@@ -461,7 +461,7 @@ namespace IFix
             {
                 if (toImport.Name == "Boolean")
                 {
-                    return module.TypeSystem.Boolean; //ÓÃÄÚÖÃÀàĞÍ£¬·ñÔòÍ¨¹ıgetMap»ñÈ¡²»µ½
+                    return module.TypeSystem.Boolean; //ç”¨å†…ç½®ç±»å‹ï¼Œå¦åˆ™é€šè¿‡getMapè·å–ä¸åˆ°
                 }
                 else if (toImport.Name == "Byte")
                 {
@@ -540,7 +540,7 @@ namespace IFix
         }
 
         /// <summary>
-        /// ³¢ÊÔµ¼ÈëÒ»¸ö·½·¨
+        /// å°è¯•å¯¼å…¥ä¸€ä¸ªæ–¹æ³•
         /// </summary>
         /// <param name="toImport"></param>
         /// <param name="module"></param>
@@ -560,7 +560,7 @@ namespace IFix
         }
 
         /// <summary>
-        /// Éú³ÉÒ»¸ö·ºĞÍÒıÓÃ
+        /// ç”Ÿæˆä¸€ä¸ªæ³›å‹å¼•ç”¨
         /// </summary>
         /// <param name="method"></param>
         /// <param name="declaringType"></param>
@@ -651,7 +651,7 @@ namespace IFix
         }
 
         /// <summary>
-        /// Á½¸ö·½·¨Ç©ÃûÊÇ·ñÏàÍ¬
+        /// ä¸¤ä¸ªæ–¹æ³•ç­¾åæ˜¯å¦ç›¸åŒ
         /// </summary>
         /// <param name="left"></param>
         /// <param name="right"></param>
@@ -693,7 +693,7 @@ namespace IFix
 
         public static bool CheckImplemention(this MethodReference itfMethod, MethodDefinition impl)
         {
-            //Ò»¸öÀà¿ÉÄÜÓĞ¶à¸öÍ¬Ç©Ãû·½·¨£¬ÕâÊ±Ó¦¸ÃÍ¨¹ıOverridesÀ´¼ì²é
+            //ä¸€ä¸ªç±»å¯èƒ½æœ‰å¤šä¸ªåŒç­¾åæ–¹æ³•ï¼Œè¿™æ—¶åº”è¯¥é€šè¿‡Overridesæ¥æ£€æŸ¥
             if (impl.Overrides.Count > 0)
             {
                 foreach (var o in impl.Overrides)
@@ -811,7 +811,7 @@ namespace IFix
             id = -1;
         }
 
-        //Èç¹ûmethodÊÇ×¢Èëº¯Êı£¬·µ»ØÆä×¢ÈëÀàĞÍ£¬id£¬ÒÔ¼°¶ÔÓ¦µÄĞÂº¯Êı
+        //å¦‚æœmethodæ˜¯æ³¨å…¥å‡½æ•°ï¼Œè¿”å›å…¶æ³¨å…¥ç±»å‹ï¼Œidï¼Œä»¥åŠå¯¹åº”çš„æ–°å‡½æ•°
         public static void AnalysisMethod(Dictionary<string, Dictionary<string, List<MethodDefinition>>> searchData,
             MethodDefinition method, out InjectType injectType, out int id, out MethodDefinition foundMethod)
         {
@@ -847,7 +847,7 @@ namespace IFix
         }
 
         /// <summary>
-        /// »ñÈ¡Ò»¸ö³ÌĞò¼¯ÀïÍ·ËùÓĞÀàĞÍ£¬°üÀ¨ÆäÄÚÇ¶ÀàĞÍ
+        /// è·å–ä¸€ä¸ªç¨‹åºé›†é‡Œå¤´æ‰€æœ‰ç±»å‹ï¼ŒåŒ…æ‹¬å…¶å†…åµŒç±»å‹
         /// </summary>
         /// <param name="assembly"></param>
         /// <returns></returns>

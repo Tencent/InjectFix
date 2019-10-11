@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using IFix;
 using System;
 
-//1、配置类必须打[Configure]标签
-//2、必须放Editor目录
+//1銆侀厤缃被蹇呴』鎵揫Configure]鏍囩
+//2銆佸繀椤绘斁Editor鐩綍
 [Configure]
 public class LiveDotNetConfig
 {
@@ -21,7 +21,7 @@ public class LiveDotNetConfig
         {
             return new List<Type>()
             {
-                //演示的类
+                //婕旂ず鐨勭被
                 typeof(RotateCube)
             };
         }

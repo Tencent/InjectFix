@@ -10,7 +10,7 @@ using System;
 
 namespace IFix.Core
 {
-    //ÄäÃûÀàÄ£Äâ
+    //åŒ¿åç±»æ¨¡æ‹Ÿ
     public class AnonymousStorey
     {
         Value[] unmanagedFields;
