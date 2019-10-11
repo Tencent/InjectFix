@@ -1102,7 +1102,6 @@ namespace IFix
                 {
                     var msIl = msIls[i];
                     //Console.WriteLine("msIl:" + msIl.OpCode.Code + ", idx:" + code.Count);
-                    if (method.Name == "ToString" && method.DeclaringType.Name == "ValueTypeCounter") Console.WriteLine("il code:" + msIl.OpCode.Code + ",operand:" + msIl.Operand);
 
                     string strCode = msIls[i].OpCode.Code.ToString();
                     if (strCode.EndsWith("_S"))
@@ -1422,7 +1421,25 @@ namespace IFix
                                 var methodIdInfo = getMethodId(methodToCall, method, or != null || directCallVirtual,
                                     injectTypePassToNext);
 
-                                if (msIl.OpCode.Code == Code.Call && baseProxy != null 
+                                bool callingBaseMethod = false;
+
+                                try
+                                {
+                                    var callingType = methodToCall.DeclaringType;
+                                    var baseType = method.DeclaringType.BaseType;
+                                    while (baseType != null)
+                                    {
+                                        if (callingType.IsSameType(baseType))
+                                        {
+                                            callingBaseMethod = true;
+                                            break;
+                                        }
+                                        baseType = baseType.Resolve().BaseType;
+                                    }
+                                }
+                                catch { }
+
+                                if (callingBaseMethod && msIl.OpCode.Code == Code.Call && baseProxy != null 
                                     && isTheSameDeclare(methodToCall, method))
                                 {
                                     code.Add(new Core.Instruction

@@ -183,7 +183,7 @@ namespace IFix.Core
                     }
                 }
             }
-            //catch (TargetInvocationException e)
+            //catch (TargetException  e)
             //{
             //    //VirtualMachine._Info("exception method: " + method + ", in " + method.DeclaringType + ", msg:"
             //        + e.InnerException);
