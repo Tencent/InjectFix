@@ -24,6 +24,15 @@ namespace IFix.Core
         }
     }
 
+    public class XIDAttribute: Attribute
+    {
+        public int ID;
+        public XIDAttribute(int id)
+        {
+            ID = id;
+        }
+    }
+
     public static class PatchManager
     {
         static Dictionary<Assembly, Action> removers = new Dictionary<Assembly, Action>();
@@ -213,6 +222,16 @@ namespace IFix.Core
                     redirectType));
             }
             return redirectField;
+        }
+
+        static int getMapId(MethodBase method)
+        {
+            var id = Attribute.GetCustomAttribute(method, typeof(XIDAttribute), false) as XIDAttribute;
+            if(id == null)
+            {
+                throw new Exception(string.Format("cat not find IDTagAttribute for {0}", method));
+            }
+            return id.ID;
         }
 
         static int getMapId(Type idMapType, MethodBase method)
@@ -451,7 +470,7 @@ namespace IFix.Core
                 virtualMachine.WrappersManager = wrapperManager;
 
                 var idMapTypeName = reader.ReadString();
-                var idMapType = Type.GetType(idMapTypeName, true);
+                // var idMapType = Type.GetType(idMapTypeName, true);
 
                 lock (removers)
                 {
@@ -496,7 +515,8 @@ namespace IFix.Core
                     {
                         var fixMethod = readMethod(reader, externTypes);
                         var fixMethodId = reader.ReadInt32();
-                        var pos = getMapId(idMapType, fixMethod);
+                        var pos = getMapId(fixMethod);
+                        // var pos = getMapId(idMapType, fixMethod);
                         methodIdArray[i] = fixMethodId;
                         posArray[i] = pos;
                         if (pos > maxPos)
