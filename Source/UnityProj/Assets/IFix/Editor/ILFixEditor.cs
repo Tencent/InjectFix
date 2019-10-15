@@ -92,9 +92,9 @@ namespace IFix.Editor
             Process hotfix_injection = new Process();
             hotfix_injection.StartInfo.FileName = mono_path;
 #if UNITY_5_6_OR_NEWER
-            hotfix_injection.StartInfo.Arguments = "--runtime=v4.0.30319 \"" + inject_tool_path + "\" \""
+            hotfix_injection.StartInfo.Arguments = "--debug --runtime=v4.0.30319 \"" + inject_tool_path + "\" \""
 #else
-            hotfix_injection.StartInfo.Arguments = "\"" + inject_tool_path + "\" \""
+            hotfix_injection.StartInfo.Arguments = "--debug \"" + inject_tool_path + "\" \""
 #endif
                 + string.Join("\" \"", args.ToArray()) + "\"";
             hotfix_injection.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
