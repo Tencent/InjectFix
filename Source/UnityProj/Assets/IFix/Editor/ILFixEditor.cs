@@ -149,7 +149,16 @@ namespace IFix.Editor
                 UnityEngine.Debug.LogError("compiling or playing");
                 return;
             }
-            InjectAllAssemblys();
+            EditorUtility.DisplayProgressBar("Inject", "injecting...", 0);
+            try
+            {
+                InjectAllAssemblys();
+            }
+            catch(Exception e)
+            {
+                UnityEngine.Debug.LogError(e);
+            }
+            EditorUtility.ClearProgressBar();
         }
 
         public static bool AutoInject = true; //可以在外部禁用掉自动注入
@@ -757,11 +766,20 @@ namespace IFix.Editor
         [MenuItem("InjectFix/Fix", false, 2)]
         public static void Patch()
         {
-            foreach (var assembly in injectAssemblys)
+            EditorUtility.DisplayProgressBar("Generate Patch for Edtior", "patching...", 0);
+            try
             {
-                GenPatch(assembly, string.Format("./Library/ScriptAssemblies/{0}.dll", assembly), 
-                    "./Assets/Plugins/IFix.Core.dll", string.Format("{0}.patch.bytes", assembly));
+                foreach (var assembly in injectAssemblys)
+                {
+                    GenPatch(assembly, string.Format("./Library/ScriptAssemblies/{0}.dll", assembly),
+                        "./Assets/Plugins/IFix.Core.dll", string.Format("{0}.patch.bytes", assembly));
+                }
             }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError(e);
+            }
+            EditorUtility.ClearProgressBar();
         }
 
 #if UNITY_2018_3_OR_NEWER
@@ -769,7 +787,14 @@ namespace IFix.Editor
         public static void CompileToAndroid()
         {
             EditorUtility.DisplayProgressBar("Generate Patch for Android", "patching...", 0);
-            GenPlatformPatch(Platform.android, "");
+            try
+            {
+                GenPlatformPatch(Platform.android, "");
+            }
+            catch(Exception e)
+            {
+                UnityEngine.Debug.LogError(e);
+            }
             EditorUtility.ClearProgressBar();
         }
 
@@ -777,7 +802,14 @@ namespace IFix.Editor
         public static void CompileToIOS()
         {
             EditorUtility.DisplayProgressBar("Generate Patch for IOS", "patching...", 0);
-            GenPlatformPatch(Platform.ios, "");
+            try
+            {
+                GenPlatformPatch(Platform.ios, "");
+            }
+            catch(Exception e)
+            {
+                UnityEngine.Debug.LogError(e);
+            }
             EditorUtility.ClearProgressBar();
         }
 #endif
