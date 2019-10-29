@@ -469,7 +469,7 @@ namespace IFix.Core
                 }
                 virtualMachine.WrappersManager = wrapperManager;
 
-                var idMapTypeName = reader.ReadString();
+                // var idMapTypeName = reader.ReadString();
                 // var idMapType = Type.GetType(idMapTypeName, true);
 
                 lock (removers)

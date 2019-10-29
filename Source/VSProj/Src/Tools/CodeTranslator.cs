@@ -3424,7 +3424,7 @@ namespace IFix
                 }
 
                 writer.Write(wrapperMgrImpl.GetAssemblyQualifiedName());
-                writer.Write(idMapType.GetAssemblyQualifiedName());
+                // writer.Write(idMapType.GetAssemblyQualifiedName());
 
                 writer.Write(interpretMethods.Count);
                 //Console.WriteLine("interpretMethods.Count:" + interpretMethods.Count);
