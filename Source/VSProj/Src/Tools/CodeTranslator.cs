@@ -504,6 +504,10 @@ namespace IFix
                                     isCompilerGeneratedPlainObject(mr.DeclaringType)))
                                 {
                                     var md = mr as MethodDefinition;
+                                    if (md == null)//闭包中调用一个泛型，在unity2018的.net 3.5设置下，编译器是先生成一个泛型的闭包实现，然后实例化，很奇怪的做法，老版本unity，新unity的.net 4.0设置都不会这样，先返回false，不支持这种编译器
+                                    {
+                                        return false;
+                                    }
                                     if (md.Body != null && !checkILAndGetOffset(md, md.Body.Instructions))
                                     {
                                         //Console.WriteLine("check " + md + " fail il = " + md.Body.Instructions[p]
