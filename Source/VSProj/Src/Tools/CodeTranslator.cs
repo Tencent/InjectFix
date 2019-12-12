@@ -1409,13 +1409,8 @@ namespace IFix
                                     {
                                         code[code.Count - 2] = new Core.Instruction
                                         {
-                                            Code = Core.Code.Ldobj,
-                                            Operand = lastInstruction.Operand,
-                                        };
-                                        code[code.Count - 1] = new Core.Instruction
-                                        {
-                                            Code = Core.Code.Box,
-                                            Operand = lastInstruction.Operand,
+                                            Code = Core.Code.Nop,
+                                            Operand = methodToCall.Parameters.Count,
                                         };
                                     }
                                     //code.RemoveAt(code.Count - 1);

@@ -2220,7 +2220,18 @@ namespace IFix.Core
                                 evaluationStackPointer = rhs;
                             }
                             break;
-                        //Constrained//0.04714472% delete
+                        case Code.Constrained://0.04714472% 
+                            {
+                                var lastInstruction = pc - 1;
+                                var type = externTypes[pc->Operand];
+                                var ptr = evaluationStackPointer - 1 - lastInstruction->Operand;
+                                var obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr, managedStack, type, this);
+                                var pos = (int)(ptr - evaluationStackBase);
+                                managedStack[pos] = obj;
+                                ptr->Value1 = pos;
+                                ptr->Type = ValueType.Object;
+                            }
+                            break;
                         case Code.Switch://0.04518777%
                             {
                                 int val = (evaluationStackPointer - 1)->Value1;
