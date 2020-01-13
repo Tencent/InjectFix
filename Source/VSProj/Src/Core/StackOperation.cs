@@ -88,6 +88,10 @@ namespace IFix.Core
     {
         internal static void UnboxPrimitive(Value* evaluationStackPointer, object obj, Type type)
         {
+            if (obj.GetType().IsEnum)
+            {
+                obj = Convert.ChangeType(obj, type);
+            }
             if (obj is int)
             {
                 evaluationStackPointer->Type = ValueType.Integer;

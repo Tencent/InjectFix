@@ -2059,6 +2059,10 @@ namespace IFix.Core
                                         {
                                             EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
                                         }
+                                        else if(type.IsEnum)
+                                        {
+                                            EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
+                                        }
                                         else
                                         {
                                             ptr->Type = ValueType.ValueType;
