@@ -1070,7 +1070,6 @@ namespace IFix
                 {
                     if (variable.VariableType.IsValueType && !variable.VariableType.IsPrimitive)
                     {
-                        Console.WriteLine("add Initobj for " + variable.VariableType);
                         code.Add(new Core.Instruction
                         {
                             Code = Core.Code.Ldloca,
