@@ -1066,7 +1066,24 @@ namespace IFix
                 code.Add(new Core.Instruction { Code = Core.Code.StackSpace, Operand = (body.Variables.Count << 16)
                     | body.MaxStackSize }); // local | maxstack
 
-                //TODO: locals init，复杂值类型要new，引用类型要留空位
+                foreach(var variable in body.Variables)
+                {
+                    if (variable.VariableType.IsValueType && !variable.VariableType.IsPrimitive)
+                    {
+                        Console.WriteLine("add Initobj for " + variable.VariableType);
+                        code.Add(new Core.Instruction
+                        {
+                            Code = Core.Code.Ldloca,
+                            Operand = variable.Index,
+                        });
+
+                        code.Add(new Core.Instruction
+                        {
+                            Code = Core.Code.Initobj,
+                            Operand = addExternType(variable.VariableType)
+                        });
+                    }
+                }
 
                 Core.ExceptionHandler[] exceptionHandlers = new Core.ExceptionHandler[body.ExceptionHandlers.Count];
 
