@@ -1117,7 +1117,7 @@ namespace IFix
 
                 bool typeofDetected = false;
 
-                Core.Instruction operand;
+                Core.Instruction operand = new Core.Instruction();
                 for (int i = 0; i < msIls.Count; i++)
                 {
                     var msIl = msIls[i];
