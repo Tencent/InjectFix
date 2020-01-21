@@ -173,8 +173,13 @@ namespace IFix
                         bool paramMatch = true;
                         for(int i = 0; i < mmi.Parameters.Length; i++)
                         {
+                            var paramType = method.Parameters[i].ParameterType;
+                            if (paramType.IsRequiredModifier)
+                            {
+                                paramType = (paramType as RequiredModifierType).ElementType;
+                            }
                             if (mmi.Parameters[i].IsOut != method.Parameters[i].IsOut
-                                || mmi.Parameters[i].ParameterType != method.Parameters[i].ParameterType.FullName)
+                                || mmi.Parameters[i].ParameterType != paramType.FullName)
                             {
                                 paramMatch = false;
                                 break;

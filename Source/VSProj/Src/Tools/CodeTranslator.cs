@@ -152,6 +152,7 @@ namespace IFix
         //再补丁新增一个对原生方法的引用
         int addExternType(TypeReference type, TypeReference contextType = null)
         {
+            if (type.IsRequiredModifier) return addExternType((type as RequiredModifierType).ElementType, contextType);
             if (type.IsGenericParameter || type.HasGenericArgumentFromMethod())
             {
                 throw new InvalidProgramException("try to use a generic type definition");
@@ -3267,6 +3268,10 @@ namespace IFix
                     if (paramType.IsGenericParameter)
                     {
                         paramType = (paramType as GenericParameter).ResolveGenericArgument(method.DeclaringType);
+                    }
+                    if (paramType.IsRequiredModifier)
+                    {
+                        paramType = (paramType as RequiredModifierType).ElementType;
                     }
                     if (!externTypeToId.ContainsKey(paramType))
                     {
