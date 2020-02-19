@@ -221,10 +221,14 @@ namespace IFix.Editor
                 "IFix.ReverseWrapperAttribute",
             });
 
+            var filters = Configure.GetFilters();
+
             var processCfgPath = "./process_cfg";
 
             //该程序集是否有配置了些类，如果没有就跳过注入操作
             bool hasSomethingToDo = false;
+
+            var blackList = new List<MethodInfo>();
 
             using (BinaryWriter writer = new BinaryWriter(new FileStream(processCfgPath, FileMode.Create,
                 FileAccess.Write)))
@@ -250,8 +254,28 @@ namespace IFix.Editor
                     {
                         writer.Write(GetCecilTypeName(cfgItem.Key));
                         writer.Write(cfgItem.Value);
+                        if (filters.Count > 0 && kv.Key == "IFix.IFixAttribute")
+                        {
+                            foreach(var method in cfgItem.Key.GetMethods(BindingFlags.Instance 
+                                | BindingFlags.Static | BindingFlags.Public 
+                                | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                            {
+                                foreach(var filter in filters)
+                                {
+                                    if ((bool)filter.Invoke(null, new object[]
+                                    {
+                                        method
+                                    }))
+                                    {
+                                        blackList.Add(method);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
+
+                writeMethods(writer, blackList);
             }
 
             if (hasSomethingToDo)

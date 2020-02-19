@@ -42,6 +42,7 @@ namespace IFix
                     }
                     generateConfigure.configures[configureName] = configure;
                 }
+                generateConfigure.blackListMethodInfo = readMatchInfo(reader);
             }
 
             return generateConfigure;
@@ -62,6 +63,86 @@ namespace IFix
         /// <param name="method">要查询的方法</param>
         /// <returns></returns>
         public abstract bool IsNewMethod(MethodReference method);
+
+        //参数类型信息
+        internal class ParameterMatchInfo
+        {
+            public bool IsOut;
+            public string ParameterType;
+        }
+
+        //方法签名信息
+        internal class MethodMatchInfo
+        {
+            public string Name;
+            public string ReturnType;
+            public ParameterMatchInfo[] Parameters;
+        }
+
+        //判断一个方法是否能够在matchInfo里头能查询到
+        internal static bool isMatch(Dictionary<string, MethodMatchInfo[]> matchInfo, MethodReference method)
+        {
+            MethodMatchInfo[] mmis;
+            if (matchInfo.TryGetValue(method.DeclaringType.FullName, out mmis))
+            {
+                foreach (var mmi in mmis)
+                {
+                    if (mmi.Name == method.Name && mmi.ReturnType == method.ReturnType.FullName
+                        && mmi.Parameters.Length == method.Parameters.Count)
+                    {
+                        bool paramMatch = true;
+                        for (int i = 0; i < mmi.Parameters.Length; i++)
+                        {
+                            var paramType = method.Parameters[i].ParameterType;
+                            if (paramType.IsRequiredModifier)
+                            {
+                                paramType = (paramType as RequiredModifierType).ElementType;
+                            }
+                            if (mmi.Parameters[i].IsOut != method.Parameters[i].IsOut
+                                || mmi.Parameters[i].ParameterType != paramType.FullName)
+                            {
+                                paramMatch = false;
+                                break;
+                            }
+                        }
+                        if (paramMatch) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        //读取方法信息，主要是方法的签名信息，名字+参数类型+返回值类型
+        internal static Dictionary<string, MethodMatchInfo[]> readMatchInfo(BinaryReader reader)
+        {
+            Dictionary<string, MethodMatchInfo[]> matchInfo = new Dictionary<string, MethodMatchInfo[]>();
+
+            int typeCount = reader.ReadInt32();
+            for (int k = 0; k < typeCount; k++)
+            {
+                string typeName = reader.ReadString();
+                int methodCount = reader.ReadInt32();
+                MethodMatchInfo[] methodMatchInfos = new MethodMatchInfo[methodCount];
+                for (int i = 0; i < methodCount; i++)
+                {
+                    MethodMatchInfo mmi = new MethodMatchInfo();
+                    mmi.Name = reader.ReadString();
+                    mmi.ReturnType = reader.ReadString();
+                    int parameterCount = reader.ReadInt32();
+                    mmi.Parameters = new ParameterMatchInfo[parameterCount];
+                    for (int p = 0; p < parameterCount; p++)
+                    {
+                        mmi.Parameters[p] = new ParameterMatchInfo();
+                        mmi.Parameters[p].IsOut = reader.ReadBoolean();
+                        mmi.Parameters[p].ParameterType = reader.ReadString();
+                    }
+                    methodMatchInfos[i] = mmi;
+                }
+                matchInfo[typeName] = methodMatchInfos;
+            }
+
+            return matchInfo;
+        }
     }
 
     //内部测试专用
@@ -85,10 +166,19 @@ namespace IFix
         internal Dictionary<string, Dictionary<string, int>> configures
             = new Dictionary<string, Dictionary<string, int>>();
 
+        internal Dictionary<string, MethodMatchInfo[]> blackListMethodInfo = null;
+
         public override bool TryGetConfigure(string tag, MethodReference method, out int flag)
         {
             Dictionary<string, int> configure;
             flag = 0;
+            if(tag == "IFix.IFixAttribute" && blackListMethodInfo != null)
+            {
+                if(isMatch(blackListMethodInfo, method))
+                {
+                    return false;
+                }
+            }
             return (configures.TryGetValue(tag, out configure)
                 && configure.TryGetValue(method.DeclaringType.FullName, out flag));
         }
@@ -143,85 +233,6 @@ namespace IFix
                 }
             }
             return null;
-        }
-        //参数类型信息
-        class ParameterMatchInfo
-        {
-            public bool IsOut;
-            public string ParameterType;
-        }
-
-        //方法签名信息
-        class MethodMatchInfo
-        {
-            public string Name;
-            public string ReturnType;
-            public ParameterMatchInfo[] Parameters;
-        }
-
-        //判断一个方法是否能够在matchInfo里头能查询到
-        bool isMatch(Dictionary<string, MethodMatchInfo[]> matchInfo, MethodReference method)
-        {
-            MethodMatchInfo[] mmis;
-            if (matchInfo.TryGetValue(method.DeclaringType.FullName, out mmis))
-            {
-                foreach(var mmi in mmis)
-                {
-                    if (mmi.Name == method.Name && mmi.ReturnType == method.ReturnType.FullName
-                        && mmi.Parameters.Length == method.Parameters.Count)
-                    {
-                        bool paramMatch = true;
-                        for(int i = 0; i < mmi.Parameters.Length; i++)
-                        {
-                            var paramType = method.Parameters[i].ParameterType;
-                            if (paramType.IsRequiredModifier)
-                            {
-                                paramType = (paramType as RequiredModifierType).ElementType;
-                            }
-                            if (mmi.Parameters[i].IsOut != method.Parameters[i].IsOut
-                                || mmi.Parameters[i].ParameterType != paramType.FullName)
-                            {
-                                paramMatch = false;
-                                break;
-                            }
-                        }
-                        if (paramMatch) return true;
-                    }
-                }
-            }
-            return false;
-        }
-
-        //读取方法信息，主要是方法的签名信息，名字+参数类型+返回值类型
-        static Dictionary<string, MethodMatchInfo[]> readMatchInfo(BinaryReader reader)
-        {
-            Dictionary<string, MethodMatchInfo[]> matchInfo = new Dictionary<string, MethodMatchInfo[]>();
-
-            int typeCount = reader.ReadInt32();
-            for (int k = 0; k < typeCount; k++)
-            {
-                string typeName = reader.ReadString();
-                int methodCount = reader.ReadInt32();
-                MethodMatchInfo[] methodMatchInfos = new MethodMatchInfo[methodCount];
-                for (int i = 0; i < methodCount; i++)
-                {
-                    MethodMatchInfo mmi = new MethodMatchInfo();
-                    mmi.Name = reader.ReadString();
-                    mmi.ReturnType = reader.ReadString();
-                    int parameterCount = reader.ReadInt32();
-                    mmi.Parameters = new ParameterMatchInfo[parameterCount];
-                    for (int p = 0; p < parameterCount; p++)
-                    {
-                        mmi.Parameters[p] = new ParameterMatchInfo();
-                        mmi.Parameters[p].IsOut = reader.ReadBoolean();
-                        mmi.Parameters[p].ParameterType = reader.ReadString();
-                    }
-                    methodMatchInfos[i] = mmi;
-                }
-                matchInfo[typeName] = methodMatchInfos;
-            }
-
-            return matchInfo;
         }
 
         //读取配置信息（要patch的方法列表，新增方法列表）

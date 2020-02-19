@@ -28,4 +28,11 @@ public class HelloworldCfg
             };
         }
     }
+
+    [IFix.Filter]
+    static bool Filter(System.Reflection.MethodInfo methodInfo)
+    {
+        return methodInfo.DeclaringType.FullName == "IFix.Test.Calculator" 
+            && (methodInfo.Name == "Div" || methodInfo.Name == "Mult");
+    }
 }

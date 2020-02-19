@@ -39,6 +39,11 @@ namespace IFix
     {
     }
 
+    [AttributeUsage(AttributeTargets.Method)]
+    public class FilterAttribute : Attribute
+    {
+    }
+
     public static class Configure
     {
         //
@@ -79,6 +84,29 @@ namespace IFix
                 }
             }
             return tagsMap;
+        }
+
+        public static List<MethodInfo> GetFilters()
+        {
+            var types = from assembly in AppDomain.CurrentDomain.GetAssemblies()
+                        where !(assembly.ManifestModule is System.Reflection.Emit.ModuleBuilder)
+                        from type in assembly.GetTypes()
+                        where type.IsDefined(typeof(ConfigureAttribute), false)
+                        select type;
+
+            List<MethodInfo> filters = new List<MethodInfo>();
+            foreach (var type in types)
+            {
+                foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.Public
+                    | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                {
+                    if(method.IsDefined(typeof(IFix.FilterAttribute), false))
+                    {
+                        filters.Add(method);
+                    }
+                }
+            }
+            return filters;
         }
 
         public static IEnumerable<MethodInfo> GetTagMethods(Type tagType, string searchAssembly)
