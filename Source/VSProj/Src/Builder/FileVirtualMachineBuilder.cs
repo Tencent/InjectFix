@@ -215,13 +215,19 @@ namespace IFix.Core
             return redirectField;
         }
 
-        static int getMapId(Type idMapType, MethodBase method)
+        static int getMapId(List<Type> idMapArray, MethodBase method)
         {
             IDTagAttribute id = Attribute.GetCustomAttribute(method, typeof(IDTagAttribute), false) as IDTagAttribute;
             int overrideId = id == null ? 0 : id.ID;
             var fieldName = string.Format("{0}-{1}{2}", method.DeclaringType.FullName.Replace('.', '-')
                 .Replace('+', '-'), method.Name, overrideId);
-            var field = idMapType.GetField(fieldName);
+            FieldInfo field = null;
+            
+            for (int i = 0; i < idMapArray.Count; i++)
+            {
+                field = idMapArray[i].GetField(fieldName);
+                if (field != null) break;
+            }
             if (field == null)
             {
                 throw new Exception(string.Format("cat not find id field: {0}, for {1}", fieldName, method));
@@ -450,8 +456,15 @@ namespace IFix.Core
                 }
                 virtualMachine.WrappersManager = wrapperManager;
 
-                var idMapTypeName = reader.ReadString();
-                var idMapType = Type.GetType(idMapTypeName, true);
+                var assemblyStr = reader.ReadString();
+                var idMapList = new List<Type>();
+                for(int i = 0; i < 100; i++)
+                {
+
+                    var idMapType = Type.GetType("IFix.IDMAP" + i + assemblyStr, false);
+                    if (idMapType == null) break;
+                    idMapList.Add(idMapType);
+                }
 
                 lock (removers)
                 {
@@ -496,7 +509,7 @@ namespace IFix.Core
                     {
                         var fixMethod = readMethod(reader, externTypes);
                         var fixMethodId = reader.ReadInt32();
-                        var pos = getMapId(idMapType, fixMethod);
+                        var pos = getMapId(idMapList, fixMethod);
                         methodIdArray[i] = fixMethodId;
                         posArray[i] = pos;
                         if (pos > maxPos)

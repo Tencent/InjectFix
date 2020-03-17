@@ -1748,6 +1748,8 @@ namespace IFix
         private TypeReference voidType;
         private TypeDefinition wrapperType;
         private TypeDefinition idMapType;
+        private TypeReference enumType;
+        private List<TypeDefinition> idMapList;
         private TypeDefinition itfBridgeType;
         private int bridgeMethodId;
         private TypeReference anonymousStoreyTypeRef;
@@ -2516,12 +2518,9 @@ namespace IFix
             //end init itfBridgeType
 
             //begin init idMapper
-            var enumType = assembly.MainModule.ImportReference(typeof(System.Enum));
-            idMapType = new TypeDefinition("IFix", "IDMAP", TypeAttributes.Public | TypeAttributes.Sealed,
-                    enumType);
-            assembly.MainModule.Types.Add(idMapType);
-            idMapType.Fields.Add(new FieldDefinition("value__", FieldAttributes.Public | FieldAttributes.SpecialName
-                | FieldAttributes.RTSpecialName, assembly.MainModule.TypeSystem.Int32));
+            enumType = assembly.MainModule.ImportReference(typeof(System.Enum));
+            idMapList = new List<TypeDefinition>();
+            idMapType = null;
             //end init idMapper
 
             wrapperMethods = new List<MethodDefinition>();
@@ -2592,6 +2591,24 @@ namespace IFix
             initStackOp(Call, assembly.MainModule.TypeSystem.Object);
             initStackOp(Call, assembly.MainModule.TypeSystem.IntPtr);
             initStackOp(Call, assembly.MainModule.TypeSystem.UIntPtr);
+        }
+
+        const int MAX_ID_MAP_FIELD_COUNT = 32760;
+
+        void idMapTypeCheck()
+        {
+            if (idMapType == null || idMapType.Fields.Count >= MAX_ID_MAP_FIELD_COUNT)
+            {
+                if (idMapType != null)
+                {
+                    idMapList.Add(idMapType);
+                }
+                idMapType = new TypeDefinition("IFix", "IDMAP" + idMapList.Count, TypeAttributes.Public | TypeAttributes.Sealed,
+                        enumType);
+                assembly.MainModule.Types.Add(idMapType);
+                idMapType.Fields.Add(new FieldDefinition("value__", FieldAttributes.Public | FieldAttributes.SpecialName
+                    | FieldAttributes.RTSpecialName, assembly.MainModule.TypeSystem.Int32));
+            }
         }
 
         void initStackOp(TypeDefinition call, TypeReference type)
@@ -2842,6 +2859,7 @@ namespace IFix
             {
                 throw new Exception("try inject method twice: " + method);
             }
+            idMapTypeCheck();
             var redirectIdField = new FieldDefinition("tmp_r_field_" + redirectIdMap.Count, FieldAttributes.Public
                 | FieldAttributes.Static | FieldAttributes.Literal | FieldAttributes.HasDefault, idMapType);
             idMapType.Fields.Add(redirectIdField);
@@ -2932,6 +2950,8 @@ namespace IFix
                     }
                 }
             }
+            idMapList.Add(idMapType);
+            idMapType = null;
         }
 
         //1、构造函数及析构函数不转，不支持的指令不转，转的函数留下函数定义，所以支持反射
@@ -3432,7 +3452,23 @@ namespace IFix
                 }
 
                 writer.Write(wrapperMgrImpl.GetAssemblyQualifiedName());
-                writer.Write(idMapType.GetAssemblyQualifiedName());
+
+                TypeDefinition idMap0 = null;
+                if (idMapList.Count == 0)
+                {
+                    if (idMapType == null)
+                    {
+                        idMapTypeCheck();
+                    }
+                    idMap0 = idMapType;
+                    idMapType = null;
+                }
+                else
+                {
+                    idMap0 = idMapList[0];
+                }
+                var idMap0Name = idMap0.GetAssemblyQualifiedName();
+                writer.Write(idMap0Name.Substring("IFix.IDMAP0".Length));
 
                 writer.Write(interpretMethods.Count);
                 //Console.WriteLine("interpretMethods.Count:" + interpretMethods.Count);
