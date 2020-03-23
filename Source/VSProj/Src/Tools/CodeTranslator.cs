@@ -919,7 +919,7 @@ namespace IFix
 
             methodToId.Add(method, methodId);
 
-            if (methodId > ushort.MaxValue)
+            if (mode == ProcessMode.Patch && methodId > ushort.MaxValue)
             {
                 throw new OverflowException("too many internal methods");
             }
