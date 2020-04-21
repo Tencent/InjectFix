@@ -62,6 +62,9 @@ namespace IFix.Editor
         //备份文件的时间戳生成格式
         const string TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
+        //注入的目标文件夹
+        private static string targetAssembliesFolder = "";
+
         //system("mono ifix.exe [args]")
         public static void CallIFix(List<string> args)
         {
@@ -282,7 +285,7 @@ namespace IFix.Editor
             {
 
                 var core_path = "./Assets/Plugins/IFix.Core.dll";
-                var assembly_path = string.Format("./Library/ScriptAssemblies/{0}.dll", assembly);
+                var assembly_path = string.Format("./Library/{0}/{1}.dll", targetAssembliesFolder, assembly);
                 var patch_path = string.Format("./{0}.ill.bytes", assembly);
                 List<string> args = new List<string>() { "-inject", core_path, assembly_path,
                     processCfgPath, patch_path, assembly_path };
@@ -315,6 +318,8 @@ namespace IFix.Editor
                 return;
             }
 
+            targetAssembliesFolder = GetScriptAssembliesFolder();
+
             foreach (var assembly in injectAssemblys)
             {
                 InjectAssembly(assembly);
@@ -323,6 +328,16 @@ namespace IFix.Editor
             //doBackup(DateTime.Now.ToString(TIMESTAMP_FORMAT));
 
             AssetDatabase.Refresh();
+        }
+
+        private static string GetScriptAssembliesFolder()
+        {
+            var assembliesFolder = "PlayerScriptAssemblies";
+            if (!Directory.Exists(string.Format("./Library/{0}/", assembliesFolder)))
+            {
+                assembliesFolder = "ScriptAssemblies";
+            }
+            return assembliesFolder;
         }
 
         //默认的注入及备份程序集
@@ -344,7 +359,7 @@ namespace IFix.Editor
                 Directory.CreateDirectory(BACKUP_PATH);
             }
 
-            var scriptAssembliesDir = "./Library/ScriptAssemblies/";
+            var scriptAssembliesDir = string.Format("./Library/{0}/", targetAssembliesFolder);
 
             foreach (var assembly in injectAssemblys)
             {
@@ -375,7 +390,7 @@ namespace IFix.Editor
         /// <param name="ts">时间戳</param>
         static void doRestore(string ts)
         {
-            var scriptAssembliesDir = "./Library/ScriptAssemblies/";
+            var scriptAssembliesDir = string.Format("./Library/{0}/", targetAssembliesFolder);
 
             foreach (var assembly in injectAssemblys)
             {
@@ -795,8 +810,9 @@ namespace IFix.Editor
             {
                 foreach (var assembly in injectAssemblys)
                 {
-                    GenPatch(assembly, string.Format("./Library/ScriptAssemblies/{0}.dll", assembly),
-                        "./Assets/Plugins/IFix.Core.dll", string.Format("{0}.patch.bytes", assembly));
+                    var assembly_path = string.Format("./Library/{0}/{1}.dll", GetScriptAssembliesFolder(), assembly);
+                    GenPatch(assembly, assembly_path, "./Assets/Plugins/IFix.Core.dll",
+                        string.Format("{0}.patch.bytes", assembly));
                 }
             }
             catch (Exception e)
