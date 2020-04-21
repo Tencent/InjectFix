@@ -63,7 +63,7 @@ namespace IFix.Editor
         const string TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
         //注入的目标文件夹
-        private static string _targetScriptAssembliesFolder = "";
+        private static string targetAssembliesFolder = "";
 
         //system("mono ifix.exe [args]")
         public static void CallIFix(List<string> args)
@@ -261,7 +261,7 @@ namespace IFix.Editor
             {
 
                 var core_path = "./Assets/Plugins/IFix.Core.dll";
-                var assembly_path = string.Format("./Library/{0}/{1}.dll", _targetScriptAssembliesFolder, assembly);
+                var assembly_path = string.Format("./Library/{0}/{1}.dll", targetAssembliesFolder, assembly);
                 var patch_path = string.Format("./{0}.ill.bytes", assembly);
                 List<string> args = new List<string>() { "-inject", core_path, assembly_path,
                     processCfgPath, patch_path, assembly_path };
@@ -294,7 +294,7 @@ namespace IFix.Editor
                 return;
             }
 
-            _targetScriptAssembliesFolder = GetScriptAssembliesFolder();
+            targetAssembliesFolder = GetScriptAssembliesFolder();
 
             foreach (var assembly in injectAssemblys)
             {
@@ -335,7 +335,7 @@ namespace IFix.Editor
                 Directory.CreateDirectory(BACKUP_PATH);
             }
 
-            var scriptAssembliesDir = string.Format("./Library/{0}/", _targetScriptAssembliesFolder);
+            var scriptAssembliesDir = string.Format("./Library/{0}/", targetAssembliesFolder);
 
             foreach (var assembly in injectAssemblys)
             {
@@ -366,7 +366,7 @@ namespace IFix.Editor
         /// <param name="ts">时间戳</param>
         static void doRestore(string ts)
         {
-            var scriptAssembliesDir = string.Format("./Library/{0}/", _targetScriptAssembliesFolder);
+            var scriptAssembliesDir = string.Format("./Library/{0}/", targetAssembliesFolder);
 
             foreach (var assembly in injectAssemblys)
             {
@@ -787,7 +787,6 @@ namespace IFix.Editor
                 foreach (var assembly in injectAssemblys)
                 {
                     var assembly_path = string.Format("./Library/{0}/{1}.dll", GetScriptAssembliesFolder(), assembly);
-                    UnityEngine.Debug.Log(assembly_path);
                     GenPatch(assembly, assembly_path, "./Assets/Plugins/IFix.Core.dll",
                         string.Format("{0}.patch.bytes", assembly));
                 }
