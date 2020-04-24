@@ -25,7 +25,7 @@ namespace IFix.Editor
     public class VersionSelector : EditorWindow
     {
         public string buttonText = "Patch";
-        public string[] options = new string[] {};
+        public string[] options = new string[] { };
         public int index = 0;
         public Action<int> callback = null;
 
@@ -62,7 +62,6 @@ namespace IFix.Editor
         //备份文件的时间戳生成格式
         const string TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
-        //注入的目标文件夹
         private static string targetAssembliesFolder = "";
 
         //system("mono ifix.exe [args]")
@@ -110,7 +109,7 @@ namespace IFix.Editor
             //UnityEngine.Debug.Log(hotfix_injection.StartInfo.Arguments);
 
             StringBuilder exceptionInfo = null;
-            while(!hotfix_injection.StandardOutput.EndOfStream)
+            while (!hotfix_injection.StandardOutput.EndOfStream)
             {
                 string line = hotfix_injection.StandardOutput.ReadLine();
                 if (exceptionInfo != null)
@@ -157,7 +156,7 @@ namespace IFix.Editor
             {
                 InjectAllAssemblys();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
@@ -237,7 +236,6 @@ namespace IFix.Editor
                 FileAccess.Write)))
             {
                 writer.Write(configure.Count);
-
                 foreach (var kv in configure)
                 {
                     writer.Write(kv.Key);
@@ -259,11 +257,11 @@ namespace IFix.Editor
                         writer.Write(cfgItem.Value);
                         if (filters.Count > 0 && kv.Key == "IFix.IFixAttribute")
                         {
-                            foreach(var method in cfgItem.Key.GetMethods(BindingFlags.Instance 
-                                | BindingFlags.Static | BindingFlags.Public 
+                            foreach (var method in cfgItem.Key.GetMethods(BindingFlags.Instance
+                                | BindingFlags.Static | BindingFlags.Public
                                 | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
                             {
-                                foreach(var filter in filters)
+                                foreach (var filter in filters)
                                 {
                                     if ((bool)filter.Invoke(null, new object[]
                                     {
@@ -277,7 +275,6 @@ namespace IFix.Editor
                         }
                     }
                 }
-
                 writeMethods(writer, blackList);
             }
 
@@ -292,7 +289,7 @@ namespace IFix.Editor
 
                 foreach (var path in
                     (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                        select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                     select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
                 {
                     try
                     {
@@ -309,7 +306,7 @@ namespace IFix.Editor
         }
 
         /// <summary>
-        /// 对injectAssemblys里的程序集进行注入，然后备份
+        /// 对injectAssemblys里的程序集进行注入，然后备份，
         /// </summary>
         public static void InjectAllAssemblys()
         {
@@ -317,14 +314,12 @@ namespace IFix.Editor
             {
                 return;
             }
-
             targetAssembliesFolder = GetScriptAssembliesFolder();
-
             foreach (var assembly in injectAssemblys)
             {
                 InjectAssembly(assembly);
             }
-            
+
             //doBackup(DateTime.Now.ToString(TIMESTAMP_FORMAT));
 
             AssetDatabase.Refresh();
@@ -417,7 +412,6 @@ namespace IFix.Editor
                 }
             }
         }
-
         //cecil里的类名表示和.net标准并不一样，这里做些转换
         static string GetCecilTypeName(Type type)
         {
@@ -491,7 +485,7 @@ namespace IFix.Editor
             foreach (var file in Directory.GetFiles(dir))
             {
                 //排除调Editor下的东西
-                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0 )
+                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0)
                 {
                     continue;
                 }
@@ -508,7 +502,7 @@ namespace IFix.Editor
                 }
             }
 
-            foreach(var subDir in Directory.GetDirectories(dir))
+            foreach (var subDir in Directory.GetDirectories(dir))
             {
                 appendDirectory(src, subDir);
             }
@@ -564,7 +558,8 @@ namespace IFix.Editor
 #if (UNITY_EDITOR || XLUA_GENERAL) && !NET_STANDARD_2_0
                     }
 #endif
-                } catch { }
+                }
+                catch { }
             }
 
             cmd.AppendLine(compileTemplate);
@@ -629,7 +624,6 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.Log(compileProcess.StandardOutput.ReadLine());
             }
-            
             compileProcess.WaitForExit();
         }
 
@@ -704,6 +698,14 @@ namespace IFix.Editor
                 }
             }
         }
+        static void writeClasses(BinaryWriter writer, List<Type> classes)//-----------------------------------------------------
+        {
+            writer.Write(classes.Count);
+            foreach (var classGroup in classes)
+            {
+                writer.Write(GetCecilTypeName(classGroup));
+            }
+        }
 
         static bool hasGenericParameter(Type type)
         {
@@ -749,7 +751,7 @@ namespace IFix.Editor
         /// <param name="corePath">IFix.Core.dll所在路径</param>
         /// <param name="patchPath">生成的patch的保存路径</param>
         public static void GenPatch(string assembly, string assemblyCSharpPath
-            = "./Library/ScriptAssemblies/Assembly-CSharp.dll", 
+            = "./Library/ScriptAssemblies/Assembly-CSharp.dll",
             string corePath = "./Assets/Plugins/IFix.Core.dll", string patchPath = "Assembly-CSharp.patch.bytes")
         {
             var patchMethods = Configure.GetTagMethods(typeof(PatchAttribute), assembly).ToList();
@@ -763,8 +765,8 @@ namespace IFix.Editor
             {
                 return;
             }
-
             var newMethods = Configure.GetTagMethods(typeof(InterpretAttribute), assembly).ToList();
+            var newClasses = Configure.GetTagClasses(typeof(InterpretAttribute), assembly).ToList();
             genericMethod = newMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
@@ -776,16 +778,17 @@ namespace IFix.Editor
             using (BinaryWriter writer = new BinaryWriter(new FileStream(processCfgPath, FileMode.Create,
                 FileAccess.Write)))
             {
+
                 writeMethods(writer, patchMethods);
                 writeMethods(writer, newMethods);
+                writeClasses(writer, newClasses);
             }
-
             List<string> args = new List<string>() { "-patch", corePath, assemblyCSharpPath, "null",
                 processCfgPath, patchPath };
 
             foreach (var path in
                 (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                    select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                 select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
             {
                 try
                 {
@@ -794,14 +797,12 @@ namespace IFix.Editor
                 }
                 catch { }
             }
-
             CallIFix(args);
 
             File.Delete(processCfgPath);
 
             AssetDatabase.Refresh();
         }
-
         [MenuItem("InjectFix/Fix", false, 2)]
         public static void Patch()
         {

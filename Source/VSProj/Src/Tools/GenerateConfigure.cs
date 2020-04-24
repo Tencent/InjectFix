@@ -63,7 +63,7 @@ namespace IFix
         /// <param name="method">要查询的方法</param>
         /// <returns></returns>
         public abstract bool IsNewMethod(MethodReference method);
-
+        public abstract bool IsNewClass(TypeReference type);
         //参数类型信息
         internal class ParameterMatchInfo
         {
@@ -79,7 +79,7 @@ namespace IFix
             public ParameterMatchInfo[] Parameters;
         }
 
-        //判断一个方法是否能够在matchInfo里头能查询到
+		//判断一个方法是否能够在matchInfo里头能查询到
         internal static bool isMatch(Dictionary<string, MethodMatchInfo[]> matchInfo, MethodReference method)
         {
             MethodMatchInfo[] mmis;
@@ -108,6 +108,14 @@ namespace IFix
                         if (paramMatch) return true;
                     }
                 }
+            }
+            return false;
+        }
+        internal static bool isMatchForClass(HashSet<string> matchInfo, TypeReference type)
+        {
+            if (matchInfo.Contains(type.ToString()))
+            {
+                return true;
             }
             return false;
         }
@@ -143,6 +151,18 @@ namespace IFix
 
             return matchInfo;
         }
+
+        internal static HashSet<string> readMatchInfoForClass(BinaryReader reader)
+        {
+            HashSet<string> setMatchInfoForClass = new HashSet<string>();
+            int typeCount = reader.ReadInt32();
+            for (int k = 0; k < typeCount; k++)
+            {
+                string className = reader.ReadString();
+                setMatchInfoForClass.Add(className);
+            }
+            return setMatchInfoForClass;
+        }
     }
 
     //内部测试专用
@@ -155,6 +175,11 @@ namespace IFix
         }
 
         public override bool IsNewMethod(MethodReference method)
+        {
+            return false;
+        }
+
+        public override bool IsNewClass(TypeReference type)
         {
             return false;
         }
@@ -172,9 +197,9 @@ namespace IFix
         {
             Dictionary<string, int> configure;
             flag = 0;
-            if(tag == "IFix.IFixAttribute" && blackListMethodInfo != null)
+            if (tag == "IFix.IFixAttribute" && blackListMethodInfo != null)
             {
-                if(isMatch(blackListMethodInfo, method))
+                if (isMatch(blackListMethodInfo, method))
                 {
                     return false;
                 }
@@ -184,6 +209,11 @@ namespace IFix
         }
 
         public override bool IsNewMethod(MethodReference method)
+        {
+            return false;
+        }
+
+        public override bool IsNewClass(TypeReference type)
         {
             return false;
         }
@@ -211,10 +241,16 @@ namespace IFix
             return newMethods.Contains(method);
         }
 
+        public override bool IsNewClass(TypeReference type)
+        {
+            return newClasses.Contains(type);
+        }
+
         //暂时不支持redirect类型的方法
         HashSet<MethodReference> redirectMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> switchMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> newMethods = new HashSet<MethodReference>();
+        HashSet<TypeReference> newClasses = new HashSet<TypeReference>();
 
         MethodDefinition findMatchMethod(Dictionary<string, Dictionary<string, List<MethodDefinition>>> searchData,
             MethodDefinition method)
@@ -235,19 +271,19 @@ namespace IFix
             return null;
         }
 
-        //读取配置信息（要patch的方法列表，新增方法列表）
         public PatchGenerateConfigure(AssemblyDefinition newAssembly, string cfgPath)
         {
             Dictionary<string, MethodMatchInfo[]> patchMethodInfo = null;
             Dictionary<string, MethodMatchInfo[]> newMethodInfo = null;
+            HashSet<string> newClassInfo = null;
 
             using (BinaryReader reader = new BinaryReader(File.Open(cfgPath, FileMode.Open)))
             {
                 patchMethodInfo = readMatchInfo(reader);
                 newMethodInfo = readMatchInfo(reader);
+                newClassInfo = readMatchInfoForClass(reader);
             }
-
-            foreach (var method in (from type in newAssembly.GetAllType() from method in type.Methods select method ))
+            foreach (var method in (from type in newAssembly.GetAllType() from method in type.Methods select method))
             {
                 if (isMatch(patchMethodInfo, method))
                 {
@@ -256,6 +292,13 @@ namespace IFix
                 if (isMatch(newMethodInfo, method))
                 {
                     newMethods.Add(method);
+                }
+            }
+            foreach (var clas in newAssembly.GetAllType())
+            {
+                if (isMatchForClass(newClassInfo, clas))
+                {
+                    newClasses.Add(clas);
                 }
             }
         }

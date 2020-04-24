@@ -56,7 +56,7 @@ namespace IFix
                         select type;
             var tagsMap = tags.ToDictionary(t => t, t => new List<KeyValuePair<object, int>>());
 
-            foreach(var type in types)
+            foreach (var type in types)
             {
                 foreach (var prop in type.GetProperties(BindingFlags.Static | BindingFlags.Public
                     | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
@@ -100,7 +100,7 @@ namespace IFix
                 foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.Public
                     | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
                 {
-                    if(method.IsDefined(typeof(IFix.FilterAttribute), false))
+                    if (method.IsDefined(typeof(IFix.FilterAttribute), false))
                     {
                         filters.Add(method);
                     }
@@ -120,6 +120,18 @@ namespace IFix
                         | BindingFlags.NonPublic)
                     where method.IsDefined(tagType, false)
                     select method);
+        }
+        public static IEnumerable<Type> GetTagClasses(Type tagType, string searchAssembly)
+        {
+            return (from assembly in AppDomain.CurrentDomain.GetAssemblies()
+                    where !(assembly.ManifestModule is System.Reflection.Emit.ModuleBuilder)
+                        && (assembly.GetName().Name == searchAssembly)
+                    where assembly.CodeBase.IndexOf("ScriptAssemblies") != -1
+                    from type in assembly.GetTypes()
+                    where type.IsDefined(tagType, false)
+                    select type
+                    );
+
         }
     }
 }
