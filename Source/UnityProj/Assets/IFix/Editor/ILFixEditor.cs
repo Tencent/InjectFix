@@ -25,7 +25,7 @@ namespace IFix.Editor
     public class VersionSelector : EditorWindow
     {
         public string buttonText = "Patch";
-        public string[] options = new string[] {};
+        public string[] options = new string[] { };
         public int index = 0;
         public Action<int> callback = null;
 
@@ -110,7 +110,7 @@ namespace IFix.Editor
             //UnityEngine.Debug.Log(hotfix_injection.StartInfo.Arguments);
 
             StringBuilder exceptionInfo = null;
-            while(!hotfix_injection.StandardOutput.EndOfStream)
+            while (!hotfix_injection.StandardOutput.EndOfStream)
             {
                 string line = hotfix_injection.StandardOutput.ReadLine();
                 if (exceptionInfo != null)
@@ -157,7 +157,7 @@ namespace IFix.Editor
             {
                 InjectAllAssemblys();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
@@ -259,11 +259,11 @@ namespace IFix.Editor
                         writer.Write(cfgItem.Value);
                         if (filters.Count > 0 && kv.Key == "IFix.IFixAttribute")
                         {
-                            foreach(var method in cfgItem.Key.GetMethods(BindingFlags.Instance 
-                                | BindingFlags.Static | BindingFlags.Public 
+                            foreach (var method in cfgItem.Key.GetMethods(BindingFlags.Instance
+                                | BindingFlags.Static | BindingFlags.Public
                                 | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
                             {
-                                foreach(var filter in filters)
+                                foreach (var filter in filters)
                                 {
                                     if ((bool)filter.Invoke(null, new object[]
                                     {
@@ -292,7 +292,7 @@ namespace IFix.Editor
 
                 foreach (var path in
                     (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                        select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                     select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
                 {
                     try
                     {
@@ -324,7 +324,7 @@ namespace IFix.Editor
             {
                 InjectAssembly(assembly);
             }
-            
+
             //doBackup(DateTime.Now.ToString(TIMESTAMP_FORMAT));
 
             AssetDatabase.Refresh();
@@ -491,7 +491,7 @@ namespace IFix.Editor
             foreach (var file in Directory.GetFiles(dir))
             {
                 //排除调Editor下的东西
-                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0 )
+                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0)
                 {
                     continue;
                 }
@@ -508,7 +508,7 @@ namespace IFix.Editor
                 }
             }
 
-            foreach(var subDir in Directory.GetDirectories(dir))
+            foreach (var subDir in Directory.GetDirectories(dir))
             {
                 appendDirectory(src, subDir);
             }
@@ -554,17 +554,18 @@ namespace IFix.Editor
                     if (!(assembly.ManifestModule is System.Reflection.Emit.ModuleBuilder))
                     {
 #endif
-                        var assemblyPath = assembly.ManifestModule.FullyQualifiedName
-                            .Replace(Path.DirectorySeparatorChar, '/');
-                        if (assemblyPath.StartsWith(projectDir))
-                        {
-                            dll.Append("-r:");
-                            appendFile(dll, assemblyPath.Replace(projectDir, "Assets"));
-                        }
+                    var assemblyPath = assembly.ManifestModule.FullyQualifiedName
+                        .Replace(Path.DirectorySeparatorChar, '/');
+                    if (assemblyPath.StartsWith(projectDir))
+                    {
+                        dll.Append("-r:");
+                        appendFile(dll, assemblyPath.Replace(projectDir, "Assets"));
+                    }
 #if (UNITY_EDITOR || XLUA_GENERAL) && !NET_STANDARD_2_0
                     }
 #endif
-                } catch { }
+                }
+                catch { }
             }
 
             cmd.AppendLine(compileTemplate);
@@ -629,7 +630,7 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.Log(compileProcess.StandardOutput.ReadLine());
             }
-            
+
             compileProcess.WaitForExit();
         }
 
@@ -758,7 +759,7 @@ namespace IFix.Editor
         /// <param name="corePath">IFix.Core.dll所在路径</param>
         /// <param name="patchPath">生成的patch的保存路径</param>
         public static void GenPatch(string assembly, string assemblyCSharpPath
-            = "./Library/ScriptAssemblies/Assembly-CSharp.dll", 
+            = "./Library/ScriptAssemblies/Assembly-CSharp.dll",
             string corePath = "./Assets/Plugins/IFix.Core.dll", string patchPath = "Assembly-CSharp.patch.bytes")
         {
             var patchMethods = Configure.GetTagMethods(typeof(PatchAttribute), assembly).ToList();
@@ -796,7 +797,7 @@ namespace IFix.Editor
 
             foreach (var path in
                 (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                    select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                 select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
             {
                 try
                 {

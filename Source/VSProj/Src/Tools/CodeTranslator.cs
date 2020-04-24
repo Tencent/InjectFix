@@ -72,14 +72,14 @@ namespace IFix
                 return isCompilerGenerated((method as GenericInstanceMethod).ElementMethod);
             }
             var md = method as MethodDefinition;
-            return md != null && md.CustomAttributes.Any(ca => ca.AttributeType.FullName 
+            return md != null && md.CustomAttributes.Any(ca => ca.AttributeType.FullName
             == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
         }
 
         bool isCompilerGenerated(FieldReference field)
         {
             var fd = field as FieldDefinition;
-            return fd != null && fd.CustomAttributes.Any(ca => ca.AttributeType.FullName 
+            return fd != null && fd.CustomAttributes.Any(ca => ca.AttributeType.FullName
             == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
         }
 
@@ -114,7 +114,7 @@ namespace IFix
                 && isCompilerGenerated(type);
         }
 
-        Dictionary<TypeDefinition, HashSet<FieldDefinition>> typeToSpecialGeneratedFields 
+        Dictionary<TypeDefinition, HashSet<FieldDefinition>> typeToSpecialGeneratedFields
             = new Dictionary<TypeDefinition, HashSet<FieldDefinition>>();
 
         Dictionary<TypeDefinition, int> typeToCctor = new Dictionary<TypeDefinition, int>();
@@ -141,16 +141,16 @@ namespace IFix
                         typeToCctor[type] = cctorInfo.Type == CallType.Internal ? cctorInfo.Id : -2;
                     }
                 }
-                
-                foreach (var field in ( from method in type.Methods
-                                        where method.IsSpecialName && method.Body != null 
-                                            && method.Body.Instructions != null
-                                        from instruction in method.Body.Instructions
-                                        where instruction.OpCode.Code == Code.Ldsfld
-                                            || instruction.OpCode.Code == Code.Stsfld
-                                            || instruction.OpCode.Code == Code.Ldsflda
-                                        where isCompilerGenerated(instruction.Operand as FieldReference)
-                                        select (instruction.Operand as FieldReference).Resolve()).Distinct())
+
+                foreach (var field in (from method in type.Methods
+                                       where method.IsSpecialName && method.Body != null
+                                           && method.Body.Instructions != null
+                                       from instruction in method.Body.Instructions
+                                       where instruction.OpCode.Code == Code.Ldsfld
+                                           || instruction.OpCode.Code == Code.Stsfld
+                                           || instruction.OpCode.Code == Code.Ldsflda
+                                       where isCompilerGenerated(instruction.Operand as FieldReference)
+                                       select (instruction.Operand as FieldReference).Resolve()).Distinct())
                 {
                     ret.Add(field);
                 }
@@ -269,7 +269,7 @@ namespace IFix
 
             if (callee.IsGeneric())
             {
-                throw new InvalidProgramException("try to call a generic method definition: " + callee 
+                throw new InvalidProgramException("try to call a generic method definition: " + callee
                     + ", caller is:" + caller);
             }
 
@@ -359,7 +359,7 @@ namespace IFix
 
         public bool isRefBySpecialMethodNoCache(FieldDefinition field)
         {
-            foreach(var instructions in field.DeclaringType.Methods
+            foreach (var instructions in field.DeclaringType.Methods
                 .Where(m => m.IsSpecialName && m.Body != null && m.Body.Instructions != null)
                 .Select(m => m.Body.Instructions))
             {
@@ -454,10 +454,10 @@ namespace IFix
                         {
                             FieldReference fr = instructions[i].Operand as FieldReference;
                             //如果是生成的字段，而且不是Getter/Setter/Adder/Remover
-                            if (isCompilerGenerated(fr) && !method.IsSpecialName) 
+                            if (isCompilerGenerated(fr) && !method.IsSpecialName)
                             {
                                 if (!IsVaildIdentifierName(fr.Name)//不是合法名字，就肯定是随机变量
-                                    //如果是合法名字，但不被任何SpecialName方法引用，也归为随机变量
+                                                                   //如果是合法名字，但不被任何SpecialName方法引用，也归为随机变量
                                     || !isRefBySpecialMethod(fr as FieldDefinition))
 
                                 {
@@ -506,7 +506,7 @@ namespace IFix
                             //LINQ通常是ldftn，要验证ldftn所加载的函数是否含非法指令（不支持，或者引用了个生成字段，
                             //或者一个生成NotPlainObject）
                             MethodReference mr = instructions[i].Operand as MethodReference;
-                            if (mr != null && !mr.IsGeneric() 
+                            if (mr != null && !mr.IsGeneric()
                                 && !isCompilerGeneratedByNotPlainObject(mr.DeclaringType))
                             {
                                 if (isCompilerGenerated(mr)
@@ -526,10 +526,10 @@ namespace IFix
                                         return false;
                                     }
                                     //编译器生成类要检查所有实现方法
-                                    if (instructions[i].OpCode.Code == Code.Newobj 
+                                    if (instructions[i].OpCode.Code == Code.Newobj
                                         && (isCompilerGeneratedPlainObject(mr.DeclaringType) || isCustomClassPlainObject(mr.DeclaringType)))
                                     {
-                                        foreach(var m in mr.DeclaringType.Resolve().Methods
+                                        foreach (var m in mr.DeclaringType.Resolve().Methods
                                             .Where(m => !m.IsConstructor))
                                         {
                                             if (m.Body != null && !checkILAndGetOffset(m, m.Body.Instructions))
@@ -700,7 +700,7 @@ namespace IFix
             {
                 var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Private,
                     method.ReturnType);
-                for(int i = 0; i < method.Parameters.Count; i++)
+                for (int i = 0; i < method.Parameters.Count; i++)
                 {
                     proxyMethod.Parameters.Add(new ParameterDefinition("P" + i, method.Parameters[i].IsOut
                         ? ParameterAttributes.Out : ParameterAttributes.None, method.Parameters[i].ParameterType));
@@ -708,7 +708,7 @@ namespace IFix
                 var instructions = proxyMethod.Body.Instructions;
                 var ilProcessor = proxyMethod.Body.GetILProcessor();
                 int paramCount = method.Parameters.Count + 1;
-                for(int i = 0; i < paramCount; i++)
+                for (int i = 0; i < paramCount; i++)
                 {
                     emitLdarg(instructions, ilProcessor, i);
                     if (i == 0 && type.IsValueType)
