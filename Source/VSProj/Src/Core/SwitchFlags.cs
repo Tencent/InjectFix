@@ -10,7 +10,7 @@ using System;
 namespace IFix
 {
     //切换到解析执行
-    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method | AttributeTargets.Class)]
     public class InterpretAttribute : Attribute
     {
     }

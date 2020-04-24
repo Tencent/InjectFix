@@ -121,5 +121,17 @@ namespace IFix
                     where method.IsDefined(tagType, false)
                     select method);
         }
+        public static IEnumerable<Type> GetTagClasses(Type tagType, string searchAssembly)
+        {
+            return (from assembly in AppDomain.CurrentDomain.GetAssemblies()
+                    where !(assembly.ManifestModule is System.Reflection.Emit.ModuleBuilder)
+                        && (assembly.GetName().Name == searchAssembly)
+                    where assembly.CodeBase.IndexOf("ScriptAssemblies") != -1
+                    from type in assembly.GetTypes()
+                    where type.IsDefined(tagType, false)
+                    select type
+                    );
+
+        }
     }
 }

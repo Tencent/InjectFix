@@ -705,6 +705,15 @@ namespace IFix.Editor
             }
         }
 
+        static void writeClasses(BinaryWriter writer, List<Type> classes)
+        {
+            writer.Write(classes.Count);
+            foreach (var classGroup in classes)
+            {
+                writer.Write(GetCecilTypeName(classGroup));
+            }
+        }
+
         static bool hasGenericParameter(Type type)
         {
             if (type.IsByRef || type.IsArray)
@@ -765,6 +774,7 @@ namespace IFix.Editor
             }
 
             var newMethods = Configure.GetTagMethods(typeof(InterpretAttribute), assembly).ToList();
+            var newClasses = Configure.GetTagClasses(typeof(InterpretAttribute), assembly).ToList();
             genericMethod = newMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
@@ -778,6 +788,7 @@ namespace IFix.Editor
             {
                 writeMethods(writer, patchMethods);
                 writeMethods(writer, newMethods);
+                writeClasses(writer, newClasses);
             }
 
             List<string> args = new List<string>() { "-patch", corePath, assemblyCSharpPath, "null",
