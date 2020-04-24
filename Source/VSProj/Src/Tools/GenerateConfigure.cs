@@ -197,9 +197,9 @@ namespace IFix
         {
             Dictionary<string, int> configure;
             flag = 0;
-            if (tag == "IFix.IFixAttribute" && blackListMethodInfo != null)
+            if(tag == "IFix.IFixAttribute" && blackListMethodInfo != null)
             {
-                if (isMatch(blackListMethodInfo, method))
+                if(isMatch(blackListMethodInfo, method))
                 {
                     return false;
                 }
@@ -282,7 +282,7 @@ namespace IFix
                 newClassInfo = readMatchInfoForClass(reader);
             }
 
-            foreach (var method in (from type in newAssembly.GetAllType() from method in type.Methods select method))
+            foreach (var method in (from type in newAssembly.GetAllType() from method in type.Methods select method ))
             {
                 if (isMatch(patchMethodInfo, method))
                 {
