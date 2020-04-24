@@ -72,16 +72,17 @@ namespace IFix
                 return isCompilerGenerated((method as GenericInstanceMethod).ElementMethod);
             }
             var md = method as MethodDefinition;
-            return md != null && md.CustomAttributes.Any(ca => ca.AttributeType.FullName
+            return md != null && md.CustomAttributes.Any(ca => ca.AttributeType.FullName 
             == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
         }
 
         bool isCompilerGenerated(FieldReference field)
         {
             var fd = field as FieldDefinition;
-            return fd != null && fd.CustomAttributes.Any(ca => ca.AttributeType.FullName
+            return fd != null && fd.CustomAttributes.Any(ca => ca.AttributeType.FullName 
             == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
         }
+
         bool isCompilerGeneratedPlainObject(TypeReference type)
         {
             var td = type as TypeDefinition;
@@ -112,7 +113,8 @@ namespace IFix
                 && !td.BaseType.IsSameType(objType)))
                 && isCompilerGenerated(type);
         }
-        Dictionary<TypeDefinition, HashSet<FieldDefinition>> typeToSpecialGeneratedFields
+
+        Dictionary<TypeDefinition, HashSet<FieldDefinition>> typeToSpecialGeneratedFields 
             = new Dictionary<TypeDefinition, HashSet<FieldDefinition>>();
 
         Dictionary<TypeDefinition, int> typeToCctor = new Dictionary<TypeDefinition, int>();
@@ -139,16 +141,16 @@ namespace IFix
                         typeToCctor[type] = cctorInfo.Type == CallType.Internal ? cctorInfo.Id : -2;
                     }
                 }
-
-                foreach (var field in (from method in type.Methods
-                                       where method.IsSpecialName && method.Body != null
-                                           && method.Body.Instructions != null
-                                       from instruction in method.Body.Instructions
-                                       where instruction.OpCode.Code == Code.Ldsfld
-                                           || instruction.OpCode.Code == Code.Stsfld
-                                           || instruction.OpCode.Code == Code.Ldsflda
-                                       where isCompilerGenerated(instruction.Operand as FieldReference)
-                                       select (instruction.Operand as FieldReference).Resolve()).Distinct())
+                
+                foreach (var field in ( from method in type.Methods
+                                        where method.IsSpecialName && method.Body != null 
+                                            && method.Body.Instructions != null
+                                        from instruction in method.Body.Instructions
+                                        where instruction.OpCode.Code == Code.Ldsfld
+                                            || instruction.OpCode.Code == Code.Stsfld
+                                            || instruction.OpCode.Code == Code.Ldsflda
+                                        where isCompilerGenerated(instruction.Operand as FieldReference)
+                                        select (instruction.Operand as FieldReference).Resolve()).Distinct())
                 {
                     ret.Add(field);
                 }
@@ -156,7 +158,7 @@ namespace IFix
             return ret;
         }
 
-        //再补丁 新增一个对原生类的引用
+        //再补丁新增一个对原生方法的引用
         int addExternType(TypeReference type, TypeReference contextType = null)
         {
             if (type.IsRequiredModifier) return addExternType((type as RequiredModifierType).ElementType, contextType);
@@ -171,10 +173,6 @@ namespace IFix
             if (isCompilerGenerated(type))
             {
                 throw new Exception(type + " is CompilerGenerated");
-            }
-            if (isCustomClassPlainObject(type))
-            {
-                throw new Exception(type + " is CustomClass");
             }
             TypeReference theSameNameType;
             var typeName = type.GetAssemblyQualifiedName(contextType);
@@ -271,7 +269,7 @@ namespace IFix
 
             if (callee.IsGeneric())
             {
-                throw new InvalidProgramException("try to call a generic method definition: " + callee
+                throw new InvalidProgramException("try to call a generic method definition: " + callee 
                     + ", caller is:" + caller);
             }
 
@@ -361,7 +359,7 @@ namespace IFix
 
         public bool isRefBySpecialMethodNoCache(FieldDefinition field)
         {
-            foreach (var instructions in field.DeclaringType.Methods
+            foreach(var instructions in field.DeclaringType.Methods
                 .Where(m => m.IsSpecialName && m.Body != null && m.Body.Instructions != null)
                 .Select(m => m.Body.Instructions))
             {
@@ -456,7 +454,7 @@ namespace IFix
                         {
                             FieldReference fr = instructions[i].Operand as FieldReference;
                             //如果是生成的字段，而且不是Getter/Setter/Adder/Remover
-                            if (isCompilerGenerated(fr) && !method.IsSpecialName)
+                            if (isCompilerGenerated(fr) && !method.IsSpecialName) 
                             {
                                 if (!IsVaildIdentifierName(fr.Name)//不是合法名字，就肯定是随机变量
                                     //如果是合法名字，但不被任何SpecialName方法引用，也归为随机变量
@@ -508,8 +506,8 @@ namespace IFix
                             //LINQ通常是ldftn，要验证ldftn所加载的函数是否含非法指令（不支持，或者引用了个生成字段，
                             //或者一个生成NotPlainObject）
                             MethodReference mr = instructions[i].Operand as MethodReference;
-                            if (mr != null && !mr.IsGeneric()
-                                && !isCompilerGeneratedByNotPlainObject(mr.DeclaringType))//----------------------------
+                            if (mr != null && !mr.IsGeneric() 
+                                && !isCompilerGeneratedByNotPlainObject(mr.DeclaringType))
                             {
                                 if (isCompilerGenerated(mr)
                                     || (/*instructions[i].OpCode.Code != Code.Newobj && */
@@ -528,10 +526,10 @@ namespace IFix
                                         return false;
                                     }
                                     //编译器生成类要检查所有实现方法
-                                    if (instructions[i].OpCode.Code == Code.Newobj
+                                    if (instructions[i].OpCode.Code == Code.Newobj 
                                         && (isCompilerGeneratedPlainObject(mr.DeclaringType) || isCustomClassPlainObject(mr.DeclaringType)))
                                     {
-                                        foreach (var m in mr.DeclaringType.Resolve().Methods
+                                        foreach(var m in mr.DeclaringType.Resolve().Methods
                                             .Where(m => !m.IsConstructor))
                                         {
                                             if (m.Body != null && !checkILAndGetOffset(m, m.Body.Instructions))
@@ -702,7 +700,7 @@ namespace IFix
             {
                 var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Private,
                     method.ReturnType);
-                for (int i = 0; i < method.Parameters.Count; i++)
+                for(int i = 0; i < method.Parameters.Count; i++)
                 {
                     proxyMethod.Parameters.Add(new ParameterDefinition("P" + i, method.Parameters[i].IsOut
                         ? ParameterAttributes.Out : ParameterAttributes.None, method.Parameters[i].ParameterType));
@@ -710,7 +708,7 @@ namespace IFix
                 var instructions = proxyMethod.Body.Instructions;
                 var ilProcessor = proxyMethod.Body.GetILProcessor();
                 int paramCount = method.Parameters.Count + 1;
-                for (int i = 0; i < paramCount; i++)
+                for(int i = 0; i < paramCount; i++)
                 {
                     emitLdarg(instructions, ilProcessor, i);
                     if (i == 0 && type.IsValueType)
@@ -757,7 +755,8 @@ namespace IFix
             {
                 return false;
             }
-            if ((!isCompilerGenerated(field) && !isCompilerGenerated(field.DeclaringType)) || !isNewClass(field.DeclaringType as TypeDefinition))//-----------------------------
+
+            if ((!isCompilerGenerated(field) && !isCompilerGenerated(field.DeclaringType)) || !isNewClass(field.DeclaringType as TypeDefinition))
             {
                 return false;
             }
@@ -781,6 +780,8 @@ namespace IFix
         {
             return configure.IsNewClass(type);
         }
+
+
         Dictionary<MethodDefinition, int> interpretMethods = new Dictionary<MethodDefinition, int>();
         void addInterpretMethod(MethodDefinition method, int methodId)
         {
@@ -790,7 +791,7 @@ namespace IFix
             }
             addExternType(method.ReturnType, method.DeclaringType);
             addExternType(method.DeclaringType);
-            foreach (var pinfo in method.Parameters)
+            foreach(var pinfo in method.Parameters)
             {
                 addExternType(pinfo.ParameterType, method.DeclaringType);
             }
@@ -976,7 +977,7 @@ namespace IFix
             }
 
             //如果是dll之外的方法，或者是构造函数，析构函数，作为虚拟机之外（extern）的方法
-            if (method == null || (method.IsConstructor && !(isCompilerGeneratedPlainObject(method.DeclaringType) || isCustomClassPlainObject(method.DeclaringType)))//------------------------------
+            if (method == null || (method.IsConstructor && !(isCompilerGeneratedPlainObject(method.DeclaringType) || isCustomClassPlainObject(method.DeclaringType)))
                 || method.IsFinalizer()
                 || method.IsAbstract || method.IsPInvokeImpl || method.Body == null
                 || method.DeclaringType.IsInterface
@@ -1067,27 +1068,23 @@ namespace IFix
             {
                 var code = new List<Core.Instruction>();
                 codes.Add(methodId, code);
-                if (!codeMustWriteToPatch.Contains(methodId) &&
+                if (!codeMustWriteToPatch.Contains(methodId) && 
                     (
-                        mode == ProcessMode.Patch || 
+                        mode == ProcessMode.Patch  || //patch阶段无论哪种类型都要写入补丁
                         (methodToInjectType.TryGetValue(method, out injectType)
-                            && injectType == InjectType.Redirect) || 
-                        (callerInjectType == InjectType.Redirect)
+                            && injectType == InjectType.Redirect) || //注入阶段，重定向类型需要写入补丁
+                        (callerInjectType == InjectType.Redirect) //被重定向类型函数调用，也需要写入补丁
                     ))
                 {
                     codeMustWriteToPatch.Add(methodId);
                 }
 
-                code.Add(new Core.Instruction
-                {
-                    Code = Core.Code.StackSpace,
-                    Operand = (body.Variables.Count << 16)
-                    | body.MaxStackSize
-                }); // local | maxstack
+                code.Add(new Core.Instruction { Code = Core.Code.StackSpace, Operand = (body.Variables.Count << 16)
+                    | body.MaxStackSize }); // local | maxstack
 
                 int offsetAdd = 0;
 
-                foreach (var variable in body.Variables)
+                foreach(var variable in body.Variables)
                 {
                     if (variable.VariableType.IsValueType && !variable.VariableType.IsPrimitive)
                     {
@@ -1121,7 +1118,7 @@ namespace IFix
                 for (int i = 0; i < body.ExceptionHandlers.Count; i++)
                 {
                     var exceptionHandler = body.ExceptionHandlers[i];
-                    if (exceptionHandler.HandlerType == ExceptionHandlerType.Fault
+                    if (exceptionHandler.HandlerType == ExceptionHandlerType.Fault 
                         && exceptionHandler.HandlerType == ExceptionHandlerType.Filter)
                     {
                         throw new NotImplementedException(exceptionHandler.HandlerType.ToString() + " no support!");
@@ -1129,7 +1126,7 @@ namespace IFix
                     exceptionHandlers[i] = new Core.ExceptionHandler()
                     {
                         HandlerType = (Core.ExceptionHandlerType)(int)exceptionHandler.HandlerType,
-                        CatchTypeId = exceptionHandler.CatchType == null ? -1
+                        CatchTypeId = exceptionHandler.CatchType == null ? -1 
                             : addExternType(exceptionHandler.CatchType),
                         TryStart = ilOffset[exceptionHandler.TryStart],
                         TryEnd = ilOffset[exceptionHandler.TryEnd],
@@ -1415,10 +1412,10 @@ namespace IFix
                                 }
                                 var methodToCall = msIl.Operand as MethodReference;
                                 if (msIl.OpCode.Code == Code.Newobj && (isCompilerGeneratedPlainObject(
-                                    methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType)))//------------------
+                                    methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType)))
                                 {
                                     TypeDefinition td = methodToCall.DeclaringType as TypeDefinition;
-                                    var anonymousCtorInfo = getMethodId(methodToCall, method, false,
+                                    var anonymousCtorInfo = getMethodId(methodToCall, method, false, 
                                         injectTypePassToNext);
                                     if (anonymousCtorInfo.Type != CallType.Internal)
                                     {
@@ -1463,7 +1460,7 @@ namespace IFix
                                     }
                                     //code.RemoveAt(code.Count - 1);
                                 }
-                                int paramCount = (methodToCall.Parameters.Count + (msIl.OpCode.Code != Code.Newobj
+                                int paramCount = (methodToCall.Parameters.Count + (msIl.OpCode.Code != Code.Newobj 
                                     && methodToCall.HasThis ? 1 : 0));
                                 var methodIdInfo = getMethodId(methodToCall, method, or != null || directCallVirtual,
                                     injectTypePassToNext);
@@ -1486,7 +1483,7 @@ namespace IFix
                                 }
                                 catch { }
 
-                                if (callingBaseMethod && msIl.OpCode.Code == Code.Call && baseProxy != null
+                                if (callingBaseMethod && msIl.OpCode.Code == Code.Call && baseProxy != null 
                                     && isTheSameDeclare(methodToCall, method))
                                 {
                                     code.Add(new Core.Instruction
@@ -1529,7 +1526,7 @@ namespace IFix
                                 var methodToCall = msIl.Operand as MethodReference;
                                 var methodIdInfo = getMethodId(methodToCall, method, false, injectTypePassToNext);
                                 if (methodIdInfo.Type == CallType.Internal
-                                    && (isCompilerGeneratedPlainObject(methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType))) // closure---------------
+                                    && (isCompilerGeneratedPlainObject(methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType))) // closure
                                 {
                                     //Console.WriteLine("closure: " + methodToCall);
                                     getWrapperMethod(wrapperType, anonObjOfWrapper, methodToCall as MethodDefinition,
@@ -1544,7 +1541,7 @@ namespace IFix
                                 //TODO： 如果生成代码做了delegate的cache怎么办呢？
                                 else if (methodIdInfo.Type == CallType.Internal
                                     && (isCompilerGenerated(methodToCall as MethodDefinition)
-                                    || isNewMethod(methodToCall as MethodDefinition)))
+                                    || isNewMethod(methodToCall as MethodDefinition)) )
                                 {
                                     //Console.WriteLine("loadftn for static: " + methodToCall);
                                     getWrapperMethod(wrapperType, anonObjOfWrapper, methodToCall as MethodDefinition,
@@ -1612,7 +1609,7 @@ namespace IFix
                         case Code.Ldflda:
                             {
                                 var field = msIl.Operand as FieldReference;
-                                if (isCompilerGeneratedPlainObject(field.DeclaringType) || isCustomClassPlainObject(field.DeclaringType))//---------------
+                                if (isCompilerGeneratedPlainObject(field.DeclaringType) || isCustomClassPlainObject(field.DeclaringType))
                                 {
                                     var declaringType = field.DeclaringType as TypeDefinition;
                                     code.Add(new Core.Instruction
@@ -1639,7 +1636,7 @@ namespace IFix
                             var fr = msIl.Operand as FieldReference;
                             var fd = fr.Resolve();
                             bool storeInVitualMachine = (isCompilerGenerated(fr)
-                                || isCompilerGenerated(fr.DeclaringType) || isNewClass(fr.DeclaringType as TypeDefinition)) && //-------------------
+                                || isCompilerGenerated(fr.DeclaringType) || isNewClass(fr.DeclaringType as TypeDefinition)) &&
                                 !getSpecialGeneratedFields(fr.DeclaringType.Resolve()).Contains(fd)
                                 && typeToCctor[fd.DeclaringType] > -2;
                             if (!storeInVitualMachine && isCompilerGenerated(fr) && fd.Name.IndexOf("$cache") >= 0
@@ -1731,7 +1728,7 @@ namespace IFix
                     Console.WriteLine("patched: " + method);
                 }
             }
-            catch (Exception e)
+            catch(Exception e)
             {
                 if (mode == ProcessMode.Inject)
                 {
@@ -1863,7 +1860,7 @@ namespace IFix
                 return id;
             }
             addInterfacesOfTypeToBridge(ctor.DeclaringType as TypeDefinition);
-            foreach (var method in ctor.DeclaringType.Methods.Where(m => !m.IsConstructor))
+            foreach(var method in ctor.DeclaringType.Methods.Where(m => !m.IsConstructor))
             {
                 getMethodId(method, null, true, InjectType.Redirect);
             }
@@ -1914,12 +1911,12 @@ namespace IFix
                 else if (method.IsPublic)
                 {
                     //var m = MetadataResolver.GetMethod(or.DeclaringType.Resolve().Methods, method);
-                    foreach (var itf in anonType.Interfaces.Select(ii => ii.InterfaceType))
+                    foreach(var itf in anonType.Interfaces.Select(ii => ii.InterfaceType))
                     {
                         matchItfMethod = itf.FindMatch(method);
                         if (matchItfMethod != null) break;
                     }
-
+                    
                     //implementMap[method] = matchItfMethod;
                     if (itfBridgeType.Interfaces.Any(ii => ii.InterfaceType.IsSameType(matchItfMethod.DeclaringType)))
                     {
@@ -1975,7 +1972,7 @@ namespace IFix
             {
                 return;
             }
-            foreach (var method in itfDef.Methods)
+            foreach(var method in itfDef.Methods)
             {
                 var methodToImpl = itf.IsGenericInstance ? method.MakeGeneric(itf) : method.TryImport(itf.Module);
                 interfaceSlot.Add(methodToImpl, bridgeMethodId);
@@ -2006,7 +2003,7 @@ namespace IFix
             bool isClosure, bool noBaselize, bool isInterfaceBridge = false, int mid = -1)
         {
             MethodDefinition md = method as MethodDefinition;
-            if (md == null)
+            if(md == null)
             {
                 md = method.Resolve();
             }
@@ -2165,7 +2162,7 @@ namespace IFix
                                 }
                                 else if (wpt == assembly.MainModule.TypeSystem.Object)
                                 {
-                                    if (paramRawType.IsValueType)
+                                    if(paramRawType.IsValueType)
                                     {
                                         push = Call_PushValueType_Ref;
                                     }
@@ -2300,7 +2297,7 @@ namespace IFix
                 instructions.Add(ldci4_param_count);
             }
             instructions.Add(ldci4_ref_count);
-
+            
             instructions.Add(Instruction.Create(OpCodes.Callvirt, VirtualMachine_Execute_Ref));
 
             if (refCount > 0)
@@ -2309,7 +2306,7 @@ namespace IFix
                 // Ref param
                 for (int i = 0; i < parameterTypes.Count; i++)
                 {
-                    if (parameterTypes[i].IsByReference && !isIn[i])
+                    if (parameterTypes[i].IsByReference && ! isIn[i])
                     {
                         emitLdarg(instructions, ilProcessor, i + 1);
                         var paramRawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
@@ -2356,7 +2353,7 @@ namespace IFix
         void emitLdcI4(Mono.Collections.Generic.Collection<Instruction> instructions, int i)
         {
             instructions.Add(createLdcI4(i));
-
+            
         }
 
         Instruction createLdcI4(int i)
@@ -2935,20 +2932,20 @@ namespace IFix
 
         void redirectFieldRename()
         {
-            foreach (var infosOfType in redirectMemberMap.GroupBy(kv => kv.Key.DeclaringType))
+            foreach(var infosOfType in redirectMemberMap.GroupBy(kv => kv.Key.DeclaringType))
             {
-                foreach (var methodGroup in infosOfType.GroupBy(kv => kv.Key.Name))
+                foreach(var methodGroup in infosOfType.GroupBy(kv => kv.Key.Name))
                 {
                     var methodName = methodGroup.Key;
                     int id = 0;
-                    foreach (var kv in methodGroup)
+                    foreach(var kv in methodGroup)
                     {
                         kv.Value.Name = "_rf_" + methodName + (id++);
                     }
                     if (id > 1) //有重载
                     {
                         id = 0;
-                        foreach (var kv in methodGroup)
+                        foreach(var kv in methodGroup)
                         {
                             addIDTag(kv.Key, id++);
                         }
@@ -3017,12 +3014,12 @@ namespace IFix
             //makeCloneFast(ilfixAassembly);
 
             var allTypes = (from type in assembly.GetAllType()
-                            where type.Namespace != "IFix" && !type.IsGeneric() && !(isCompilerGenerated(type) || isCustomClassPlainObject(type))
+                            where type.Namespace != "IFix" && !type.IsGeneric() && !(isCompilerGenerated(type) || isNewClass(type))
                             select type);
 
             foreach (var method in (
                 from type in allTypes
-                where !(isCompilerGenerated(type) || isNewClass(type)) && !type.HasGenericParameters//-----------------------------------
+                where !(isCompilerGenerated(type) || isNewClass(type)) && !type.HasGenericParameters
                 from method in type.Methods
                 where !method.IsConstructor && !isCompilerGenerated(method) && !method.HasGenericParameters
                 select method))
@@ -3033,13 +3030,13 @@ namespace IFix
                     methodToInjectType[method] = InjectType.Redirect;
                     hasRedirect = true;
                 }
-                else if (configure.TryGetConfigure("IFix.IFixAttribute", method, out flag))
+                else if(configure.TryGetConfigure("IFix.IFixAttribute", method, out flag))
                 {
                     methodToInjectType[method] = InjectType.Switch;
                 }
             }
 
-            foreach (var kv in methodToInjectType)
+            foreach(var kv in methodToInjectType)
             {
                 processMethod(kv.Key);
             }
@@ -3186,7 +3183,7 @@ namespace IFix
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
             wrapperMgrImpl.Methods.Add(createBridge);
-
+            
         }
 
         void genCodeForCustomBridge()
@@ -3201,10 +3198,10 @@ namespace IFix
                 from instruction in method.Body.Instructions
                 where instruction.OpCode.Code == Code.Ldtoken && instruction.Operand is TypeReference
                 select instruction.Operand as TypeReference);
-            foreach (var t in customBirdgeTypes)
+            foreach(var t in customBirdgeTypes)
             {
                 var td = t.Resolve();
-                if (td.IsDelegate())
+                if(td.IsDelegate())
                 {
                     var invoke = td.Methods.Single(m => m.Name == "Invoke");
                     if (t.IsGenericInstance)
@@ -3342,7 +3339,7 @@ namespace IFix
         {
             writer.Write(type.Interfaces.Count);
             //Console.WriteLine(string.Format("-------{0}----------", type.Interfaces.Count));
-            foreach (var ii in type.Interfaces)
+            foreach(var ii in type.Interfaces)
             {
                 var itf = bridgeInterfaces.Find(t => t.AreEqualIgnoreAssemblyVersion(ii.InterfaceType));
                 //Console.WriteLine(itf.ToString());
@@ -3461,7 +3458,7 @@ namespace IFix
                 for (int i = 0; i < fieldsStoreInVirtualMachine.Count; i++)
                 {
                     var fieldType = fieldsStoreInVirtualMachine[i].FieldType;
-                    if (isCompilerGenerated(fieldType) || isNewClass(fieldType as TypeDefinition))//-------------------
+                    if (isCompilerGenerated(fieldType) || isNewClass(fieldType as TypeDefinition))
                     {
                         fieldType = objType;
                     }
@@ -3472,7 +3469,7 @@ namespace IFix
 
                 //Console.WriteLine("serialize anonymous type...");
                 writer.Write(anonymousTypeInfos.Count);
-                for (int i = 0; i < anonymousTypeInfos.Count; i++)
+                for(int i = 0; i < anonymousTypeInfos.Count; i++)
                 {
                     //Console.WriteLine("anonymous type: " + anonymousTypeInfos[i]);
                     var anonymousType = anonymousTypeInfos[i].DeclaringType as TypeDefinition;
