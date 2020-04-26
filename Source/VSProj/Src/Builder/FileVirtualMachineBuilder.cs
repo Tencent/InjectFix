@@ -415,6 +415,11 @@ namespace IFix.Core
                 for (int i = 0; i < anonymousStoreyInfos.Length; i++)
                 {
                     int fieldNum = reader.ReadInt32();
+                    int[] fieldTypes = new int[fieldNum];
+                    for (int fieldIdx = 0; fieldIdx < fieldNum; ++fieldIdx)
+                    {
+                        fieldTypes[fieldIdx] = reader.ReadInt32();
+                    }
                     int ctorId = reader.ReadInt32();
                     int ctorParamNum = reader.ReadInt32();
                     var slots = readSlotInfo(reader, itfMethodToId, externTypes, maxId);
@@ -423,6 +428,7 @@ namespace IFix.Core
                     {
                         CtorId = ctorId,
                         FieldNum = fieldNum,
+                        FieldTypes = fieldTypes,
                         CtorParamNum = ctorParamNum,
                         Slots = slots
                     };
