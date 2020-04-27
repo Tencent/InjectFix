@@ -19,10 +19,7 @@ public interface IMonoBehaviour
 
  public interface ISubSystem
     {
-        //
-        // 摘要:
-        //     Will be true if asking the subsytem to start was successful. False in the case
-        //     that the subsystem has stopped, was asked to stop or has not been started yet.
+        
         bool running { get; }
 
         //
