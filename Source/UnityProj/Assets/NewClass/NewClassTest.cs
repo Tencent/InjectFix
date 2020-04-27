@@ -17,25 +17,6 @@ public interface IMonoBehaviour
     void Update();
 }
 
- public interface ISubSystem
-    {
-        
-        bool running { get; }
-
-        //
-        // 摘要:
-        //     Destroys this instance of a subsystem.
-        void Destroy();
-        //
-        // 摘要:
-        //     Starts an instance of a subsystem.
-        void Start();
-        //
-        // 摘要:
-        //     Stops an instance of a subsystem.
-        void Stop();
-    }
-
 public class SubSystem1 : ISubSystem
 {
     public bool running { get { return true; } }
