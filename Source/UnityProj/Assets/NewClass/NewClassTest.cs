@@ -17,7 +17,7 @@ public interface IMonoBehaviour
     void Update();
 }
 
-public class SubSystem1 : ISubSystem
+public class SubSystem1 : ISubsystem
 {
     public bool running { get { return true; } }
 
@@ -57,7 +57,7 @@ public class NewBehaviourScript : IMonoBehaviour
 }
 
 [IFix.Interpret]
-public class SubSystem2 : ISubSystem
+public class SubSystem2 : ISubsystem
 {
     public bool running { get { return true; } }
 
@@ -83,7 +83,7 @@ public class SubSystem2 : ISubSystem
 
 public class NewClassTest : MonoBehaviour
 {
-    List<ISubSystem> subsystems = new List<ISubSystem>();
+    List<ISubsystem> subsystems = new List<ISubsystem>();
 
     void Awake()
     {
@@ -101,8 +101,8 @@ public class NewClassTest : MonoBehaviour
     [IFix.Patch]
     private void Init()
     {
-        //subsystems.Add(new SubSystem1());
-        subsystems.Add(new SubSystem2());
+        subsystems.Add(new SubSystem1());
+        //subsystems.Add(new SubSystem2());
     }
 
 
@@ -130,7 +130,7 @@ public static class AdditionalBridge
 {
     static List<Type> bridge = new List<Type>()
     {
-        typeof(ISubSystem),
+        typeof(ISubsystem),
         typeof(IMonoBehaviour)
     };
 }
