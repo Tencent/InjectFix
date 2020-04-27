@@ -2292,8 +2292,8 @@ namespace IFix.Core
                                 var pn = anonymousStoreyInfo.CtorParamNum;
                                 //_Info("param count:" + pn + ", ctor id:" + anonymousStoreyInfo.CtorId);
                                 AnonymousStorey anonymousStorey = (anonymousStoreyInfo.Slots == null)
-                                    ? new AnonymousStorey(anonymousStoreyInfo.FieldNum)
-                                    : wrappersManager.CreateBridge(anonymousStoreyInfo.FieldNum,
+                                    ? new AnonymousStorey(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes)
+                                    : wrappersManager.CreateBridge(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes,
                                     anonymousStoreyInfo.Slots, this);
 
                                 var pos = evaluationStackPointer;

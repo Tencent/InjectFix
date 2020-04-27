@@ -15,7 +15,7 @@ namespace IFix.Core
         //创建一个delegate，如果anon非空就是闭包
         Delegate CreateDelegate(Type type, int id, object anon);
         //创建一个interface桥接器
-        AnonymousStorey CreateBridge(int fieldNum, int[] slots, VirtualMachine virtualMachine);
+        AnonymousStorey CreateBridge(int fieldNum, int[] fieldTypes, int[] slots, VirtualMachine virtualMachine);
         //创建一个wrapper对象（会由补丁加载逻辑调用，创建后放入wrapper数组）
         object CreateWrapper(int id);
         //初始化wrapper数组

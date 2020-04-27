@@ -15,10 +15,23 @@ namespace IFix.Core
     {
         Value[] unmanagedFields;
         object[] managedFields;
-        public AnonymousStorey(int fieldNum)
+        public AnonymousStorey(int fieldNum, int[] fieldTypes)
         {
             unmanagedFields = new Value[fieldNum];
             managedFields = new object[fieldNum];
+            for (int i = 0; i < fieldTypes.Length; ++i)
+            {
+                if (fieldTypes[i] == 1)
+                {
+                    unmanagedFields[i].Type = ValueType.ValueType;
+                    unmanagedFields[i].Value1 = i;
+                }
+                else if (fieldTypes[i] == 2)
+                {
+                    unmanagedFields[i].Type = ValueType.Object;
+                    unmanagedFields[i].Value1 = i;
+                }
+            }
         }
 
         unsafe internal void Ldfld(int fieldIndex, Value* evaluationStackBase, Value* evaluationStackPointer,
@@ -72,6 +85,7 @@ namespace IFix.Core
     public class AnonymousStoreyInfo
     {
         public int FieldNum = 0;
+        public int[] FieldTypes = null;
         public int CtorId = 0;
         public int CtorParamNum = 0;
         public int[] Slots = null;

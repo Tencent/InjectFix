@@ -2533,7 +2533,7 @@ namespace IFix
             var anonymousStoreyType = ilfixAassembly.MainModule.Types.Single(t => t.Name == "AnonymousStorey");
             anonymousStoreyTypeRef = assembly.MainModule.ImportReference(anonymousStoreyType);
             anonymousStoreyCtorRef = assembly.MainModule.ImportReference(
-                anonymousStoreyType.Methods.Single(m => m.Name == ".ctor" && m.Parameters.Count == 1));
+                anonymousStoreyType.Methods.Single(m => m.Name == ".ctor" && m.Parameters.Count == 2));
 
             itfBridgeType = new TypeDefinition("IFix", INTERFACEBRIDGE, TypeAttributes.Class | TypeAttributes.Public,
                     anonymousStoreyTypeRef);
@@ -3122,6 +3122,8 @@ namespace IFix
                 | MethodAttributes.RTSpecialName, voidType);
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("fieldNum",
                 Mono.Cecil.ParameterAttributes.None, assembly.MainModule.TypeSystem.Int32));
+            ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("fieldTypes",
+                Mono.Cecil.ParameterAttributes.None, new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("methodIdArray",
                 Mono.Cecil.ParameterAttributes.None, new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("virtualMachine",
@@ -3129,17 +3131,18 @@ namespace IFix
             var instructions = ctorOfItfBridgeType.Body.Instructions;
             instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
             instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+            instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
             var callBaseCtor = Instruction.Create(OpCodes.Call, anonymousStoreyCtorRef);
             instructions.Add(callBaseCtor);
 
             instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-            instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
+            instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 4));
             instructions.Add(Instruction.Create(OpCodes.Stfld, virualMachineFieldOfBridge));
 
             for (int i = 0; i < methodIdFields.Count; i++)
             {
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-                instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+                instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
                 emitLdcI4(instructions, i);
                 instructions.Add(Instruction.Create(OpCodes.Ldelem_I4));
                 instructions.Add(Instruction.Create(OpCodes.Stfld, methodIdFields[i]));
@@ -3149,7 +3152,7 @@ namespace IFix
 
             var insertPoint = callBaseCtor.Next;
             var processor = ctorOfItfBridgeType.Body.GetILProcessor();
-            processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Ldarg_2));
+            processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Ldarg_3));
             processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Ldlen));
             processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Conv_I4));
             processor.InsertBefore(insertPoint, createLdcI4(methodIdFields.Count));
@@ -3170,6 +3173,8 @@ namespace IFix
                 | MethodAttributes.Final, anonymousStoreyTypeRef);
             createBridge.Parameters.Add(new ParameterDefinition("fieldNum", Mono.Cecil.ParameterAttributes.None,
                 assembly.MainModule.TypeSystem.Int32));
+            createBridge.Parameters.Add(new ParameterDefinition("fieldTypes", Mono.Cecil.ParameterAttributes.None,
+                new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             createBridge.Parameters.Add(new ParameterDefinition("slots", Mono.Cecil.ParameterAttributes.None,
                 new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             createBridge.Parameters.Add(new ParameterDefinition("virtualMachine", Mono.Cecil.ParameterAttributes.None,
@@ -3178,6 +3183,7 @@ namespace IFix
             instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
             instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
             instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
+            instructions.Add(createLdarg(createBridge.Body.GetILProcessor(), 4));
             instructions.Add(Instruction.Create(OpCodes.Newobj, ctorOfItfBridgeType));
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
@@ -3473,6 +3479,21 @@ namespace IFix
                     //Console.WriteLine("anonymous type: " + anonymousTypeInfos[i]);
                     var anonymousType = anonymousTypeInfos[i].DeclaringType as TypeDefinition;
                     writer.Write(anonymousType.Fields.Count);
+                    for (int fieldIdx = 0; fieldIdx < anonymousType.Fields.Count; ++fieldIdx)
+                    {
+                        if (anonymousType.Fields[fieldIdx].FieldType.IsPrimitive)
+                        {
+                            writer.Write(0);
+                        }
+                        else if (anonymousType.Fields[fieldIdx].FieldType.IsValueType)
+                        {
+                            writer.Write(1);
+                        }
+                        else
+                        {
+                            writer.Write(2);
+                        }
+                    }
                     writer.Write(methodToId[anonymousTypeInfos[i]]);
                     writer.Write(anonymousTypeInfos[i].Parameters.Count);
                     writeSlotInfo(writer, anonymousType);
