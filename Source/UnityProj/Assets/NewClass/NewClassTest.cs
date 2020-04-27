@@ -17,27 +17,27 @@ public interface IMonoBehaviour
     void Update();
 }
 
-public interface ISubSystem
-{
-    //
-    // 摘要:
-    //     Will be true if asking the subsytem to start was successful. False in the case
-    //     that the subsystem has stopped, was asked to stop or has not been started yet.
-    bool running { get; }
+ public interface ISubSystem
+    {
+        //
+        // 摘要:
+        //     Will be true if asking the subsytem to start was successful. False in the case
+        //     that the subsystem has stopped, was asked to stop or has not been started yet.
+        bool running { get; }
 
-    //
-    // 摘要:
-    //     Destroys this instance of a subsystem.
-    void Destroy();
-    //
-    // 摘要:
-    //     Starts an instance of a subsystem.
-    void Start();
-    //
-    // 摘要:
-    //     Stops an instance of a subsystem.
-    void Stop();
-}
+        //
+        // 摘要:
+        //     Destroys this instance of a subsystem.
+        void Destroy();
+        //
+        // 摘要:
+        //     Starts an instance of a subsystem.
+        void Start();
+        //
+        // 摘要:
+        //     Stops an instance of a subsystem.
+        void Stop();
+    }
 
 public class SubSystem1 : ISubSystem
 {
