@@ -17,29 +17,7 @@ public interface IMonoBehaviour
     void Update();
 }
 
- public interface ISubSystem
-{
-	//
-	// 摘要:
-	//     Will be true if asking the subsytem to start was successful. False in the case
-	//     that the subsystem has stopped, was asked to stop or has not been started yet.
-	bool running { get; }
-
-	//
-	// 摘要:
-	//     Destroys this instance of a subsystem.
-	void Destroy();
-	//
-	// 摘要:
-	//     Starts an instance of a subsystem.
-	void Start();
-	//
-	// 摘要:
-	//     Stops an instance of a subsystem.
-	void Stop();
-}
-
-public class SubSystem1 : ISubSystem
+public class SubSystem1 : ISubsystem
 {
     public bool running { get { return true; } }
 
@@ -79,7 +57,7 @@ public class NewBehaviourScript : IMonoBehaviour
 }
 
 [IFix.Interpret]
-public class SubSystem2 : ISubSystem
+public class SubSystem2 : ISubsystem
 {
     public bool running { get { return true; } }
 
@@ -105,7 +83,7 @@ public class SubSystem2 : ISubSystem
 
 public class NewClassTest : MonoBehaviour
 {
-    List<ISubSystem> subsystems = new List<ISubSystem>();
+    List<ISubsystem> subsystems = new List<ISubsystem>();
 
     void Awake()
     {
@@ -152,7 +130,7 @@ public static class AdditionalBridge
 {
     static List<Type> bridge = new List<Type>()
     {
-        typeof(ISubSystem),
+        typeof(ISubsystem),
         typeof(IMonoBehaviour)
     };
 }

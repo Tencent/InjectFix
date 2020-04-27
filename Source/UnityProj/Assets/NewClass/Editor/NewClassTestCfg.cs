@@ -4,7 +4,7 @@ using UnityEngine;
 using IFix;
 using System;
 
-[Configure]
+[IFix.Configure]
 public class NewClassTestCfg {
 
 	[IFix]
