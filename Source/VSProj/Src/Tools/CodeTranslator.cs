@@ -3527,7 +3527,18 @@ namespace IFix
                     writeMethod(writer, kv.Key);
                     writer.Write(kv.Value);
                 }
-            }
+                var newClassTypes = (from type in assembly.GetAllType()
+                                where type.Namespace != "IFix" && !type.IsGeneric() && (isCompilerGenerated(type) || isNewClass(type))
+                                select type);
+
+                var newClassList = newClassTypes.ToList();
+                writer.Write(newClassList.Count);
+                foreach (var n in newClassList)
+                {
+                    var str = n.GetAssemblyQualifiedName();
+                    writer.Write(str);
+                }
+            }            
 
             //var allTypes = (from module in assembly.Modules
             //                from type in module.Types
