@@ -281,7 +281,6 @@ namespace IFix.Core
             int[] cctors;
             AnonymousStoreyInfo[] anonymousStoreyInfos;
 
-            Type[] checkNewClass;
             using (BinaryReader reader = new BinaryReader(stream))
             {
                 var instructionMagic = reader.ReadUInt64();
@@ -541,14 +540,13 @@ namespace IFix.Core
                 }
 
                 int newClassCount = reader.ReadInt32();
-                checkNewClass = new Type[newClassCount];
                 for(int i = 0;i < newClassCount;i++)
                 {
-                    var newClassName = reader.ReadString();
-                    checkNewClass[i] = Type.GetType(newClassName);
-                    if (checkNewClass[i] != null)
+                    var newClassFullName = reader.ReadString();
+                    var newClassName = Type.GetType(newClassFullName);
+                    if (newClassName != null)
                     {
-                        throw new Exception(checkNewClass[i] + " class is expected to be a new class , but it already exists ");
+                        throw new Exception(newClassName + " class is expected to be a new class , but it already exists ");
                     }
                 }
 

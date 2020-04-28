@@ -3528,7 +3528,7 @@ namespace IFix
                     writer.Write(kv.Value);
                 }
                 var newClassTypes = (from type in assembly.GetAllType()
-                                where type.Namespace != "IFix" && !type.IsGeneric() && (isCompilerGenerated(type) || isNewClass(type))
+                                where type.Namespace != "IFix" && !type.IsGeneric() && isNewClass(type)
                                 select type);
 
                 var newClassList = newClassTypes.ToList();
