@@ -539,6 +539,17 @@ namespace IFix.Core
                     };
                 }
 
+                int newClassCount = reader.ReadInt32();
+                for(int i = 0;i < newClassCount;i++)
+                {
+                    var newClassFullName = reader.ReadString();
+                    var newClassName = Type.GetType(newClassFullName);
+                    if (newClassName != null)
+                    {
+                        throw new Exception(newClassName + " class is expected to be a new class , but it already exists ");
+                    }
+                }
+
                 return virtualMachine;
             }
         }
