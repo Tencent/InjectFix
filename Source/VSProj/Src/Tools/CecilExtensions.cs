@@ -411,7 +411,7 @@ namespace IFix
                         || left.Name != right.Name
                         || !left.ReturnType.IsSameName(right.ReturnType)
                         || !left.DeclaringType.IsSameName(right.DeclaringType)
-                        || left.HasThis != left.HasThis
+                        || left.HasThis != right.HasThis
                         || left.GenericParameters.Count != right.GenericParameters.Count)
             {
                 return false;
