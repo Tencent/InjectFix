@@ -48,7 +48,7 @@ public class SubSystem1 : ISubSystem
     }
 }
 
-[IFix.Interpret]
+//[IFix.Interpret]
 public class NewBehaviourScript : IMonoBehaviour
 {
     private int tick = 0;
@@ -67,7 +67,7 @@ public class NewBehaviourScript : IMonoBehaviour
     }
 }
 
-[IFix.Interpret]
+//[IFix.Interpret]
 public class SubSystem2 : ISubSystem
 {
     public bool running { get { return true; } }
