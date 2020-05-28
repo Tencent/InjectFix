@@ -633,6 +633,28 @@ namespace IFix.Core
                                 //printStack("ret", evaluationStackPointer - 1);
                             }
                             break;
+
+                        case Code.Callvirtvirt:
+                            {
+                                int narg = pc->Operand >> 16;
+                                var arg0 = evaluationStackPointer - narg;
+                                if (arg0->Type != ValueType.Object)
+                                {
+                                    throwRuntimeException(new InvalidProgramException(arg0->Type.ToString()
+                                        + " for Callvirtvirt"), true);
+                                }
+                                if (managedStack[arg0->Value1] == null)
+                                {
+                                    throw new NullReferenceException("this is null");
+                                }
+                                var anonObj =  managedStack[arg0->Value1] as AnonymousStorey;
+                                int[] vTable = anonymousStoreyInfos[anonObj.typeId].VTable;
+                                int methodIndexToCall = vTable[pc->Operand & 0xFFFF];
+                                evaluationStackPointer = Execute(unmanagedCodes[methodIndexToCall],
+                                    evaluationStackPointer - narg, managedStack, evaluationStackBase,
+                                    narg, methodIndexToCall);
+                            }
+                            break;
                         case Code.CallExtern://部分来自Call部分来自Callvirt
                         case Code.Newobj: // 2.334642%
                             int methodId = pc->Operand & 0xFFFF;
@@ -2292,8 +2314,8 @@ namespace IFix.Core
                                 var pn = anonymousStoreyInfo.CtorParamNum;
                                 //_Info("param count:" + pn + ", ctor id:" + anonymousStoreyInfo.CtorId);
                                 AnonymousStorey anonymousStorey = (anonymousStoreyInfo.Slots == null)
-                                    ? new AnonymousStorey(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes)
-                                    : wrappersManager.CreateBridge(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes,
+                                    ? new AnonymousStorey(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes, pc->Operand)
+                                    : wrappersManager.CreateBridge(anonymousStoreyInfo.FieldNum, anonymousStoreyInfo.FieldTypes, pc->Operand,
                                     anonymousStoreyInfo.Slots, this);
 
                                 var pos = evaluationStackPointer;
