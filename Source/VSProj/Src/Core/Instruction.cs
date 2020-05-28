@@ -85,6 +85,7 @@ namespace IFix.Core
         Conv_U4,
         Conv_U8,
         Callvirt,
+        Callvirtvirt,
         Cpobj,
         Ldobj,
         Ldstr,

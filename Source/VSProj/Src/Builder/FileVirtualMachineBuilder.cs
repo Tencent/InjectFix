@@ -424,13 +424,20 @@ namespace IFix.Core
                     int ctorParamNum = reader.ReadInt32();
                     var slots = readSlotInfo(reader, itfMethodToId, externTypes, maxId);
                     
+                    int virtualMethodNum = reader.ReadInt32();
+                    int[] vTable = new int[virtualMethodNum];
+                    for (int vm = 0 ;vm < virtualMethodNum; vm++)
+                    {
+                        vTable[vm] = reader.ReadInt32();
+                    }
                     anonymousStoreyInfos[i] = new AnonymousStoreyInfo()
                     {
                         CtorId = ctorId,
                         FieldNum = fieldNum,
                         FieldTypes = fieldTypes,
                         CtorParamNum = ctorParamNum,
-                        Slots = slots
+                        Slots = slots,
+                        VTable = vTable
                     };
                 }
 
