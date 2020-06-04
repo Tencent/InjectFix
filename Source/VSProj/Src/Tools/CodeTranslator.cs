@@ -138,7 +138,7 @@ namespace IFix
                     var cctor = type.Methods.FirstOrDefault(m => m.Name == ".cctor");
                     if (cctor != null)
                     {
-                        var cctorInfo = getMethodId(cctor, null, false, InjectType.Redirect);
+                        var cctorInfo = getMethodId(cctor, null,false, false, InjectType.Redirect);
                         typeToCctor[type] = cctorInfo.Type == CallType.Internal ? cctorInfo.Id : -2;
                     }
                 }
@@ -581,7 +581,7 @@ namespace IFix
 
         void processMethod(MethodDefinition method)
         {
-            getMethodId(method, null);
+            getMethodId(method, null,true);
         }
 
         Core.ExceptionHandler findExceptionHandler(Core.ExceptionHandler[] ehs, Core.ExceptionHandlerType type,
@@ -710,11 +710,11 @@ namespace IFix
         {
             if (method.IsVirtual) 
             {
-                foreach (var objVirtualMethod in ObjectVirtualMethods)
+                foreach (var objVirtualMethod in ObjectVirtualMethodDefinitionList)
                 {
                     if (isTheSameDeclare(objVirtualMethod,method))
                     {
-                        throw new NotImplementedException("Overriding the virtual methods of object is not supported yet");
+                        return objVirtualMethod;
                     }
                 }
                 if (method.IsNewSlot)
@@ -746,34 +746,41 @@ namespace IFix
         //var method = typeof(object).GetMethod("ToString");
         //var ftn = method.MethodHandle.GetFunctionPointer();
         //var func = (Func<string>)Activator.CreateInstance(typeof(Func<string>), obj, ftn);
-        MethodDefinition tryAddBaseProxy(TypeDefinition type, MethodDefinition method)
+        MethodReference tryAddBaseProxy(TypeDefinition type, MethodDefinition method)
         {
             var mbase = findBase(type, method);
             if (mbase != null)
             {
-                var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Private,
-                    method.ReturnType);
-                for(int i = 0; i < method.Parameters.Count; i++)
+                if (!isNewClass(type))
                 {
-                    proxyMethod.Parameters.Add(new ParameterDefinition("P" + i, method.Parameters[i].IsOut
-                        ? ParameterAttributes.Out : ParameterAttributes.None, method.Parameters[i].ParameterType));
-                }
-                var instructions = proxyMethod.Body.Instructions;
-                var ilProcessor = proxyMethod.Body.GetILProcessor();
-                int paramCount = method.Parameters.Count + 1;
-                for(int i = 0; i < paramCount; i++)
-                {
-                    emitLdarg(instructions, ilProcessor, i);
-                    if (i == 0 && type.IsValueType)
+                    var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Private,
+                                       method.ReturnType);
+                    for (int i = 0; i < method.Parameters.Count; i++)
                     {
-                        instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
-                        instructions.Add(Instruction.Create(OpCodes.Box, type));
+                        proxyMethod.Parameters.Add(new ParameterDefinition("P" + i, method.Parameters[i].IsOut
+                            ? ParameterAttributes.Out : ParameterAttributes.None, method.Parameters[i].ParameterType));
                     }
+                    var instructions = proxyMethod.Body.Instructions;
+                    var ilProcessor = proxyMethod.Body.GetILProcessor();
+                    int paramCount = method.Parameters.Count + 1;
+                    for (int i = 0; i < paramCount; i++)
+                    {
+                        emitLdarg(instructions, ilProcessor, i);
+                        if (i == 0 && type.IsValueType)
+                        {
+                            instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
+                            instructions.Add(Instruction.Create(OpCodes.Box, type));
+                        }
+                    }
+                    instructions.Add(Instruction.Create(OpCodes.Call, mbase));
+                    instructions.Add(Instruction.Create(OpCodes.Ret));
+                    type.Methods.Add(proxyMethod);
+                    return proxyMethod;
                 }
-                instructions.Add(Instruction.Create(OpCodes.Call, mbase));
-                instructions.Add(Instruction.Create(OpCodes.Ret));
-                type.Methods.Add(proxyMethod);
-                return proxyMethod;
+                else if(isNewClass(type) && !isNewClass(type.BaseType as TypeDefinition))
+                {
+                    return objectVirtualMethodReferenceList.FirstOrDefault( m => m.Name == ("Object" + method.Name));
+                }
             }
             return null;
         }
@@ -1005,7 +1012,7 @@ namespace IFix
         /// <param name="callerInjectType">调用者的注入类型</param>
         /// <returns>负数表示需要反射访问原生，0或正数是指令数组下标</returns>
         // #lizard forgives
-        unsafe MethodIdInfo getMethodId(MethodReference callee, MethodDefinition caller,
+        unsafe MethodIdInfo getMethodId(MethodReference callee, MethodDefinition caller, bool isCallvirt,
             bool directCallVirtual = false, InjectType callerInjectType = InjectType.Switch)
         {
             //Console.WriteLine("callee:" + callee + ", caller:" + caller);
@@ -1021,7 +1028,7 @@ namespace IFix
             }
             if (method != null)
             {
-                if (method.IsAbstract)
+                if (method.IsAbstract && isCallvirt)
                 {
                     if (isCompilerGeneratedPlainObject(method.DeclaringType) || isCustomClassPlainObject(method.DeclaringType))
                     {
@@ -1036,7 +1043,7 @@ namespace IFix
             }
             if (methodToId.ContainsKey(callee))
             {
-                if (virtualMethodToIndex.ContainsKey(callee))
+                if (isCallvirt && virtualMethodToIndex.ContainsKey(callee))
                 {
                     return new MethodIdInfo()
                     {
@@ -1083,12 +1090,8 @@ namespace IFix
             {
                 return new MethodIdInfo() { Id = 0, Type = CallType.Invalid };
             }
-            MethodDefinition baseProxy = null;
-
-            if (!isNewClass(method.DeclaringType as TypeDefinition))
-            {
-                baseProxy = tryAddBaseProxy(method.DeclaringType, method);
-            }
+           
+            var baseProxy = tryAddBaseProxy(method.DeclaringType, method);
             var body = method.Body;
             var msIls = body.Instructions;
             var ilOffset = new Dictionary<Instruction, int>();
@@ -1493,7 +1496,7 @@ namespace IFix
                                     methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType)))
                                 {
                                     TypeDefinition td = methodToCall.DeclaringType as TypeDefinition;
-                                    var anonymousCtorInfo = getMethodId(methodToCall, method, false, 
+                                    var anonymousCtorInfo = getMethodId(methodToCall, method, false, false,
                                         injectTypePassToNext);
                                     if (anonymousCtorInfo.Type != CallType.Internal)
                                     {
@@ -1540,7 +1543,7 @@ namespace IFix
                                 }
                                 int paramCount = (methodToCall.Parameters.Count + (msIl.OpCode.Code != Code.Newobj 
                                     && methodToCall.HasThis ? 1 : 0));
-                                var methodIdInfo = getMethodId(methodToCall, method, or != null || directCallVirtual,
+                                var methodIdInfo = getMethodId(methodToCall, method, msIl.OpCode.Code == Code.Callvirt, or != null || directCallVirtual,
                                     injectTypePassToNext);
 
                                 bool callingBaseMethod = false;
@@ -1628,10 +1631,10 @@ namespace IFix
                             }
                             break;
                         case Code.Ldftn:
-                        case Code.Ldvirtftn:
+                        case Code.Ldvirtftn://TODO: 要不要处理下虚表？
                             {
                                 var methodToCall = msIl.Operand as MethodReference;
-                                var methodIdInfo = getMethodId(methodToCall, method, false, injectTypePassToNext);
+                                var methodIdInfo = getMethodId(methodToCall, method, msIl.OpCode.Code == Code.Ldvirtftn, false, injectTypePassToNext);
                                 if (methodIdInfo.Type == CallType.Internal
                                     && (isCompilerGeneratedPlainObject(methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType))) // closure
                                 {
@@ -1860,7 +1863,7 @@ namespace IFix
                 injectMethod(method, methodId);
             }
 
-            if (!directCallVirtual && method.IsVirtual)
+            if (!directCallVirtual && method.IsVirtual && isCallvirt)
             {
                 if (isNewClass(method.DeclaringType))
                 {
@@ -1909,7 +1912,7 @@ namespace IFix
         private MethodReference anonymousStoreyCtorRef;
 
         private FieldDefinition virualMachineFieldOfWrapper;
-        private FieldDefinition virualMachineFieldOfBridge;
+        private FieldReference virualMachineFieldOfBridge;
         private FieldDefinition methodIdFieldOfWrapper;
         private FieldDefinition anonObjOfWrapper;
         private FieldDefinition wrapperArray;
@@ -1988,7 +1991,7 @@ namespace IFix
             var methods = ctor.DeclaringType.Methods.Where(m => !m.IsConstructor).ToList();
             foreach (var method in methods)
             {
-                getMethodId(method, null, true, InjectType.Redirect);
+                getMethodId(method, null,true, true, InjectType.Redirect);
             }
             id = anonymousTypeInfos.Count;
             anonymousTypeInfos.Add(ctor);
@@ -2591,13 +2594,24 @@ namespace IFix
             OpCodes.Ldc_I4_3,OpCodes.Ldc_I4_4, OpCodes.Ldc_I4_5, OpCodes.Ldc_I4_6, OpCodes.Ldc_I4_7 };
         private Dictionary<TypeReference, OpCode> ldinds = null;
         private Dictionary<TypeReference, OpCode> stinds = null;
-        private List<MethodDefinition> ObjectVirtualMethods = null;
+        private List<MethodDefinition> ObjectVirtualMethodDefinitionList = null;
+        private List<MethodReference> objectVirtualMethodReferenceList = null;
 
         void init(AssemblyDefinition assembly, AssemblyDefinition ilfixAassembly)
         {
             this.assembly = assembly;
             objType = assembly.MainModule.TypeSystem.Object;
-            ObjectVirtualMethods = (from method in objType.Resolve().Methods where method.IsVirtual select method).ToList();
+            List<string> supportedMethods = new List<string>() { "Equals", "Finalize","GetHashCode", "ToString"};
+            ObjectVirtualMethodDefinitionList = (from method in objType.Resolve().Methods where method.IsVirtual && supportedMethods.Contains(method.Name) select method).ToList();
+            if (ObjectVirtualMethodDefinitionList.Count != 4)
+            {
+                throw new InvalidProgramException();
+            }
+            ObjectVirtualMethodDefinitionList.OrderBy(t => t.FullName);
+            for (int methodIdx = 0; methodIdx < ObjectVirtualMethodDefinitionList.Count; methodIdx++)
+            {
+                virtualMethodToIndex.Add(ObjectVirtualMethodDefinitionList[methodIdx], methodIdx);
+            }
             voidType = assembly.MainModule.TypeSystem.Void;
 
             wrapperType = new TypeDefinition("IFix", DYNAMICWRAPPER, Mono.Cecil.TypeAttributes.Class
@@ -2661,13 +2675,14 @@ namespace IFix
             var anonymousStoreyType = ilfixAassembly.MainModule.Types.Single(t => t.Name == "AnonymousStorey");
             anonymousStoreyTypeRef = assembly.MainModule.ImportReference(anonymousStoreyType);
             anonymousStoreyCtorRef = assembly.MainModule.ImportReference(
-                anonymousStoreyType.Methods.Single(m => m.Name == ".ctor" && m.Parameters.Count == 3));
+                anonymousStoreyType.Methods.Single(m => m.Name == ".ctor" && m.Parameters.Count == 5));
+
+            objectVirtualMethodReferenceList = anonymousStoreyType.Methods.Where(m => m.Name.StartsWith("Object")).
+                Select(m => assembly.MainModule.ImportReference(m)).ToList();
 
             itfBridgeType = new TypeDefinition("IFix", INTERFACEBRIDGE, TypeAttributes.Class | TypeAttributes.Public,
                     anonymousStoreyTypeRef);
-            virualMachineFieldOfBridge = new FieldDefinition("virtualMachine", Mono.Cecil.FieldAttributes.Private,
-                    VirtualMachineType);
-            itfBridgeType.Fields.Add(virualMachineFieldOfBridge);
+            virualMachineFieldOfBridge = assembly.MainModule.ImportReference(anonymousStoreyType.Fields.Single(f => f.Name == "virtualMachine"));
             assembly.MainModule.Types.Add(itfBridgeType);
 
             //end init itfBridgeType
@@ -3254,6 +3269,8 @@ namespace IFix
                 Mono.Cecil.ParameterAttributes.None, new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("typeIndex",
                 Mono.Cecil.ParameterAttributes.None, assembly.MainModule.TypeSystem.Int32));
+            ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("vTable",
+                Mono.Cecil.ParameterAttributes.None, new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("methodIdArray",
                 Mono.Cecil.ParameterAttributes.None, new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             ctorOfItfBridgeType.Parameters.Add(new ParameterDefinition("virtualMachine",
@@ -3263,17 +3280,15 @@ namespace IFix
             instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
             instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
             instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
+            instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 4));
+            instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 6));
             var callBaseCtor = Instruction.Create(OpCodes.Call, anonymousStoreyCtorRef);
             instructions.Add(callBaseCtor);
-
-            instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-            instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 5));
-            instructions.Add(Instruction.Create(OpCodes.Stfld, virualMachineFieldOfBridge));
 
             for (int i = 0; i < methodIdFields.Count; i++)
             {
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-                instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 4));
+                instructions.Add(createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 5));
                 emitLdcI4(instructions, i);
                 instructions.Add(Instruction.Create(OpCodes.Ldelem_I4));
                 instructions.Add(Instruction.Create(OpCodes.Stfld, methodIdFields[i]));
@@ -3283,7 +3298,7 @@ namespace IFix
 
             var insertPoint = callBaseCtor.Next;
             var processor = ctorOfItfBridgeType.Body.GetILProcessor();
-            processor.InsertBefore(insertPoint, createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 4));
+            processor.InsertBefore(insertPoint, createLdarg(ctorOfItfBridgeType.Body.GetILProcessor(), 5));
             processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Ldlen));
             processor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Conv_I4));
             processor.InsertBefore(insertPoint, createLdcI4(methodIdFields.Count));
@@ -3308,6 +3323,8 @@ namespace IFix
                 new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             createBridge.Parameters.Add(new ParameterDefinition("typeIndex", Mono.Cecil.ParameterAttributes.None,
                 assembly.MainModule.TypeSystem.Int32));
+            createBridge.Parameters.Add(new ParameterDefinition("vTable", Mono.Cecil.ParameterAttributes.None,
+                new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             createBridge.Parameters.Add(new ParameterDefinition("slots", Mono.Cecil.ParameterAttributes.None,
                 new ArrayType(assembly.MainModule.TypeSystem.Int32)));
             createBridge.Parameters.Add(new ParameterDefinition("virtualMachine", Mono.Cecil.ParameterAttributes.None,
@@ -3318,6 +3335,7 @@ namespace IFix
             instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
             instructions.Add(createLdarg(createBridge.Body.GetILProcessor(), 4));
             instructions.Add(createLdarg(createBridge.Body.GetILProcessor(), 5));
+            instructions.Add(createLdarg(createBridge.Body.GetILProcessor(), 6));
             instructions.Add(Instruction.Create(OpCodes.Newobj, ctorOfItfBridgeType));
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
@@ -3653,21 +3671,18 @@ namespace IFix
                     writer.Write(anonymousTypeInfos[i].Parameters.Count);
                     writeSlotInfo(writer, anonymousType);
                     List<MethodDefinition> vT = getVirtualMethodForType(anonymousType);
-                    writer.Write(vT == null ? 0:vT.Count);
-                    if (vT != null)
+                    writer.Write(vT.Count);
+                    int[] vTables = new int[vT.Count];
+                    for (int s = 0; s < vTables.Length; s++)
                     {
-                        int[] vTables = new int[vT.Count];
-                        for (int s = 0; s < vTables.Length; s++)
-                        {
-                            vTables[s] = -1;
-                        }
-                        writeVTable(anonymousType,vTables,vT);
+                        vTables[s] = -1;
+                    }
+                    writeVTable(anonymousType,vTables,vT);
 
-                        for (int k = 0; k < vTables.Length; k++)
-                        {
-                            writer.Write(vTables[k]);
-                        }
-                    }  
+                    for (int k = 0; k < vTables.Length; k++)
+                    {
+                        writer.Write(vTables[k]);
+                    }
                 }
 
                 writer.Write(wrapperMgrImpl.GetAssemblyQualifiedName());
@@ -3733,16 +3748,16 @@ namespace IFix
             {
                 return virtualMethods;
             }
-            int index = 0;
+
             if (type.BaseType != null && isNewClass(type.BaseType as TypeDefinition))
             {
                 virtualMethods = new List<MethodDefinition>(getVirtualMethodForType(type.BaseType as TypeDefinition));
             }
             else
             {
-                virtualMethods = new List<MethodDefinition>();
+                virtualMethods = new List<MethodDefinition>(ObjectVirtualMethodDefinitionList);
             }
-            index = virtualMethods.Count;
+            int index = virtualMethods.Count;
             foreach (var method in type.Methods)
             {
                 if (method.IsVirtual && method.IsNewSlot)
