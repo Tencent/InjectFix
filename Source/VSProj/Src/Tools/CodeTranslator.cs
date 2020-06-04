@@ -1631,13 +1631,28 @@ namespace IFix
                             }
                             break;
                         case Code.Ldftn:
-                        case Code.Ldvirtftn://TODO: 要不要处理下虚表？
+                        case Code.Ldvirtftn:
                             {
                                 var methodToCall = msIl.Operand as MethodReference;
                                 var methodIdInfo = getMethodId(methodToCall, method, msIl.OpCode.Code == Code.Ldvirtftn, false, injectTypePassToNext);
                                 if (methodIdInfo.Type == CallType.Internal
                                     && (isCompilerGeneratedPlainObject(methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType))) // closure
                                 {
+                                    if ((methodToCall as MethodDefinition).IsVirtual)
+                                    {
+                                        int methodIndex = -1;
+                                        if (!virtualMethodToIndex.TryGetValue(methodToCall,out methodIndex))
+                                        {
+                                            methodIndex = virtualMethodInVTableIndex(methodToCall as MethodDefinition);
+                                        }
+                                        code.Add(new Core.Instruction
+                                        {
+                                            Code = Core.Code.Ldvirtftn2,
+                                            Operand = methodIndex
+                                        });
+                                        break;
+
+                                    }
                                     //Console.WriteLine("closure: " + methodToCall);
                                     getWrapperMethod(wrapperType, anonObjOfWrapper, methodToCall as MethodDefinition,
                                         true, true);
