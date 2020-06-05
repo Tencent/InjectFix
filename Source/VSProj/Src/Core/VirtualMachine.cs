@@ -2177,7 +2177,17 @@ namespace IFix.Core
                                 ptr->Value1 = arr[idx];
                             }
                             break;
-                        //case Code.Ldelem_Any: //0.05657366% 泛型中使用？泛型不支持解析，所以不会碰到这指令
+                        case Code.Ldelem_Any: //0.05657366% 
+                            {
+                                var arrPtr = evaluationStackPointer - 1 - 1;
+                                int idx = (evaluationStackPointer - 1)->Value1;
+                                var arrPos = arrPtr - evaluationStackBase;
+                                var arr = managedStack[arrPtr->Value1] as Array;
+                                EvaluationStackOperation.PushObject(evaluationStackBase, arrPtr, managedStack,
+                                        arr.GetValue(idx), arr.GetType().GetElementType());
+                                evaluationStackPointer = evaluationStackPointer - 1;
+                            }
+                            break;
                         case Code.Ldc_R8: //0.05088072%
                             {
                                 *(double*)&evaluationStackPointer->Value1 = *(double*)(pc + 1); 
@@ -2355,7 +2365,20 @@ namespace IFix.Core
                                 evaluationStackPointer = pos + 1;
                             }
                             break;
-                        //case Code.Stelem_Any: //0.03166702% 泛型中使用？泛型不支持解析，所以不会碰到这指令
+                        case Code.Stelem_Any: //0.03166702% 
+                            {
+                                var arrPtr = evaluationStackPointer - 1 - 1 - 1;
+                                int idx = (evaluationStackPointer - 1 - 1)->Value1;
+                                var valPtr = evaluationStackPointer - 1;
+                                var arr = managedStack[arrPtr->Value1] as Array;
+                                var val = EvaluationStackOperation.ToObject(evaluationStackBase, valPtr,
+                                        managedStack, arr.GetType().GetElementType(), this, false);
+                                arr.SetValue(val, idx);
+                                managedStack[arrPtr - evaluationStackBase] = null; //清理，如果有的话
+                                managedStack[valPtr - evaluationStackBase] = null;
+                                evaluationStackPointer = arrPtr;
+                            }
+                            break;
                         case Code.Conv_U2: //0.02917635%
                             {
                                 var obj = evaluationStackPointer - 1;
