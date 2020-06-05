@@ -655,6 +655,18 @@ namespace IFix.Core
                                     narg, methodIndexToCall);
                             }
                             break;
+
+                        case Code.Ldvirtftn2:
+                            {
+                                int slot = pc->Operand & 0xFFFF;
+                                var pm = evaluationStackPointer - 1;
+                                var po = pm - 1;
+                                var anonObj = managedStack[po->Value1] as AnonymousStorey;
+                                pm->Value1 = anonymousStoreyInfos[anonObj.typeId].VTable[slot];
+                                pm->Type = ValueType.Integer;
+                            }
+                            break;
+
                         case Code.CallExtern://部分来自Call部分来自Callvirt
                         case Code.Newobj: // 2.334642%
                             int methodId = pc->Operand & 0xFFFF;
