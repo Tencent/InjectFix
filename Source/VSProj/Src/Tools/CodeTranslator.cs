@@ -1550,8 +1550,8 @@ namespace IFix
 
                                 try
                                 {
-                                    var callingType = methodToCall.DeclaringType;
-                                    var baseType = method.DeclaringType.BaseType;
+                                    var callingType = methodToCall.DeclaringType.Resolve();
+                                    TypeReference baseType = method.DeclaringType.BaseType.Resolve();
                                     while (baseType != null)
                                     {
                                         if (callingType.IsSameType(baseType))
