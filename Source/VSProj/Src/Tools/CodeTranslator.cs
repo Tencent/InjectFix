@@ -2062,7 +2062,7 @@ namespace IFix
                     }
                     
                     //implementMap[method] = matchItfMethod;
-                    if (itfBridgeType.Interfaces.Any(ii => ii.InterfaceType.IsSameType(matchItfMethod.DeclaringType)))
+                    if (matchItfMethod == null || itfBridgeType.Interfaces.Any(ii => ii.InterfaceType.IsSameType(matchItfMethod.DeclaringType)))
                     {
                         continue;
                     }
