@@ -3236,7 +3236,7 @@ namespace IFix
 
                     if (!name.StartsWith("get_") && !name.StartsWith("set_"))
                     {
-                        throw new NotImplementedException("do not support special method: " + m);
+                        continue;
                     }
 
                     var propName = name.Substring(4);
