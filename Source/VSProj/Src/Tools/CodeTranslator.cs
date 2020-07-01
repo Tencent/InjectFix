@@ -283,7 +283,11 @@ namespace IFix
             {
                 foreach (var typeArg in ((GenericInstanceMethod)callee).GenericArguments)
                 {
-                    addExternType(typeArg);
+                    if (!isCompilerGenerated(typeArg))
+                    {
+                        addExternType(typeArg);
+                    }
+                   
                 }
             }
 
@@ -1169,17 +1173,32 @@ namespace IFix
                 {
                     if (variable.VariableType.IsValueType && !variable.VariableType.IsPrimitive)
                     {
-                        code.Add(new Core.Instruction
+                        if (isCompilerGenerated(variable.VariableType))
                         {
-                            Code = Core.Code.Ldloca,
-                            Operand = variable.Index,
-                        });
-
-                        code.Add(new Core.Instruction
+                            code.Add(new Core.Instruction
+                            {
+                                Code = Core.Code.Newanon,
+                                Operand = addAnonymousCtor(null, variable.VariableType)
+                            });
+                            code.Add(new Core.Instruction
+                            {
+                                Code = Core.Code.Stloc,
+                                Operand = variable.Index
+                            });
+                        }
+                        else
                         {
-                            Code = Core.Code.Initobj,
-                            Operand = addExternType(variable.VariableType)
-                        });
+                            code.Add(new Core.Instruction
+                            {
+                                Code = Core.Code.Ldloca,
+                                Operand = variable.Index,
+                            });
+                            code.Add(new Core.Instruction
+                            {
+                                Code = Core.Code.Initobj,
+                                Operand = addExternType(variable.VariableType)
+                            });
+                        }
                         offsetAdd += 2;
                     }
                 }
@@ -1734,7 +1753,7 @@ namespace IFix
                         case Code.Ldflda:
                             {
                                 var field = msIl.Operand as FieldReference;
-                                if (isCompilerGeneratedPlainObject(field.DeclaringType) || isCustomClassPlainObject(field.DeclaringType))
+                                if (isCompilerGenerated(field.DeclaringType) || isCompilerGeneratedPlainObject(field.DeclaringType) || isCustomClassPlainObject(field.DeclaringType))
                                 {
                                     var declaringType = field.DeclaringType as TypeDefinition;
                                     int baseFieldCount = 0;
@@ -1995,22 +2014,42 @@ namespace IFix
         private List<MethodDefinition> anonymousTypeInfos = new List<MethodDefinition>();
         private Dictionary<MethodDefinition, int> anonymousTypeToId = new Dictionary<MethodDefinition, int>();
 
-        int addAnonymousCtor(MethodDefinition ctor)
+        int addAnonymousCtor(MethodDefinition ctor, TypeReference variableType = null)
         {
             int id;
-            if (anonymousTypeToId.TryGetValue(ctor, out id))
+            var ctorOrMethod = ctor != null ? ctor : (variableType as TypeDefinition).Methods[0];
+            if (anonymousTypeToId.TryGetValue(ctorOrMethod, out id))
             {
                 return id;
             }
-            addInterfacesOfTypeToBridge(ctor.DeclaringType as TypeDefinition);
-            var methods = ctor.DeclaringType.Methods.Where(m => !m.IsConstructor).ToList();
+            var typeDefinition = ctor != null ? (ctor.DeclaringType as TypeDefinition) : (variableType as TypeDefinition);
+            addInterfacesOfTypeToBridge(typeDefinition);
+            var methods = typeDefinition.Methods.Where(m => !m.IsConstructor).ToList();
+            if(variableType != null)
+            {
+                for (int field = 0; field < typeDefinition.Fields.Count; field++)
+                {
+                    if (typeDefinition.Fields[field].FieldType.IsValueType)
+                    {
+                        if (!isCompilerGenerated(typeDefinition.Fields[field].FieldType))
+                        {
+                            if (!externTypes.Contains(typeDefinition.Fields[field].FieldType))
+                            {
+                                addExternType(typeDefinition.Fields[field].FieldType);
+                            }
+                        }
+                    }
+                }
+            }
+
             foreach (var method in methods)
             {
                 getMethodId(method, null,true, true, InjectType.Redirect);
             }
             id = anonymousTypeInfos.Count;
-            anonymousTypeInfos.Add(ctor);
-            anonymousTypeToId[ctor] = id;
+            var methodDefinition = ctor != null ? ctor : methods[0];
+            anonymousTypeInfos.Add(methodDefinition);
+            anonymousTypeToId[methodDefinition] = id;
             return id;
         }
 
@@ -2699,6 +2738,7 @@ namespace IFix
                     anonymousStoreyTypeRef);
             virualMachineFieldOfBridge = assembly.MainModule.ImportReference(anonymousStoreyType.Fields.Single(f => f.Name == "virtualMachine"));
             assembly.MainModule.Types.Add(itfBridgeType);
+            addExternType(itfBridgeType);
 
             //end init itfBridgeType
 
@@ -3402,9 +3442,13 @@ namespace IFix
                 writer.Write(method.Name);
                 var typeArgs = ((GenericInstanceMethod)method).GenericArguments;
                 writer.Write(typeArgs.Count);
-                foreach (var typeArg in typeArgs)
+                for (int typeArg = 0;typeArg < typeArgs.Count;typeArg++)
                 {
-                    writer.Write(externTypeToId[typeArg]);
+                    if (isCompilerGenerated(typeArgs[typeArg]))
+                    {
+                        typeArgs[typeArg] = itfBridgeType;
+                    }
+                    writer.Write(externTypeToId[typeArgs[typeArg]]);
                 }
                 writer.Write(method.Parameters.Count);
                 //var genericParameters = ((GenericInstanceMethod)externMethod).ElementMethod.GenericParameters;
@@ -3675,11 +3719,11 @@ namespace IFix
                         }
                         else if (anonymousTypeFields[field].FieldType.IsValueType)
                         {
-                            writer.Write(1);
+                            writer.Write(externTypeToId[anonymousTypeFields[field].FieldType] + 1);
                         }
                         else
                         {
-                            writer.Write(2);
+                            writer.Write(-2);
                         }
                     }
                     writer.Write(methodToId[anonymousTypeInfos[i]]);
