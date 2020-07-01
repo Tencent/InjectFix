@@ -945,7 +945,9 @@ namespace IFix.Core
                                 else
                                 {
                                     fieldIndex = -(fieldIndex + 1);
-                                    AnonymousStorey anonyObj = managedStack[ptr->Value1] as AnonymousStorey;
+                                    object obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
+                                       managedStack, ptr->Type.GetType(), this, false);
+                                    AnonymousStorey anonyObj = obj as AnonymousStorey;
                                     anonyObj.Stfld(fieldIndex, evaluationStackBase, evaluationStackPointer - 1, 
                                         managedStack);
                                     evaluationStackPointer = ptr;
