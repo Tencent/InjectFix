@@ -28,12 +28,14 @@ namespace IFix.Core
             managedFields = new object[fieldNum];
             for (int i = 0; i < fieldTypes.Length; ++i)
             {
-                if (fieldTypes[i] == 1)
+                if (fieldTypes[i] > 0)
                 {
                     unmanagedFields[i].Type = ValueType.ValueType;
                     unmanagedFields[i].Value1 = i;
+                    int id = fieldTypes[i] - 1;
+                    managedFields[i] = Activator.CreateInstance(virtualMachine.ExternTypes[id]);
                 }
-                else if (fieldTypes[i] == 2)
+                else if (fieldTypes[i] == -2)
                 {
                     unmanagedFields[i].Type = ValueType.Object;
                     unmanagedFields[i].Value1 = i;
