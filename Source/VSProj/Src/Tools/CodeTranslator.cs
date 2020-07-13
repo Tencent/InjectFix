@@ -1047,13 +1047,17 @@ namespace IFix
             }
             if (methodToId.ContainsKey(callee))
             {
-                if (isCallvirt && virtualMethodToIndex.ContainsKey(callee))
+                if (isCallvirt)
                 {
-                    return new MethodIdInfo()
+                    getVirtualMethodForType(method.DeclaringType);
+                    if (virtualMethodToIndex.ContainsKey(callee))
                     {
-                        Id = virtualMethodToIndex[callee],
-                        Type = CallType.InteralVirtual
-                    };
+                        return new MethodIdInfo()
+                        {
+                            Id = virtualMethodToIndex[callee],
+                            Type = CallType.InteralVirtual
+                        };
+                    }
                 }
                 return new MethodIdInfo()
                 {
