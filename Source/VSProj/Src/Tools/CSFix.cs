@@ -28,8 +28,8 @@ namespace IFix
 
         static bool argsValid(string[] args)
         {
-            return (args[0] == "-inject" && args.Length >= 6) || (args[0] == "-patch" && args.Length >= 6)
-                || (args[0] == "-inherit_inject" && args.Length >= 7);
+            return (args.Length >= 6 && args[0] == "-inject") || (args.Length >= 6 && args[0] == "-patch")
+                || (args.Length >= 7 && args[0] == "-inherit_inject");
         }
 
         // #lizard forgives
