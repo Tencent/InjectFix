@@ -57,9 +57,9 @@ namespace IFix.Editor
 
     public class IFixEditor
     {
-        private const string WINDOWS_PATCH_OUT_PATH = "IFixPath/Windows/";
-        private const string ANDROID_PATCH_OUT_PATH = "IFixPath/Android/";
-        private const string IOS_PATCH_OUT_PATH = "IFixPath/iOS/";
+        private const string WINDOWS_PATCH_OUT_PATH = "IFixPatchs/Windows/";
+        private const string ANDROID_PATCH_OUT_PATH = "IFixPatchs/Android/";
+        private const string IOS_PATCH_OUT_PATH = "IFixPatchs/iOS/";
 
         //备份目录
         const string BACKUP_PATH = "./IFixDllBackup";
