@@ -57,6 +57,10 @@ namespace IFix.Editor
 
     public class IFixEditor
     {
+        private const string WINDOWS_PATCH_OUT_PATH = "IFixPath/Windows/";
+        private const string ANDROID_PATCH_OUT_PATH = "IFixPath/Android/";
+        private const string IOS_PATCH_OUT_PATH = "IFixPath/iOS/";
+
         //备份目录
         const string BACKUP_PATH = "./IFixDllBackup";
         //备份文件的时间戳生成格式
@@ -662,6 +666,11 @@ namespace IFix.Editor
 
             foreach (var assembly in injectAssemblys)
             {
+                if (!Directory.Exists(patchOutputDir))
+                {
+                    Directory.CreateDirectory(patchOutputDir);
+                }
+
                 GenPatch(assembly, string.Format("{0}/{1}.dll", outputDir, assembly),
                     "./Assets/Plugins/IFix.Core.dll", string.Format("{0}{1}.patch.bytes", patchOutputDir, assembly));
             }
@@ -821,9 +830,14 @@ namespace IFix.Editor
             {
                 foreach (var assembly in injectAssemblys)
                 {
+                    if (!Directory.Exists(WINDOWS_PATCH_OUT_PATH))
+                    {
+                        Directory.CreateDirectory(WINDOWS_PATCH_OUT_PATH);
+                    }
+
                     var assembly_path = string.Format("./Library/{0}/{1}.dll", GetScriptAssembliesFolder(), assembly);
                     GenPatch(assembly, assembly_path, "./Assets/Plugins/IFix.Core.dll",
-                        string.Format("{0}.patch.bytes", assembly));
+                        string.Format("{0}{1}.patch.bytes", WINDOWS_PATCH_OUT_PATH, assembly));
                 }
             }
             catch (Exception e)
@@ -840,7 +854,7 @@ namespace IFix.Editor
             EditorUtility.DisplayProgressBar("Generate Patch for Android", "patching...", 0);
             try
             {
-                GenPlatformPatch(Platform.android, "");
+                GenPlatformPatch(Platform.android, ANDROID_PATCH_OUT_PATH);
             }
             catch(Exception e)
             {
@@ -855,7 +869,7 @@ namespace IFix.Editor
             EditorUtility.DisplayProgressBar("Generate Patch for IOS", "patching...", 0);
             try
             {
-                GenPlatformPatch(Platform.ios, "");
+                GenPlatformPatch(Platform.ios, IOS_PATCH_OUT_PATH);
             }
             catch(Exception e)
             {
