@@ -1994,18 +1994,7 @@ namespace IFix
             }
             if (type.IsValueType)
             {
-                if (type.IsPrimitive)
-                {
-                    return type;
-                }
-                try
-                {
-                    if (type.Resolve().IsEnum)
-                    {
-                        return type;
-                    }
-                }
-                catch { }
+                return type;
             }
             return objType;
         }
