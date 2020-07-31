@@ -2309,6 +2309,7 @@ namespace IFix
                             instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                             MethodReference push;
                             var wpt = wrapperParamerterType(paramRawType);
+                            wpt = (wpt.IsValueType && !wpt.IsPrimitive) ? objType : wpt;
                             if (pushMap.TryGetValue(wpt, out push))
                             {
                                 if (wpt == assembly.MainModule.TypeSystem.Object)
