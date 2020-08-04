@@ -221,70 +221,6 @@ public class Test
 }
 ```
 
-### [ReverseWrapper]
-
-##### 用途         
-
-​         在注入阶段使用；虚拟机内部的函数调用原生的方法时，是通过反射调用，如果某个原生方法被频繁调用，为了加快速度，可以通过该标签，用静态调用代替反射调用 。
-
-##### 用法
-
-​		该标签只能用在属性上，Configure类中的一个静态属性，get得到的是虚拟机内部调用原生方法时，要通过静态调用而不是反射调用的类的集合。    
-
-##### 举例
-
-​		调用A类里的函数都是通过静态调用；
-
-```c#
-public class A
-{
-    public void Print()
-    {
-        UnityEngine.Debug.Log("A.print()");
-    }
-}
-
-public class Test
-{
-    [IFix.Patch]
-    public int Add(int a,int b)
-    {
-        A a = new A();
-        a.print(); //正常这里调用原生函数print()是通过反射调用,现在想通过静态调用
-        return a+b;
-    }
-}
-
-[Configure]
-public class TestCfg
-{
-    [IFix]
-    static IEnumerable<Type> hotfix
-    {
-        get
-        {
-            return new List<Type>()
-            {
-              	typeof(Test)
-            };
-        }
-    }
-    [ReverseWrapper]
-    static IEnumerable<Type> reverse
-    {
-        get
-        {
-            return new List<Type>()
-            {
-                typeof(A)
-            };
-        }
-    }
-}
-
-
-```
-
 ### [Filter]
 
 ##### 用途         
@@ -352,7 +288,7 @@ public class TestCfg
 - 如果觉得某个类的函数可能会需要修复，那么一定要把该类放到Editor目录下[Configure]类的[IFix]静态字段里；然后才可以对某个函数进行[IFix.Patch]。
 - 涉及到interface和delegate，如果把一个虚拟机的类适配到原生interface或者把一个虚拟机的函数适配到原生delegate  ，一定要放到[IFix.CustomBridge]类的静态字段里。
 - 打上[Configure]标签的类，必须放在Editor目录下。  
-- [IFix]，[ReverseWrapper]，[Filter]这些标签必须放在打上[Configure]标签的类里。
+- [IFix]，[Filter]这些标签必须放在打上[Configure]标签的类里。
 - 在[IFix.Patch]时，不支持修复泛型函数，不支持修复构造函数，不支持在原生类中新增字段。
 - 在[IFix.Interpret]时，不支持新增类继承原生类，不支持新增类是泛型类。
 
@@ -369,6 +305,5 @@ public class TestCfg
 | [IFix.CustomBridge] |   注入   |  interface和delegate桥接   | 只能放在单独写一个静态类上，存储虚拟机的类适配到原生interface或者虚拟机的函数适配到原生delegate |
 |     [Configure]     |   注入   |           配置类           |          只能放在单独写一个存放在Editor目录下的类上          |
 |       [IFix]        |   注入   | 可能需要修复函数的类的集合 |            只能放在[Configure]类的一个静态属性上             |
-|  [ReverseWrapper]   |   注入   |          静态调用          |            只能放在[Configure]类的一个静态属性上             |
 |      [Filter]       |   注入   |     不想发生注入的函数     |            只能放在[Configure]类的一个静态函数上             |
 
