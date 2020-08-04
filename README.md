@@ -33,7 +33,8 @@
 
 ## 快速入门
 
-[如何使用？](./Doc/quick_start.md)
+* [快速入门](./Doc/quick_start.md)
+* [使用手册](./Doc/user_manual.md)
 
 ## 技术支持
 
