@@ -29,7 +29,8 @@ Can be used for bug fixes in Unity, supporting Unity’s full range
 * Copy IFixToolKit to a sibling directory of Assets in the Unity project
 * Copy Assets/IFix and Assets/Plugins under Assets in the Unity project 
 
-## Quick Start
+## Doc
 
-[How to use? ](./Doc/quick_start_en.md)
-
+* [Quick Start](./Doc/quick_start_en.md)
+* [Manual](./Doc/user_manual_en.md)
+* [FAQ](./Doc/faq_en.md)

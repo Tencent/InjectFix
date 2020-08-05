@@ -31,10 +31,11 @@
 * IFixToolKit拷贝到Unity项目的Assets同级目录
 * Assets/IFix，Assets/Plugins拷贝到Unity项目的Assets下
 
-## 快速入门
+## 文档
 
 * [快速入门](./Doc/quick_start.md)
 * [使用手册](./Doc/user_manual.md)
+* [FAQ](./Doc/faq.md)
 
 ## 技术支持
 
