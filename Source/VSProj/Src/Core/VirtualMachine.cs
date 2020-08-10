@@ -2226,7 +2226,7 @@ namespace IFix.Core
                                 switch (obj->Type)
                                 {
                                     case ValueType.Integer:
-                                        val = (ulong)obj->Value1;
+                                        val = (ulong)*(uint*)&obj->Value1;
                                         break;
                                     case ValueType.Long:
                                         pc++;

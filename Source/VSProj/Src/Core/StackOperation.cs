@@ -125,7 +125,7 @@ namespace IFix.Core
             else if (obj is uint)
             {
                 evaluationStackPointer->Type = ValueType.Integer;
-                evaluationStackPointer->Value1 = (int)(uint)obj;
+                *(uint*)(&evaluationStackPointer->Value1) = (uint)obj;
             }
             else if (obj is ushort)
             {
