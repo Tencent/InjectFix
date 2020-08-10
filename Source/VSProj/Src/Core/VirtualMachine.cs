@@ -2226,7 +2226,7 @@ namespace IFix.Core
                                 switch (obj->Type)
                                 {
                                     case ValueType.Integer:
-                                        val = (ulong)obj->Value1;
+                                        val = *(uint*)&obj->Value1;//Conv_U8的操作数肯定是uint
                                         break;
                                     case ValueType.Long:
                                         pc++;
