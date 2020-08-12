@@ -45,13 +45,15 @@ public int Add(int a,int b)
 
 ```c#
 private string name;//The name field is native
-[IFix.Interpret]
+
 public string Name
 {
+    [IFix.Interpret]
     set
     {
     	name = value;    
     }
+    [IFix.Interpret]
     get
     {
         return name;
