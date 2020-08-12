@@ -45,13 +45,15 @@ public int Add(int a,int b)
 
 ```c#
 private string name;//这个name字段是原生的
-[IFix.Interpret]
+
 public string Name
 {
+    [IFix.Interpret]
     set
     {
     	name = value;    
     }
+    [IFix.Interpret]
     get
     {
         return name;
