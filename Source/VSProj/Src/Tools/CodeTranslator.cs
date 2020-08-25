@@ -2018,7 +2018,7 @@ namespace IFix
             var typeDefinition = ctor != null ? (ctor.DeclaringType as TypeDefinition) : (variableType as TypeDefinition);
             addInterfacesOfTypeToBridge(typeDefinition);
             var methods = typeDefinition.Methods.Where(m => !m.IsConstructor).ToList();
-            if(variableType != null)
+            if(variableType != null || ctor.DeclaringType.Fields.Count > 0)
             {
                 for (int field = 0; field < typeDefinition.Fields.Count; field++)
                 {
