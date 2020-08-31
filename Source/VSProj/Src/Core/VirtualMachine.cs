@@ -2183,7 +2183,6 @@ namespace IFix.Core
                             {
                                 var arrPtr = evaluationStackPointer - 1 - 1;
                                 int idx = (evaluationStackPointer - 1)->Value1;
-                                var arrPos = arrPtr - evaluationStackBase;
                                 var arr = managedStack[arrPtr->Value1] as Array;
                                 EvaluationStackOperation.PushObject(evaluationStackBase, arrPtr, managedStack,
                                         arr.GetValue(idx), arr.GetType().GetElementType());
