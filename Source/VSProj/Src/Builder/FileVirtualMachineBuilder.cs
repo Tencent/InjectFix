@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Tencent is pleased to support the open source community by making InjectFix available.
  * Copyright (C) 2019 THL A29 Limited, a Tencent company.  All rights reserved.
  * InjectFix is licensed under the MIT License, except for the third-party components listed in the file 'LICENSE' which may be subject to their corresponding license terms. 
@@ -266,7 +266,7 @@ namespace IFix.Core
         }
 
         // #lizard forgives
-        unsafe static public VirtualMachine Load(Stream stream)
+        unsafe static public VirtualMachine Load(Stream stream, bool checkNew = true)
         {
             List<IntPtr> nativePointers = new List<IntPtr>();
 
@@ -546,14 +546,17 @@ namespace IFix.Core
                     };
                 }
 
-                int newClassCount = reader.ReadInt32();
-                for(int i = 0;i < newClassCount;i++)
+                if (checkNew)
                 {
-                    var newClassFullName = reader.ReadString();
-                    var newClassName = Type.GetType(newClassFullName);
-                    if (newClassName != null)
+                    int newClassCount = reader.ReadInt32();
+                    for (int i = 0; i < newClassCount; i++)
                     {
-                        throw new Exception(newClassName + " class is expected to be a new class , but it already exists ");
+                        var newClassFullName = reader.ReadString();
+                        var newClassName = Type.GetType(newClassFullName);
+                        if (newClassName != null)
+                        {
+                            throw new Exception(newClassName + " class is expected to be a new class , but it already exists ");
+                        }
                     }
                 }
 
