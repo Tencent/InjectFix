@@ -2508,7 +2508,7 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 MethodReference get;
                 emitLdcI4(instructions, refCount);
-                if (getMap.TryGetValue(tryGetUnderlyingType(returnType), out get))
+                if (getMap.TryGetValue(tryGetUnderlyingType(returnType).Resolve(), out get))
                 {
                     instructions.Add(Instruction.Create(OpCodes.Callvirt, get));
                 }
@@ -2833,7 +2833,7 @@ namespace IFix
         void initStackOp(TypeDefinition call, TypeReference type)
         {
             pushMap[type] = importMethodReference(call, "Push" + type.Name);
-            getMap[type] = importMethodReference(call, "Get" + type.Name);
+            getMap[type.Resolve()] = importMethodReference(call, "Get" + type.Name);
             nameToTypeReference[type.FullName] = type;
         }
 
