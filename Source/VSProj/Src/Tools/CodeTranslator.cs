@@ -2489,9 +2489,9 @@ namespace IFix
                         instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
 
                         emitLdcI4(instructions, refPos[i]);
-                        if (getMap.ContainsKey(paramRawType))
+                        if (paramRawType.IsPrimitive && getMap.ContainsKey(paramRawType.Resolve()))
                         {
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt, getMap[paramRawType]));
+                            instructions.Add(Instruction.Create(OpCodes.Callvirt, getMap[paramRawType.Resolve()]));
                         }
                         else
                         {
@@ -2508,7 +2508,8 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 MethodReference get;
                 emitLdcI4(instructions, refCount);
-                if (getMap.TryGetValue(tryGetUnderlyingType(returnType), out get))
+                var returnRawType = tryGetUnderlyingType(returnType);
+                if (returnRawType.IsPrimitive && getMap.TryGetValue(returnRawType.Resolve(), out get))
                 {
                     instructions.Add(Instruction.Create(OpCodes.Callvirt, get));
                 }
@@ -2833,7 +2834,7 @@ namespace IFix
         void initStackOp(TypeDefinition call, TypeReference type)
         {
             pushMap[type] = importMethodReference(call, "Push" + type.Name);
-            getMap[type] = importMethodReference(call, "Get" + type.Name);
+            getMap[type.Resolve()] = importMethodReference(call, "Get" + type.Name);
             nameToTypeReference[type.FullName] = type;
         }
 
