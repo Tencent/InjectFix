@@ -98,6 +98,7 @@ public class NewClass
 ##### 用法
 
 ​		该标签只能用在类上，在童鞋们程序的某个地方，写上一个静态类，里面有一个静态字段，值就是interface和delegate的类型集合
+        ！！注意，该类不能放到Editor目录
 
 ##### 举例
 
@@ -147,7 +148,7 @@ public class Test
 }
 ```
 
-```
+```c#
 [IFix.CustomBridge]
 public static class AdditionalBridge
 {
