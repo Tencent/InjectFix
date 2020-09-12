@@ -305,7 +305,7 @@ public class TestCfg
 | :-----------------: | :------: | :------------------------: | :----------------------------------------------------------: |
 |    [IFix.Patch]     |   补丁   |          修复函数          |                        只能放在函数上                        |
 |  [IFix.Interpret]   |   补丁   |    新增属性，函数，类型    |                    放在属性，函数，类型上                    |
-| [IFix.CustomBridge] |   注入   |  interface和delegate桥接   | 只能放在单独写一个静态类上，存储虚拟机的类适配到原生interface或者虚拟机的函数适配到原生delegate |
+| [IFix.CustomBridge] |   注入   |  interface和delegate桥接   | 只能放在单独写一个静态类上，存储虚拟机的类适配到原生interface或者虚拟机的函数适配到原生delegate，该类不能放Editor目录 |
 |     [Configure]     |   注入   |           配置类           |          只能放在单独写一个存放在Editor目录下的类上          |
 |       [IFix]        |   注入   | 可能需要修复函数的类的集合 |            只能放在[Configure]类的一个静态属性上             |
 |      [Filter]       |   注入   |     不想发生注入的函数     |            只能放在[Configure]类的一个静态函数上             |
