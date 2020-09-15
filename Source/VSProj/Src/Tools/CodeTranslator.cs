@@ -263,6 +263,15 @@ namespace IFix
                 return ushort.MaxValue;
             }
 
+            if (callee.Name == "AwaitUnsafeOnCompleted")
+            {
+                
+                if (!awaitUnsafeOnCompletedMethods.Any(m => ((GenericInstanceMethod)callee).GenericArguments[0] == ((GenericInstanceMethod)m).GenericArguments[0]))
+                {
+                    awaitUnsafeOnCompletedMethods.Add(callee);
+                }
+            }
+
             if (externMethodToId.ContainsKey(callee))
             {
                 return externMethodToId[callee];
@@ -2162,6 +2171,29 @@ namespace IFix
             }
         }
 
+        void EmitRefAwaitUnsafeOnCompletedMethod()
+        {
+            MethodDefinition targetMethod = new MethodDefinition("RefAwaitUnsafeOnCompleteMethod",
+                Mono.Cecil.MethodAttributes.Public, assembly.MainModule.TypeSystem.Void);
+            var instructions = targetMethod.Body.Instructions;
+            var localBridge = new VariableDefinition(itfBridgeType);
+            targetMethod.Body.Variables.Add(localBridge);
+            for (int j = 0;j < awaitUnsafeOnCompletedMethods.Count;j++)
+            {
+                var localTaskAwaiter = new VariableDefinition(((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0]);
+                targetMethod.Body.Variables.Add(localTaskAwaiter);
+                var localAsync = new VariableDefinition(awaitUnsafeOnCompletedMethods[j].DeclaringType);
+                targetMethod.Body.Variables.Add(localAsync);
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localAsync));
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localTaskAwaiter));
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
+                instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(awaitUnsafeOnCompletedMethods[j].GetElementMethod(), ((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0], itfBridgeType)));
+            }
+            instructions.Add(Instruction.Create(OpCodes.Ret));
+            itfBridgeType.Methods.Add(targetMethod);
+        }
+
+
         /// <summary>
         /// 获取一个方法的适配器
         /// </summary>
@@ -3187,6 +3219,7 @@ namespace IFix
         bool hasRedirect = false;
         ProcessMode mode;
         GenerateConfigure configure;
+        List<MethodReference> awaitUnsafeOnCompletedMethods = new List<MethodReference>();
 
         public ProcessResult Process(AssemblyDefinition assembly, AssemblyDefinition ilfixAassembly,
             GenerateConfigure configure, ProcessMode mode)
@@ -3242,7 +3275,11 @@ namespace IFix
             if (mode == ProcessMode.Inject)
             {
                 redirectFieldRename();
-            }
+                if (awaitUnsafeOnCompletedMethods.Count != 0)
+                {
+                    EmitRefAwaitUnsafeOnCompletedMethod();
+                }
+            } 
 
             return ProcessResult.OK;
         }
