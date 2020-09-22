@@ -1591,7 +1591,7 @@ namespace IFix
                                             callingBaseMethod = true;
                                             break;
                                         }
-                                        baseType = baseType.Resolve().BaseType;
+                                        baseType = baseType.Resolve().BaseType.Resolve();
                                     }
                                 }
                                 catch { }
