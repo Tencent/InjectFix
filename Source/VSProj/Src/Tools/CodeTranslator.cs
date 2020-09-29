@@ -2606,6 +2606,7 @@ namespace IFix
         {
             try
             {
+                if (type.IsArray) return type;
                 TypeDefinition typeDefinition = type.Resolve();
                 if (typeDefinition.IsEnum)
                 {
