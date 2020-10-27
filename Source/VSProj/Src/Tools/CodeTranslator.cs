@@ -3247,7 +3247,7 @@ namespace IFix
                 from type in allTypes
                 where !(isCompilerGenerated(type) || isNewClass(type)) && !type.HasGenericParameters
                 from method in type.Methods
-                where !method.IsConstructor && !isCompilerGenerated(method) && !method.HasGenericParameters
+                where !method.IsConstructor && !isCompilerGenerated(method) && !method.HasGenericParameters && !method.ReturnType.IsRequiredModifier
                 select method))
             {
                 int flag;
