@@ -211,7 +211,8 @@ namespace IFix.Core
             *dst = *src;
             if (dst->Type >= ValueType.Object)
             {
-                var obj = (dst->Type == ValueType.ValueType) ? objectClone.Clone(managedStack[src->Value1])
+                var obj = (dst->Type == ValueType.ValueType && managedStack[src->Value1] != null) //Nullable box后可能为空
+                    ? objectClone.Clone(managedStack[src->Value1])
                     : managedStack[src->Value1];
                 var dstPos = dst->Value1 = (int)(dst - stackBase);
                 managedStack[dstPos] = obj;
@@ -230,7 +231,9 @@ namespace IFix.Core
             *dst = *src;
             if (dst->Type == ValueType.ValueType)
             {
-                var obj = objectClone.Clone(managedStack[src->Value1]);
+                object obj = null;
+                if (managedStack[src->Value1] != null) //Nullable box后可能为空
+                    obj = objectClone.Clone(managedStack[src->Value1]);
                 var dstPos = dst->Value1 = (int)(dst - stackBase);
                 managedStack[dstPos] = obj;
             }
