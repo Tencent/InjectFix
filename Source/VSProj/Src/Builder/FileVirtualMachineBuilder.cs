@@ -258,6 +258,10 @@ namespace IFix.Core
                     | BindingFlags.Instance))
                 {
                     int methodId = reader.ReadInt32();
+                    if (!itfMethodToId.ContainsKey(method))
+                    {
+                        throw new Exception("can not find slot for " + method + " of " + itf);
+                    }
                     slots[itfMethodToId[method]] = methodId;
                     //VirtualMachine._Info(string.Format("<<< {0} [{1}]", method, methodId));
                 }
