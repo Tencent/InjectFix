@@ -755,6 +755,8 @@ namespace IFix
 
         const string BASE_RPOXY_PERFIX = "<>iFixBaseProxy_";
 
+        Dictionary<MethodReference, MethodReference> baseProxys = new Dictionary<MethodReference, MethodReference>();
+
         //方案2
         //var method = typeof(object).GetMethod("ToString");
         //var ftn = method.MethodHandle.GetFunctionPointer();
@@ -766,7 +768,8 @@ namespace IFix
             {
                 if (!isNewClass(type))
                 {
-                    var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Private,
+                    if (baseProxys.ContainsKey(mbase)) return baseProxys[mbase];
+                    var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Public,
                                        method.ReturnType);
                     for (int i = 0; i < method.Parameters.Count; i++)
                     {
@@ -788,6 +791,7 @@ namespace IFix
                     instructions.Add(Instruction.Create(OpCodes.Call, mbase));
                     instructions.Add(Instruction.Create(OpCodes.Ret));
                     type.Methods.Add(proxyMethod);
+                    baseProxys.Add(mbase, proxyMethod);
                     return proxyMethod;
                 }
                 else if(isNewClass(type) && !isNewClass(type.BaseType as TypeDefinition))
@@ -1578,26 +1582,7 @@ namespace IFix
                                 var methodIdInfo = getMethodId(methodToCall, method, msIl.OpCode.Code == Code.Callvirt, or != null || directCallVirtual,
                                     injectTypePassToNext);
 
-                                bool callingBaseMethod = false;
-
-                                try
-                                {
-                                    var callingType = methodToCall.DeclaringType.Resolve();
-                                    TypeReference baseType = method.DeclaringType.BaseType.Resolve();
-                                    while (baseType != null)
-                                    {
-                                        if (callingType.IsSameType(baseType))
-                                        {
-                                            callingBaseMethod = true;
-                                            break;
-                                        }
-                                        baseType = baseType.Resolve().BaseType.Resolve();
-                                    }
-                                }
-                                catch { }
-
-                                if (callingBaseMethod && msIl.OpCode.Code == Code.Call && baseProxy != null 
-                                    && isTheSameDeclare(methodToCall, method))
+                                if (msIl.OpCode.Code == Code.Call && baseProxys.TryGetValue(methodToCall, out baseProxy))
                                 {
                                     code.Add(new Core.Instruction
                                     {
