@@ -797,7 +797,6 @@ namespace IFix
                         typeToProxy = new Dictionary<TypeDefinition, MethodReference>();
                         baseProxys.Add(mbase, typeToProxy);
                     }
-                    Console.WriteLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + mbase + ">>>>>>>>>>>>>>>>>>>" + type);
                     typeToProxy.Add(type, proxyMethod);
                     return proxyMethod;
                 }
