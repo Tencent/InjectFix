@@ -755,7 +755,7 @@ namespace IFix
 
         const string BASE_RPOXY_PERFIX = "<>iFixBaseProxy_";
 
-        Dictionary<MethodReference, MethodReference> baseProxys = new Dictionary<MethodReference, MethodReference>();
+        Dictionary<MethodReference, Dictionary<TypeDefinition, MethodReference>> baseProxys = new Dictionary<MethodReference, Dictionary<TypeDefinition, MethodReference>>();
 
         //方案2
         //var method = typeof(object).GetMethod("ToString");
@@ -768,7 +768,6 @@ namespace IFix
             {
                 if (!isNewClass(type))
                 {
-                    if (baseProxys.ContainsKey(mbase)) return baseProxys[mbase];
                     var proxyMethod = new MethodDefinition(BASE_RPOXY_PERFIX + method.Name, MethodAttributes.Public,
                                        method.ReturnType);
                     for (int i = 0; i < method.Parameters.Count; i++)
@@ -791,7 +790,15 @@ namespace IFix
                     instructions.Add(Instruction.Create(OpCodes.Call, mbase));
                     instructions.Add(Instruction.Create(OpCodes.Ret));
                     type.Methods.Add(proxyMethod);
-                    baseProxys.Add(mbase, proxyMethod);
+
+                    Dictionary<TypeDefinition, MethodReference> typeToProxy;
+                    if (!baseProxys.TryGetValue(mbase, out typeToProxy))
+                    {
+                        typeToProxy = new Dictionary<TypeDefinition, MethodReference>();
+                        baseProxys.Add(mbase, typeToProxy);
+                    }
+                    Console.WriteLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + mbase + ">>>>>>>>>>>>>>>>>>>" + type);
+                    typeToProxy.Add(type, proxyMethod);
                     return proxyMethod;
                 }
                 else if(isNewClass(type) && !isNewClass(type.BaseType as TypeDefinition))
@@ -800,6 +807,25 @@ namespace IFix
                 }
             }
             return null;
+        }
+
+        MethodReference findProxy(TypeDefinition type, MethodReference methodToCall)
+        {
+            Dictionary<TypeDefinition, MethodReference> typeToProxy;
+            if (baseProxys.TryGetValue(methodToCall, out typeToProxy))
+            {
+                TypeDefinition ptype = type;
+                while (ptype != null)
+                {
+                    if (typeToProxy.ContainsKey(ptype))
+                    {
+                        return typeToProxy[ptype];
+                    }
+                    ptype = ptype.DeclaringType;
+                }
+            }
+            return null;
+            
         }
 
         enum CallType
@@ -1112,7 +1138,7 @@ namespace IFix
                 return new MethodIdInfo() { Id = 0, Type = CallType.Invalid };
             }
            
-            var baseProxy = tryAddBaseProxy(method.DeclaringType, method);
+            tryAddBaseProxy(method.DeclaringType, method);
             var body = method.Body;
             var msIls = body.Instructions;
             var ilOffset = new Dictionary<Instruction, int>();
@@ -1582,8 +1608,10 @@ namespace IFix
                                 var methodIdInfo = getMethodId(methodToCall, method, msIl.OpCode.Code == Code.Callvirt, or != null || directCallVirtual,
                                     injectTypePassToNext);
 
-                                if (msIl.OpCode.Code == Code.Call && baseProxys.TryGetValue(methodToCall, out baseProxy))
+                                if (msIl.OpCode.Code == Code.Call && baseProxys.ContainsKey(methodToCall))
                                 {
+                                    var baseProxy = findProxy(method.DeclaringType, methodToCall);
+                                    if (baseProxy == null) throw new Exception("can not find the proxy for " + methodToCall + ", in " + method.DeclaringType);
                                     code.Add(new Core.Instruction
                                     {
                                         Code = Core.Code.CallExtern,
