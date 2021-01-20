@@ -2350,6 +2350,12 @@ namespace IFix.Core
                                     //var src = pos - 1;
                                     //_Info("src t:" + src->Type + ",v:" + src->Value1);
                                     copy(evaluationStackBase, pos, pos - 1, managedStack);
+                                    if (pos->Type >= ValueType.Object && pos->Type != ValueType.ValueType)
+                                    {
+                                        var src = pos - 1;
+                                        pos->Value1 = (int)(pos - evaluationStackBase);
+                                        managedStack[pos->Value1] = managedStack[src->Value1];
+                                    }
                                     //_Info("des t:" + pos->Type + ",v:" + pos->Value1);
                                     pos = pos - 1;
                                 }
