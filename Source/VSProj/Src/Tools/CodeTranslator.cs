@@ -119,6 +119,7 @@ namespace IFix
             = new Dictionary<TypeDefinition, HashSet<FieldDefinition>>();
 
         Dictionary<TypeDefinition, int> typeToCctor = new Dictionary<TypeDefinition, int>();
+        Dictionary<FieldDefinition, int> newFieldToCtor = new Dictionary<FieldDefinition, int>();
 
         /// <summary>
         /// 获取简写属性（例如public int a{get;set;}），事件等所生成的字段
@@ -882,6 +883,11 @@ namespace IFix
         bool isNewClass(TypeDefinition type)
         {
             return configure.IsNewClass(type);
+        }
+
+        bool isNewField(FieldDefinition field)
+        {
+            return configure.isNewField(field);
         }
 
         Dictionary<MethodDefinition, int> interpretMethods = new Dictionary<MethodDefinition, int>();
@@ -3274,6 +3280,58 @@ namespace IFix
                 }
             }
 
+            foreach (var cls in (
+                from type in allTypes
+                where type.IsClass select type))
+            {
+                foreach (var field in cls.Fields)
+                {
+                    if(isNewField(field))
+                    {
+                        var ctor =
+                            (from method in cls.Methods
+                            where method.IsConstructor && (field.IsStatic ? method.Name == ".cctor" : method.Name == ".ctor")
+                            select method).FirstOrDefault();
+
+                        if(ctor != null)
+                        {
+                            var ret = new Mono.Collections.Generic.Collection<Instruction>();
+                            foreach (var instruction in ctor.Body.Instructions)
+                            {
+                                
+                                var code = instruction.OpCode.Code;
+
+                                if((code == Code.Stsfld || code == Code.Stfld) && (instruction.Operand as FieldDefinition) == field)
+                                {
+                                    emitFieldCtor(field, ret);
+                                    break;
+                                }
+                                else
+                                {
+                                    ret.Add(instruction);
+                                }
+
+                                if(field.IsStatic)
+                                {
+                                    if(code == Code.Stsfld)
+                                    {
+                                        ret.Clear();
+                                    }
+                                }
+                                else
+                                {
+                                    if(code == Code.Stfld)
+                                    {
+                                        ret.Clear();
+                                    }
+                                }                                
+                            } 
+                        }
+                    }
+                } 
+            }
+
+            
             foreach(var kv in methodToInjectType)
             {
                 processMethod(kv.Key);
@@ -3296,6 +3354,61 @@ namespace IFix
 
             return ProcessResult.OK;
         }
+
+        void emitFieldCtor(FieldDefinition field, Mono.Collections.Generic.Collection<Instruction> insertInstructions)
+        {
+            var staticConstructorAttributes =
+                    MethodAttributes.Private |
+                    MethodAttributes.HideBySig |
+                    MethodAttributes.SpecialName |
+                    MethodAttributes.RTSpecialName;
+
+            MethodDefinition fieldDefaultValue = new MethodDefinition("<>__ctor_" + field.Name, staticConstructorAttributes, assembly.MainModule.TypeSystem.Object);
+
+            var local0 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
+            var local1 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
+
+            fieldDefaultValue.Body.Variables.Add(local0);
+            fieldDefaultValue.Body.Variables.Add(local1);
+
+            var instructions = fieldDefaultValue.Body.Instructions;
+            instructions.Add(Instruction.Create(OpCodes.Nop));
+            foreach (var instruction in insertInstructions)
+            {
+                if(!instruction.OpCode.Code.ToString().Contains("Ldarg"))
+                {
+                    instructions.Add(instruction);
+                }
+            }
+
+            var bp1 = Instruction.Create(OpCodes.Ret);
+            
+            if(field.FieldType.IsValueType)
+            {
+                instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
+            }
+
+            instructions.Add(Instruction.Create(OpCodes.Stloc, local0));
+            instructions.Add(Instruction.Create(OpCodes.Ldloc, local0));
+            instructions.Add(Instruction.Create(OpCodes.Stloc, local1));
+            instructions.Add(Instruction.Create(OpCodes.Br_S, bp1));
+            instructions.Add(Instruction.Create(OpCodes.Ldloc, local1));
+            instructions.Add(bp1);
+
+            field.DeclaringType.Methods.Add(fieldDefaultValue);
+
+            configure.AddNewMethod(fieldDefaultValue);
+
+            methodToInjectType[fieldDefaultValue] = InjectType.Redirect;
+            hasRedirect = true;
+
+            if (!newFieldToCtor.ContainsKey(field))
+            {
+                var cctorInfo = getMethodId(fieldDefaultValue, null,false, false, InjectType.Redirect);
+                newFieldToCtor[field] = cctorInfo.Id;
+            }
+        }
+
 
         void postProcessInterfaceBridge()
         {
@@ -3646,6 +3759,17 @@ namespace IFix
                 writer.Write(IFix.Core.Instruction.INSTRUCTION_FORMAT_MAGIC);
                 writer.Write(itfBridgeType.GetAssemblyQualifiedName());
 
+                // add field type
+                for (int i = 0; i < fields.Count; i++)
+                {
+                    var fieldType = fields[i].FieldType;
+                    if (isCompilerGenerated(fieldType) || isNewClass(fieldType as TypeDefinition))
+                    {
+                        fieldType = objType;
+                    }
+                    addExternType(fieldType);
+                }
+
                 //---------------extern type---------------
                 writer.Write(externTypes.Count);
                 for (int i = 0; i < externTypes.Count; i++)
@@ -3711,8 +3835,28 @@ namespace IFix
                 writer.Write(fields.Count);
                 for (int i = 0; i < fields.Count; i++)
                 {
+                    bool newField = isNewField(fields[i] as FieldDefinition);
+                    writer.Write(newField);
                     writer.Write(addExternType(fields[i].DeclaringType));
                     writer.Write(fields[i].Name);
+
+                    if(newField)
+                    {
+                        var fieldType = fields[i].FieldType;
+                        if (isCompilerGenerated(fieldType) || isNewClass(fieldType as TypeDefinition))
+                        {
+                            fieldType = objType;
+                        }
+                        writer.Write(addExternType(fieldType));
+                        if(newFieldToCtor.ContainsKey(fields[i] as FieldDefinition))
+                        {
+                            writer.Write(newFieldToCtor[fields[i] as FieldDefinition]);
+                        }
+                        else
+                        {
+                            writer.Write(-1);
+                        }
+                    }
                 }
 
                 writer.Write(fieldsStoreInVirtualMachine.Count);

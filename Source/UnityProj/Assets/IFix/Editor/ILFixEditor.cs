@@ -705,6 +705,38 @@ namespace IFix.Editor
             }
         }
 
+        static void writeFields(BinaryWriter writer, List<FieldInfo> fields)
+        {
+            var fieldGroups = fields.GroupBy(m => m.DeclaringType).ToList();
+            writer.Write(fieldGroups.Count);
+            foreach (var fieldGroup in fieldGroups)
+            {
+                writer.Write(GetCecilTypeName(fieldGroup.Key));
+                writer.Write(fieldGroup.Count());
+                foreach (var field in fieldGroup)
+                {
+                    writer.Write(field.Name);
+                    writer.Write(GetCecilTypeName(field.FieldType));
+                }
+            }
+        }
+
+        static void writeProperties(BinaryWriter writer, List<PropertyInfo> properties)
+        {
+            var PropertyGroups = properties.GroupBy(m => m.DeclaringType).ToList();
+            writer.Write(PropertyGroups.Count);
+            foreach (var PropertyGroup in PropertyGroups)
+            {
+                writer.Write(GetCecilTypeName(PropertyGroup.Key));
+                writer.Write(PropertyGroup.Count());
+                foreach (var Property in PropertyGroup)
+                {
+                    writer.Write(Property.Name);
+                    writer.Write(GetCecilTypeName(Property.PropertyType));
+                }
+            }
+        }
+
         static void writeClasses(BinaryWriter writer, List<Type> classes)
         {
             writer.Write(classes.Count);
@@ -774,6 +806,8 @@ namespace IFix.Editor
             }
 
             var newMethods = Configure.GetTagMethods(typeof(InterpretAttribute), assembly).ToList();
+            var newFields = Configure.GetTagFields(typeof(InterpretAttribute), assembly).ToList();
+            var newProperties = Configure.GetTagProperties(typeof(InterpretAttribute), assembly).ToList();
             var newClasses = Configure.GetTagClasses(typeof(InterpretAttribute), assembly).ToList();
             genericMethod = newMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
@@ -788,6 +822,8 @@ namespace IFix.Editor
             {
                 writeMethods(writer, patchMethods);
                 writeMethods(writer, newMethods);
+                writeFields(writer, newFields);
+                writeProperties(writer, newProperties);
                 writeClasses(writer, newClasses);
             }
 

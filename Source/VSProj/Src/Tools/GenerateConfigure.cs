@@ -65,6 +65,15 @@ namespace IFix
         public abstract bool IsNewMethod(MethodReference method);
 
         public abstract bool IsNewClass(TypeReference type);
+
+        public abstract bool isNewField(FieldReference field);
+
+        public abstract void AddNewMethod(MethodReference method);
+
+        public abstract void AddNewClass(TypeReference type);
+
+        public abstract void AddNewField(FieldReference field);
+
         //参数类型信息
         internal class ParameterMatchInfo
         {
@@ -78,6 +87,18 @@ namespace IFix
             public string Name;
             public string ReturnType;
             public ParameterMatchInfo[] Parameters;
+        }
+
+        internal class FieldMatchInfo
+        {
+            public string Name;
+            public string FieldType;
+        }
+
+        internal class PropertyMatchInfo
+        {
+            public string Name;
+            public string PropertyType;
         }
 
         //判断一个方法是否能够在matchInfo里头能查询到
@@ -107,6 +128,38 @@ namespace IFix
                             }
                         }
                         if (paramMatch) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        internal static bool isMatchForField(Dictionary<string, FieldMatchInfo[]> matchInfo, FieldReference field)
+        {
+            FieldMatchInfo[] mmis;
+            if (matchInfo.TryGetValue(field.DeclaringType.FullName, out mmis))
+            {
+                foreach (var mmi in mmis)
+                {
+                    if (mmi.Name == field.Name && mmi.FieldType == field.FieldType.FullName)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        internal static bool isMatchForProperty(Dictionary<string, PropertyMatchInfo[]> matchInfo, PropertyReference property)
+        {
+            PropertyMatchInfo[] mmis;
+            if (matchInfo.TryGetValue(property.DeclaringType.FullName, out mmis))
+            {
+                foreach (var mmi in mmis)
+                {
+                    if (mmi.Name == property.Name && mmi.PropertyType == property.PropertyType.FullName)
+                    {
+                        return true;
                     }
                 }
             }
@@ -153,6 +206,53 @@ namespace IFix
 
             return matchInfo;
         }
+
+        internal static Dictionary<string, FieldMatchInfo[]> readFieldInfo(BinaryReader reader)
+        {
+            Dictionary<string, FieldMatchInfo[]> matchInfo = new Dictionary<string, FieldMatchInfo[]>();
+
+            int typeCount = reader.ReadInt32();
+            for (int k = 0; k < typeCount; k++)
+            {
+                string typeName = reader.ReadString();
+                int methodCount = reader.ReadInt32();
+                FieldMatchInfo[] fieldMatchInfos = new FieldMatchInfo[methodCount];
+                for (int i = 0; i < methodCount; i++)
+                {
+                    FieldMatchInfo fmi = new FieldMatchInfo();
+                    fmi.Name = reader.ReadString();
+                    fmi.FieldType = reader.ReadString();
+                    fieldMatchInfos[i] = fmi;
+                }
+                matchInfo[typeName] = fieldMatchInfos;
+            }
+
+            return matchInfo;
+        }
+
+        internal static Dictionary<string, PropertyMatchInfo[]> readPropertyInfo(BinaryReader reader)
+        {
+            Dictionary<string, PropertyMatchInfo[]> matchInfo = new Dictionary<string, PropertyMatchInfo[]>();
+
+            int typeCount = reader.ReadInt32();
+            for (int k = 0; k < typeCount; k++)
+            {
+                string typeName = reader.ReadString();
+                int methodCount = reader.ReadInt32();
+                PropertyMatchInfo[] propertyMatchInfos = new PropertyMatchInfo[methodCount];
+                for (int i = 0; i < methodCount; i++)
+                {
+                    PropertyMatchInfo pmi = new PropertyMatchInfo();
+                    pmi.Name = reader.ReadString();
+                    pmi.PropertyType = reader.ReadString();
+                    propertyMatchInfos[i] = pmi;
+                }
+                matchInfo[typeName] = propertyMatchInfos;
+            }
+
+            return matchInfo;
+        }
+
         internal static HashSet<string> readMatchInfoForClass(BinaryReader reader)
         {
             HashSet<string> setMatchInfoForClass = new HashSet<string>();
@@ -182,6 +282,26 @@ namespace IFix
         public override bool IsNewClass(TypeReference type)
         {
             return false;
+        }
+
+        public override bool isNewField(FieldReference field)
+        {
+            return false;
+        }
+
+        public override void AddNewMethod(MethodReference method)
+        {
+
+        }
+
+        public override void AddNewClass(TypeReference type)
+        {
+
+        }
+
+        public override void AddNewField(FieldReference field)
+        {
+
         }
     }
 
@@ -216,6 +336,22 @@ namespace IFix
         {
             return false;
         }
+        public override bool isNewField(FieldReference field)
+        {
+            return false;
+        }
+        public override void AddNewMethod(MethodReference method)
+        {
+            
+        }
+        public override void AddNewClass(TypeReference type)
+        {
+
+        }
+        public override void AddNewField(FieldReference field)
+        {
+
+        }
     }
 
     //patch配置使用
@@ -244,11 +380,33 @@ namespace IFix
         {
             return newClasses.Contains(type);
         }
+
+        public override bool isNewField(FieldReference field)
+        {
+            return newFields.Contains(field);
+        }
+
+        public override void AddNewMethod(MethodReference method)
+        {
+            newMethods.Add(method);
+        }
+
+        public override void AddNewClass(TypeReference type)
+        {
+            newClasses.Add(type);
+        }
+
+        public override void AddNewField(FieldReference field)
+        {
+            newFields.Add(field);
+        }
+
         //暂时不支持redirect类型的方法
         HashSet<MethodReference> redirectMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> switchMethods = new HashSet<MethodReference>();
         HashSet<MethodReference> newMethods = new HashSet<MethodReference>();
         HashSet<TypeReference> newClasses = new HashSet<TypeReference>();
+        HashSet<FieldReference> newFields = new HashSet<FieldReference>();
         MethodDefinition findMatchMethod(Dictionary<string, Dictionary<string, List<MethodDefinition>>> searchData,
             MethodDefinition method)
         {
@@ -268,17 +426,28 @@ namespace IFix
             return null;
         }
 
+        private static bool isCompilerGenerated(FieldReference field)
+        {
+            var fd = field as FieldDefinition;
+            return fd != null && fd.CustomAttributes.Any(ca => ca.AttributeType.FullName 
+            == "System.Runtime.CompilerServices.CompilerGeneratedAttribute");
+        }
+
         //读取配置信息（要patch的方法列表，新增方法列表）
         public PatchGenerateConfigure(AssemblyDefinition newAssembly, string cfgPath)
         {
             Dictionary<string, MethodMatchInfo[]> patchMethodInfo = null;
             Dictionary<string, MethodMatchInfo[]> newMethodInfo = null;
+            Dictionary<string, FieldMatchInfo[]> newFieldsInfo = null;
+            Dictionary<string, PropertyMatchInfo[]> newPropertiesInfo = null;
             HashSet<string> newClassInfo = null;
 
             using (BinaryReader reader = new BinaryReader(File.Open(cfgPath, FileMode.Open)))
             {
                 patchMethodInfo = readMatchInfo(reader);
                 newMethodInfo = readMatchInfo(reader);
+                newFieldsInfo = readFieldInfo(reader);
+                newPropertiesInfo = readPropertyInfo(reader);
                 newClassInfo = readMatchInfoForClass(reader);
             }
 
@@ -290,14 +459,50 @@ namespace IFix
                 }
                 if (isMatch(newMethodInfo, method))
                 {
-                    newMethods.Add(method);
+                    AddNewMethod(method);
                 }
             }
             foreach (var clas in newAssembly.GetAllType())
             {
                 if (isMatchForClass(newClassInfo, clas))
                 {
-                    newClasses.Add(clas);
+                    AddNewClass(clas);
+                }
+            }
+            foreach (var property in (from type in newAssembly.GetAllType() from property in type.Properties select property))
+            {
+                if (isMatchForProperty(newPropertiesInfo, property))
+                {
+                    AddNewMethod(property.SetMethod);
+                    AddNewMethod(property.GetMethod);
+                    
+                    var defination = newAssembly.MainModule.GetType(property.DeclaringType.FullName);
+                    foreach (var field in ( from method in defination.Methods
+                        where method.IsSpecialName && method.Body != null 
+                            && method.Body.Instructions != null
+                        from instruction in method.Body.Instructions
+                        where instruction.OpCode.Code == Mono.Cecil.Cil.Code.Ldsfld
+                            || instruction.OpCode.Code == Mono.Cecil.Cil.Code.Stsfld
+                            || instruction.OpCode.Code == Mono.Cecil.Cil.Code.Ldsflda
+                            || instruction.OpCode.Code == Mono.Cecil.Cil.Code.Ldfld
+                            || instruction.OpCode.Code == Mono.Cecil.Cil.Code.Stfld
+                            || instruction.OpCode.Code == Mono.Cecil.Cil.Code.Ldflda
+                        where isCompilerGenerated(instruction.Operand as Mono.Cecil.FieldReference)
+                        select (instruction.Operand as Mono.Cecil.FieldReference).Resolve()).Distinct())
+                    {
+                        var backingField = property.DeclaringType.Fields.FirstOrDefault(f => f.FullName == field.FullName);
+                        if(backingField != null)
+                        {
+                            AddNewField(backingField);
+                        }
+                    }
+                }
+            }
+            foreach (var field in (from type in newAssembly.GetAllType() from field in type.Fields select field ))
+            {
+                if (isMatchForField(newFieldsInfo, field))
+                {
+                    AddNewField(field);
                 }
             }
         }
