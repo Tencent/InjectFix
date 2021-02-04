@@ -172,6 +172,10 @@ namespace IFix
             {
                 return externTypeToId[type];
             }
+            if (isNewClass(type as TypeDefinition))
+            {
+                throw new Exception(type + " is new class, cannot be treated as extern type");
+            }
             if (isCompilerGenerated(type))
             {
                 throw new Exception(type + " is CompilerGenerated");
@@ -1764,15 +1768,23 @@ namespace IFix
                             }
                             break;
                         case Code.Box:
-                        case Code.Isinst:
                         case Code.Unbox_Any:
                         case Code.Unbox:
+                        case Code.Castclass:
+                        case Code.Isinst:
+                            code.Add(new Core.Instruction
+                            {
+                                Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),
+                                Operand = isNewClass(msIl.Operand as TypeDefinition) ? 
+                                    -addAnonymousCtor(null, msIl.Operand as TypeReference) - 1
+                                    : addExternType(msIl.Operand as TypeReference)
+                            });
+                            break;
                         case Code.Newarr:
                         case Code.Ldelema:
                         case Code.Initobj:
                         case Code.Ldobj:
                         case Code.Stobj:
-                        case Code.Castclass:
                             code.Add(new Core.Instruction
                             {
                                 Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),

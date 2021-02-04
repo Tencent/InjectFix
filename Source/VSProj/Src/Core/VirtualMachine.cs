@@ -1472,9 +1472,10 @@ namespace IFix.Core
                         case Code.Castclass: //0.358122%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
+                                var type = pc->Operand >= 0 ? externTypes[pc->Operand] : typeof(AnonymousStorey);
                                 var obj = managedStack[ptr->Value1];
-                                if (obj != null && !type.IsAssignableFrom(obj.GetType()))
+                                bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                if (obj != null && (!canAssign || (canAssign && pc->Operand < 0 && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )))
                                 {
                                     throw new InvalidCastException(type + " is not assignable from "
                                         + obj.GetType());
@@ -1516,71 +1517,74 @@ namespace IFix.Core
                         case Code.Box://0.3100877%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
-                                var pos = (int)(ptr - evaluationStackBase);
-                                switch (ptr->Type)
+                                if(pc->Operand >= 0)
                                 {
-                                    case ValueType.ValueType:
-                                    case ValueType.Object:
-                                        break;
-                                    case ValueType.Integer:
-                                        if (type.IsEnum)
-                                        {
-                                            managedStack[pos] = Enum.ToObject(type, ptr->Value1);
-                                        }
-                                        else if (type == typeof(int))
-                                        {
-                                            managedStack[pos] = ptr->Value1;
-                                        }
-                                        else if (type == typeof(uint))
-                                        {
-                                            managedStack[pos] = (uint)ptr->Value1;
-                                        }
-                                        else
-                                        {
-                                            managedStack[pos] = Convert.ChangeType(ptr->Value1, type);
-                                        }
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Long:
-                                        if (type == typeof(long))
-                                        {
-                                            managedStack[pos] = *(long*)&ptr->Value1;
-                                        }
-                                        else if (type == typeof(ulong))
-                                        {
-                                            managedStack[pos] = *(ulong*)&ptr->Value1;
-                                        }
-                                        else if (type.IsEnum)
-                                        {
-                                            managedStack[pos] = Enum.ToObject(type, *(long*)&ptr->Value1);
-                                        }
-                                        else if (type == typeof(IntPtr))
-                                        {
-                                            managedStack[pos] = new IntPtr(*(long*)&ptr->Value1);
-                                        }
-                                        else if (type == typeof(UIntPtr))
-                                        {
-                                            managedStack[pos] = new UIntPtr(*(ulong*)&ptr->Value1);
-                                        }
-                                        else
-                                        {
-                                            managedStack[pos] = Convert.ChangeType(*(long*)&ptr->Value1, type);
-                                        }
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Float:
-                                        managedStack[pos] = *(float*)&ptr->Value1;
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Double:
-                                        managedStack[pos] = *(double*)&ptr->Value1;
-                                        ptr->Value1 = pos;
-                                        break;
-                                    default:
-                                        throwRuntimeException(new InvalidProgramException("to box a " + ptr->Type),
-                                            true);
-                                        break;
+                                    var type = externTypes[pc->Operand];
+                                    var pos = (int)(ptr - evaluationStackBase);
+                                    switch (ptr->Type)
+                                    {
+                                        case ValueType.ValueType:
+                                        case ValueType.Object:
+                                            break;
+                                        case ValueType.Integer:
+                                            if (type.IsEnum)
+                                            {
+                                                managedStack[pos] = Enum.ToObject(type, ptr->Value1);
+                                            }
+                                            else if (type == typeof(int))
+                                            {
+                                                managedStack[pos] = ptr->Value1;
+                                            }
+                                            else if (type == typeof(uint))
+                                            {
+                                                managedStack[pos] = (uint)ptr->Value1;
+                                            }
+                                            else
+                                            {
+                                                managedStack[pos] = Convert.ChangeType(ptr->Value1, type);
+                                            }
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Long:
+                                            if (type == typeof(long))
+                                            {
+                                                managedStack[pos] = *(long*)&ptr->Value1;
+                                            }
+                                            else if (type == typeof(ulong))
+                                            {
+                                                managedStack[pos] = *(ulong*)&ptr->Value1;
+                                            }
+                                            else if (type.IsEnum)
+                                            {
+                                                managedStack[pos] = Enum.ToObject(type, *(long*)&ptr->Value1);
+                                            }
+                                            else if (type == typeof(IntPtr))
+                                            {
+                                                managedStack[pos] = new IntPtr(*(long*)&ptr->Value1);
+                                            }
+                                            else if (type == typeof(UIntPtr))
+                                            {
+                                                managedStack[pos] = new UIntPtr(*(ulong*)&ptr->Value1);
+                                            }
+                                            else
+                                            {
+                                                managedStack[pos] = Convert.ChangeType(*(long*)&ptr->Value1, type);
+                                            }
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Float:
+                                            managedStack[pos] = *(float*)&ptr->Value1;
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Double:
+                                            managedStack[pos] = *(double*)&ptr->Value1;
+                                            ptr->Value1 = pos;
+                                            break;
+                                        default:
+                                            throwRuntimeException(new InvalidProgramException("to box a " + ptr->Type),
+                                                true);
+                                            break;
+                                    }
                                 }
                                 ptr->Type = ValueType.Object;
                             }
@@ -1588,13 +1592,21 @@ namespace IFix.Core
                         case Code.Isinst://0.3074192%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
+                                var type = pc->Operand >= 0 ? externTypes[pc->Operand] : typeof(AnonymousStorey);
                                 var pos = (int)(ptr - evaluationStackBase);
                                 var obj = managedStack[ptr->Value1];
                                 ptr->Type = ValueType.Object;
                                 ptr->Value1 = pos;
-                                managedStack[pos] = (obj != null && type.IsAssignableFrom(obj.GetType()))
+                                bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                managedStack[pos] = (obj != null && canAssign)
                                     ? obj : null;
+                                if(pc->Operand < 0 && canAssign)
+                                {
+                                    if((obj as AnonymousStorey).typeId != -(pc->Operand + 1))
+                                    {
+                                        managedStack[pos] = null;
+                                    }
+                                }
                             }
                             break;
                         case Code.Bge: //Bge_S:0.2954996% Bge:0.005870852%
@@ -2414,34 +2426,37 @@ namespace IFix.Core
                         case Code.Unbox_Any://0.0848605%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
-                                //var pos = (int)(ptr - evaluationStackBase);
-                                var obj = managedStack[ptr->Value1];
-                                if (ptr->Type == ValueType.Object)
+                                if(pc->Operand >= 0)
                                 {
-                                    if (type.IsValueType)
+                                    var type = externTypes[pc->Operand];
+                                    //var pos = (int)(ptr - evaluationStackBase);
+                                    var obj = managedStack[ptr->Value1];
+                                    if (ptr->Type == ValueType.Object)
                                     {
-                                        if (obj == null)
+                                        if (type.IsValueType)
                                         {
-                                            throw new NullReferenceException();
+                                            if (obj == null)
+                                            {
+                                                throw new NullReferenceException();
+                                            }
+                                            else if(type.IsPrimitive)
+                                            {
+                                                EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
+                                            }
+                                            else if(type.IsEnum)
+                                            {
+                                                EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
+                                            }
+                                            else
+                                            {
+                                                ptr->Type = ValueType.ValueType;
+                                            }
                                         }
-                                        else if(type.IsPrimitive)
+                                        //泛型函数是有可能Unbox_Any一个非值类型的
+                                        else if (obj != null && !type.IsAssignableFrom(obj.GetType())) 
                                         {
-                                            EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
+                                            throw new InvalidCastException();
                                         }
-                                        else if(type.IsEnum)
-                                        {
-                                            EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
-                                        }
-                                        else
-                                        {
-                                            ptr->Type = ValueType.ValueType;
-                                        }
-                                    }
-                                    //泛型函数是有可能Unbox_Any一个非值类型的
-                                    else if (obj != null && !type.IsAssignableFrom(obj.GetType())) 
-                                    {
-                                        throw new InvalidCastException();
                                     }
                                 }
                             }
