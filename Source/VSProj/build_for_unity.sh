@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 UNITY_HOME="/Applications/Unity2017/Unity.app"
 GMCS="$UNITY_HOME/Contents/Mono/bin/gmcs"
+if [ ! -d $GMCS ]; then
+    GMCS="$UNITY_HOME/Contents/MonoBleedingEdge/bin/mcs"
+fi
 MONO="$UNITY_HOME/Contents/MonoBleedingEdge/bin/mono"
 DLL_OUTPUT="../UnityProj/Assets/Plugins/IFix.Core.dll"
 TOOL_KIT_PATH="../UnityProj/IFixToolKit"
