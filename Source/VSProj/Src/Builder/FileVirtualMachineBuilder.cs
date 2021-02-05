@@ -279,6 +279,7 @@ namespace IFix.Core
             Type[] externTypes;
             MethodBase[] externMethods;
             List<ExceptionHandler[]> exceptionHandlers = new List<ExceptionHandler[]>();
+            Dictionary<int, NewFieldInfo> newFieldInfo = new Dictionary<int, NewFieldInfo>();
             string[] internStrings;
             FieldInfo[] fieldInfos;
             Type[] staticFieldTypes;
@@ -375,13 +376,45 @@ namespace IFix.Core
                 fieldInfos = new FieldInfo[reader.ReadInt32()];
                 for (int i = 0; i < fieldInfos.Length; i++)
                 {
-                    var type = externTypes[reader.ReadInt32()];
+                    var isNewField = reader.ReadBoolean();
+                    var declaringType = externTypes[reader.ReadInt32()];
                     var fieldName = reader.ReadString();
-                    fieldInfos[i] = type.GetField(fieldName, 
+                    
+                    fieldInfos[i] = declaringType.GetField(fieldName, 
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-                    if (fieldInfos[i] == null)
+
+                    if(!isNewField)
                     {
-                        throw new Exception("can not load field [" + fieldName + "] of " + type);
+                        if(fieldInfos[i] == null)
+                        {
+                            throw new Exception("can not load field [" + fieldName + "] " + " of " + declaringType);
+                        }
+                    }
+                    else
+                    {
+                        var fieldType = externTypes[reader.ReadInt32()];
+                        var methodId = reader.ReadInt32();
+                        
+                        if(fieldInfos[i] == null)
+                        {
+                            newFieldInfo.Add(i, new NewFieldInfo{
+                                Name = fieldName,
+                                FieldType = fieldType,
+                                DeclaringType = declaringType,
+                                MethodId = methodId,
+                            });
+                        }
+                        else
+                        {
+                            if(fieldInfos[i].FieldType != fieldType)
+                            {
+                                throw new Exception("can not change existing field [" + declaringType + "." + fieldName + "]'s type " + " from " + fieldInfos[i].FieldType + " to " + fieldType);
+                            }
+                            else
+                            {
+                                throw new Exception(declaringType + "." + fieldName + " is expected to be a new field , but it already exists ");
+                            }
+                        }
                     }
                 }
 
@@ -459,6 +492,7 @@ namespace IFix.Core
                     ExceptionHandlers = exceptionHandlers.ToArray(),
                     InternStrings = internStrings,
                     FieldInfos = fieldInfos,
+                    NewFieldInfos = newFieldInfo,
                     AnonymousStoreyInfos = anonymousStoreyInfos,
                     StaticFieldTypes = staticFieldTypes,
                     Cctors = cctors

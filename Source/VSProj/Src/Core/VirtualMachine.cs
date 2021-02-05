@@ -12,6 +12,7 @@ namespace IFix.Core
     using System.Collections.Generic;
     using System.Reflection;
     using System.IO;
+    using System.Linq;
 
     class RuntimeException : Exception
     {
@@ -24,6 +25,162 @@ namespace IFix.Core
     {
         public object Object;
         public int[] FieldIdList;
+    }
+
+    public class Cleanner
+    {
+        private static bool start = false;
+
+        public static void Start()
+        {
+            start = true;
+            new Cleanner();        
+        }
+
+        public static void Stop()
+        {
+            start = false;        
+        }
+
+        ~Cleanner()
+        {
+            if(start)
+            {
+                NewFieldInfo.Sweep();
+                Start();
+            }
+        }
+    }
+    
+    public class NewFieldInfo
+    {
+        public string Name;
+        public Type DeclaringType;
+        public Type FieldType;
+        public int MethodId;
+
+        static readonly int staticObjectKey = 0;
+
+        static readonly Dictionary<int, Dictionary<string, object>> newFieldValues = new Dictionary<int, Dictionary<string, object>>();
+
+        static readonly Dictionary<int, WeakReference> objList = new Dictionary<int, WeakReference>();
+
+        private object SetDefaultValue(object obj)
+        {
+            if(FieldType.IsValueType)
+            {
+                var ret = Activator.CreateInstance(FieldType);
+                SetValue(obj, ret);
+                return ret; 
+            }
+            else
+            {
+                SetValue(obj, null);
+                return null;
+            }
+        }
+
+        public static void Sweep()
+        {
+            foreach (var item in objList.ToList())
+            {
+                if(!item.Value.IsAlive)
+                {
+                    newFieldValues.Remove(item.Key);
+                    objList.Remove(item.Key);
+                }
+            }
+        }
+
+        public unsafe void CheckInit(VirtualMachine virtualMachine, object obj)
+        {
+            if( MethodId >= 0 && !HasInitialize(obj) )
+            {
+                Call call = Call.Begin();
+
+                try
+                {
+                    virtualMachine.Execute(MethodId, ref call, 0, 0);
+                    SetValue(obj, call.GetObject());
+                }
+                catch(Exception e)
+                {
+                    VirtualMachine._Info(e.ToString());
+                }
+            }
+        }
+
+        public int ObjectToIndex(object obj)
+        {
+            if(obj == null)
+            {
+                return staticObjectKey;
+            }
+
+            return obj.GetHashCode();
+        }
+
+        public bool HasInitialize(object obj)
+        {
+            var index = ObjectToIndex(obj);
+
+            if(!newFieldValues.ContainsKey(index))
+            {
+                return false;
+            }
+
+            Dictionary<string, object> fieldValues = null;
+            newFieldValues.TryGetValue(index, out fieldValues);
+            if(!fieldValues.ContainsKey(Name))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public object GetValue(object obj)
+        {
+            var index = ObjectToIndex(obj);
+
+            Dictionary<string, object> fieldValues = null;
+            newFieldValues.TryGetValue(index, out fieldValues);
+            if(fieldValues != null)
+            {
+                object val = null;
+                if(!fieldValues.TryGetValue(Name, out val))
+                {
+                    return SetDefaultValue(obj);
+                }
+                
+                return val;
+            }
+            else
+            {
+                return SetDefaultValue(obj);
+            }
+        }
+
+        public void SetValue(object obj, object value)
+        {
+            var index = ObjectToIndex(obj);
+
+            if(!newFieldValues.ContainsKey(index))
+            {
+                newFieldValues.Add(index, new Dictionary<string, object>());
+
+                if(obj != null)
+                {
+                    objList.Add(index, new WeakReference(obj));
+                }
+            }
+            
+            newFieldValues[index][Name] = value;
+
+            // if(obj.GetType() != DeclaringType || (value != null && value.GetType() != FieldType))
+            // {
+            // }
+        }        
     }
 
     unsafe public class VirtualMachine
@@ -49,6 +206,8 @@ namespace IFix.Core
         string[] internStrings;
 
         internal FieldInfo[] fieldInfos;
+
+        internal Dictionary<int, NewFieldInfo> newFieldInfos;
 
         AnonymousStoreyInfo[] anonymousStoreyInfos;
 
@@ -124,6 +283,18 @@ namespace IFix.Core
             }
         }
 
+        public Dictionary<int, NewFieldInfo> NewFieldInfos
+        {
+            get
+            {
+                return newFieldInfos;
+            }
+            set
+            {
+                newFieldInfos = value;
+            }
+        }
+
         public AnonymousStoreyInfo[] AnonymousStoreyInfos
         {
             get
@@ -177,6 +348,8 @@ namespace IFix.Core
         {
             unmanagedCodes = unmanaged_codes;
             onDispose = on_dispose;
+
+            Cleanner.Start();
         }
 
         ~VirtualMachine()
@@ -857,21 +1030,50 @@ namespace IFix.Core
                                 {
                                     var fieldInfo = fieldInfos[fieldIndex];
                                     //_Info("Ldfld fieldInfo:" + fieldInfo);
+
+                                    Type declaringType = null;
+                                    Type fieldType = null;
+                                    string fieldName = null;
+                                    
+                                    if(fieldInfo == null)
+                                    {
+                                        fieldName = newFieldInfos[fieldIndex].Name;
+                                        fieldType = newFieldInfos[fieldIndex].FieldType;
+                                        declaringType = newFieldInfos[fieldIndex].DeclaringType;
+                                    }
+                                    else
+                                    {
+                                        fieldName = fieldInfo.Name;
+                                        fieldType = fieldInfo.FieldType;
+                                        declaringType = fieldInfo.DeclaringType;
+                                    }
                                     
                                     object obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
-                                        managedStack, fieldInfo.DeclaringType, this, false);
+                                        managedStack, declaringType, this, false);
                                     
                                     if (obj == null)
                                     {
-                                        throw new NullReferenceException();
+                                        throw new NullReferenceException(declaringType + "." + fieldName);
                                     }
                                     //_Info("Ldfld:" + fieldInfo + ",obj=" + obj.GetType());
                                     
-                                    var fieldValue = fieldInfo.GetValue(obj);
+                                    object fieldValue = null;
+  
+                                    if(fieldInfo == null)
+                                    {
+                                        newFieldInfos[fieldIndex].CheckInit(this, obj);
+                                        
+                                        fieldValue = newFieldInfos[fieldIndex].GetValue(obj);
+                                    }
+                                    else
+                                    {
+                                        fieldValue = fieldInfo.GetValue(obj);
+                                    }
+
                                     //_Info("fieldValue:" + fieldValue);
                                     //throw new Exception("fieldValue=" + fieldValue);
                                     EvaluationStackOperation.PushObject(evaluationStackBase, ptr, managedStack,
-                                        fieldValue, fieldInfo.FieldType);
+                                        fieldValue, fieldType);
                                 }
                                 else
                                 {
@@ -921,25 +1123,51 @@ namespace IFix.Core
                                 {
                                     var fieldInfo = fieldInfos[pc->Operand];
 
+                                    Type declaringType = null;
+                                    Type fieldType = null;
+                                    string fieldName = null;
+                                    
+                                    if(fieldInfo == null)
+                                    {
+                                        fieldName = newFieldInfos[fieldIndex].Name;
+                                        fieldType = newFieldInfos[fieldIndex].FieldType;
+                                        declaringType = newFieldInfos[fieldIndex].DeclaringType;
+                                    }
+                                    else
+                                    {
+                                        fieldName = fieldInfo.Name;
+                                        fieldType = fieldInfo.FieldType;
+                                        declaringType = fieldInfo.DeclaringType;
+                                    }
+
                                     object obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
-                                        managedStack, fieldInfo.DeclaringType, this, false);
+                                        managedStack, declaringType, this, false);
 
                                     if (obj == null)
                                     {
-                                        throw new NullReferenceException();
+                                        throw new NullReferenceException(declaringType + "." + fieldName);
                                     }
 
-                                    fieldInfo.SetValue(obj, EvaluationStackOperation.ToObject(evaluationStackBase,
-                                        evaluationStackPointer - 1, managedStack, fieldInfo.FieldType, this));
+                                    if(fieldInfo != null)
+                                    {
+                                        fieldInfo.SetValue(obj, EvaluationStackOperation.ToObject(evaluationStackBase,
+                                            evaluationStackPointer - 1, managedStack, fieldType, this));
+                                    }
+                                    else
+                                    {
+                                        newFieldInfos[fieldIndex].SetValue(obj, EvaluationStackOperation.ToObject(evaluationStackBase,
+                                            evaluationStackPointer - 1, managedStack, fieldType, this));
+                                    }
+
                                     //如果field，array元素是值类型，需要重新update回去
                                     if ((ptr->Type == ValueType.FieldReference
                                         || ptr->Type == ValueType.ChainFieldReference
                                         || ptr->Type == ValueType.StaticFieldReference
                                         || ptr->Type == ValueType.ArrayReference) 
-                                        && fieldInfo.DeclaringType.IsValueType)
+                                        && declaringType.IsValueType)
                                     {
                                         EvaluationStackOperation.UpdateReference(evaluationStackBase, ptr,
-                                            managedStack, obj, this, fieldInfo.DeclaringType);
+                                            managedStack, obj, this, declaringType);
                                     }
                                     managedStack[ptr - evaluationStackBase] = null;
                                     managedStack[evaluationStackPointer - 1 - evaluationStackBase] = null;
@@ -1044,13 +1272,25 @@ namespace IFix.Core
                                 if (fieldIndex >= 0)
                                 {
                                     var fieldInfo = fieldInfos[fieldIndex];
+                                    Type fieldType = null;
+
+                                    object fieldValue = null;
+
                                     if (fieldInfo == null)
                                     {
-                                        throwRuntimeException(new InvalidProgramException(), true);
+                                        newFieldInfos[fieldIndex].CheckInit(this, null);
+
+                                        fieldType = newFieldInfos[fieldIndex].FieldType;
+                                        fieldValue = newFieldInfos[fieldIndex].GetValue(null);
                                     }
-                                    var fieldValue = fieldInfo.GetValue(null);
+                                    else
+                                    {
+                                        fieldType = fieldInfo.FieldType;
+                                        fieldValue = fieldInfo.GetValue(null);
+                                    }
+                                    
                                     EvaluationStackOperation.PushObject(evaluationStackBase, evaluationStackPointer,
-                                        managedStack, fieldValue, fieldInfo.FieldType);
+                                        managedStack, fieldValue, fieldType);
                                 }
                                 else
                                 {
@@ -1232,9 +1472,10 @@ namespace IFix.Core
                         case Code.Castclass: //0.358122%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
+                                var type = pc->Operand >= 0 ? externTypes[pc->Operand] : typeof(AnonymousStorey);
                                 var obj = managedStack[ptr->Value1];
-                                if (obj != null && !type.IsAssignableFrom(obj.GetType()))
+                                bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                if (obj != null && (!canAssign || (canAssign && pc->Operand < 0 && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )))
                                 {
                                     throw new InvalidCastException(type + " is not assignable from "
                                         + obj.GetType());
@@ -1276,71 +1517,74 @@ namespace IFix.Core
                         case Code.Box://0.3100877%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
-                                var pos = (int)(ptr - evaluationStackBase);
-                                switch (ptr->Type)
+                                if(pc->Operand >= 0)
                                 {
-                                    case ValueType.ValueType:
-                                    case ValueType.Object:
-                                        break;
-                                    case ValueType.Integer:
-                                        if (type.IsEnum)
-                                        {
-                                            managedStack[pos] = Enum.ToObject(type, ptr->Value1);
-                                        }
-                                        else if (type == typeof(int))
-                                        {
-                                            managedStack[pos] = ptr->Value1;
-                                        }
-                                        else if (type == typeof(uint))
-                                        {
-                                            managedStack[pos] = (uint)ptr->Value1;
-                                        }
-                                        else
-                                        {
-                                            managedStack[pos] = Convert.ChangeType(ptr->Value1, type);
-                                        }
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Long:
-                                        if (type == typeof(long))
-                                        {
-                                            managedStack[pos] = *(long*)&ptr->Value1;
-                                        }
-                                        else if (type == typeof(ulong))
-                                        {
-                                            managedStack[pos] = *(ulong*)&ptr->Value1;
-                                        }
-                                        else if (type.IsEnum)
-                                        {
-                                            managedStack[pos] = Enum.ToObject(type, *(long*)&ptr->Value1);
-                                        }
-                                        else if (type == typeof(IntPtr))
-                                        {
-                                            managedStack[pos] = new IntPtr(*(long*)&ptr->Value1);
-                                        }
-                                        else if (type == typeof(UIntPtr))
-                                        {
-                                            managedStack[pos] = new UIntPtr(*(ulong*)&ptr->Value1);
-                                        }
-                                        else
-                                        {
-                                            managedStack[pos] = Convert.ChangeType(*(long*)&ptr->Value1, type);
-                                        }
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Float:
-                                        managedStack[pos] = *(float*)&ptr->Value1;
-                                        ptr->Value1 = pos;
-                                        break;
-                                    case ValueType.Double:
-                                        managedStack[pos] = *(double*)&ptr->Value1;
-                                        ptr->Value1 = pos;
-                                        break;
-                                    default:
-                                        throwRuntimeException(new InvalidProgramException("to box a " + ptr->Type),
-                                            true);
-                                        break;
+                                    var type = externTypes[pc->Operand];
+                                    var pos = (int)(ptr - evaluationStackBase);
+                                    switch (ptr->Type)
+                                    {
+                                        case ValueType.ValueType:
+                                        case ValueType.Object:
+                                            break;
+                                        case ValueType.Integer:
+                                            if (type.IsEnum)
+                                            {
+                                                managedStack[pos] = Enum.ToObject(type, ptr->Value1);
+                                            }
+                                            else if (type == typeof(int))
+                                            {
+                                                managedStack[pos] = ptr->Value1;
+                                            }
+                                            else if (type == typeof(uint))
+                                            {
+                                                managedStack[pos] = (uint)ptr->Value1;
+                                            }
+                                            else
+                                            {
+                                                managedStack[pos] = Convert.ChangeType(ptr->Value1, type);
+                                            }
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Long:
+                                            if (type == typeof(long))
+                                            {
+                                                managedStack[pos] = *(long*)&ptr->Value1;
+                                            }
+                                            else if (type == typeof(ulong))
+                                            {
+                                                managedStack[pos] = *(ulong*)&ptr->Value1;
+                                            }
+                                            else if (type.IsEnum)
+                                            {
+                                                managedStack[pos] = Enum.ToObject(type, *(long*)&ptr->Value1);
+                                            }
+                                            else if (type == typeof(IntPtr))
+                                            {
+                                                managedStack[pos] = new IntPtr(*(long*)&ptr->Value1);
+                                            }
+                                            else if (type == typeof(UIntPtr))
+                                            {
+                                                managedStack[pos] = new UIntPtr(*(ulong*)&ptr->Value1);
+                                            }
+                                            else
+                                            {
+                                                managedStack[pos] = Convert.ChangeType(*(long*)&ptr->Value1, type);
+                                            }
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Float:
+                                            managedStack[pos] = *(float*)&ptr->Value1;
+                                            ptr->Value1 = pos;
+                                            break;
+                                        case ValueType.Double:
+                                            managedStack[pos] = *(double*)&ptr->Value1;
+                                            ptr->Value1 = pos;
+                                            break;
+                                        default:
+                                            throwRuntimeException(new InvalidProgramException("to box a " + ptr->Type),
+                                                true);
+                                            break;
+                                    }
                                 }
                                 ptr->Type = ValueType.Object;
                             }
@@ -1348,13 +1592,21 @@ namespace IFix.Core
                         case Code.Isinst://0.3074192%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
+                                var type = pc->Operand >= 0 ? externTypes[pc->Operand] : typeof(AnonymousStorey);
                                 var pos = (int)(ptr - evaluationStackBase);
                                 var obj = managedStack[ptr->Value1];
                                 ptr->Type = ValueType.Object;
                                 ptr->Value1 = pos;
-                                managedStack[pos] = (obj != null && type.IsAssignableFrom(obj.GetType()))
+                                bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                managedStack[pos] = (obj != null && canAssign)
                                     ? obj : null;
+                                if(pc->Operand < 0 && canAssign)
+                                {
+                                    if((obj as AnonymousStorey).typeId != -(pc->Operand + 1))
+                                    {
+                                        managedStack[pos] = null;
+                                    }
+                                }
                             }
                             break;
                         case Code.Bge: //Bge_S:0.2954996% Bge:0.005870852%
@@ -1507,13 +1759,28 @@ namespace IFix.Core
                                 if (fieldIndex >= 0)
                                 {
                                     var fieldInfo = fieldInfos[fieldIndex];
+                                    Type filedType = null;
+                                    
                                     if (fieldInfo == null)
                                     {
-                                        throwRuntimeException(new InvalidProgramException(), true);
+                                        filedType = newFieldInfos[fieldIndex].FieldType;
+                                    }
+                                    else
+                                    {
+                                        filedType = fieldInfo.FieldType;
                                     }
 
-                                    fieldInfo.SetValue(null, EvaluationStackOperation.ToObject(evaluationStackBase,
-                                        evaluationStackPointer - 1, managedStack, fieldInfo.FieldType, this));
+                                    var value = EvaluationStackOperation.ToObject(evaluationStackBase,
+                                        evaluationStackPointer - 1, managedStack, filedType, this);
+                                    
+                                    if (fieldInfo == null)
+                                    {
+                                        newFieldInfos[fieldIndex].SetValue(null, value);
+                                    }
+                                    else
+                                    {
+                                        fieldInfo.SetValue(null, value);
+                                    }
                                 }
                                 else
                                 {
@@ -1532,18 +1799,33 @@ namespace IFix.Core
                         case Code.Ldflda: //0.240527%
                             {
                                 var fieldInfo = pc->Operand >= 0 ? fieldInfos[pc->Operand] : null;
+
+                                Type declaringType = null;
+                                Type fieldType = null;
                                 var ptr = evaluationStackPointer - 1;
+
+                                if(fieldInfo == null)
+                                {
+                                    fieldType = newFieldInfos[pc->Operand].FieldType;
+                                    declaringType = newFieldInfos[pc->Operand].DeclaringType;
+                                }
+                                else
+                                {
+                                    fieldType = fieldInfo.FieldType;
+                                    declaringType = fieldInfo.DeclaringType;
+                                }
+                                
                                 //栈顶也是字段引用，而且该字段是值类型，需要update上层对象
                                 if ((ptr->Type == ValueType.FieldReference
                                     || ptr->Type == ValueType.ChainFieldReference
-                                    || ptr->Type == ValueType.ArrayReference) && fieldInfo != null
-                                    && fieldInfo.FieldType.IsValueType)
+                                    || ptr->Type == ValueType.ArrayReference) && pc->Operand >= 0
+                                    && fieldType.IsValueType)
                                 {
-                                    if (pc->Operand < 0)
-                                    {
-                                        throwRuntimeException(new NotSupportedException(
-                                            "chain ref for compiler generated object!"), true);
-                                    }
+                                    // if (pc->Operand < 0)
+                                    // {
+                                    //     throwRuntimeException(new NotSupportedException(
+                                    //         "chain ref for compiler generated object!"), true);
+                                    // }
                                     //_Info("mult ref");
                                     //ptr->Value1：指向实际对象
                                     //ptr->Value2：-1表示第一个是FieldReference， -2表示是ArrayReference
@@ -1581,14 +1863,14 @@ namespace IFix.Core
                                         managedStack[offset] = fieldAddr;
                                         ptr->Value2 = ptr->Type == ValueType.FieldReference ? -1 : -2;
                                     }
-
                                     ptr->Type = ValueType.ChainFieldReference;
                                 }
                                 else
                                 {
                                     object obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
-                                        managedStack, fieldInfo == null ? typeof(AnonymousStorey)
-                                        : fieldInfo.DeclaringType, this, false);
+                                        managedStack, pc->Operand < 0 ? typeof(AnonymousStorey)
+                                        : declaringType, this, false);
+
                                     ptr->Type = ValueType.FieldReference;
                                     ptr->Value1 = (int)(ptr - evaluationStackBase);
                                     managedStack[ptr->Value1] = obj;
@@ -1771,12 +2053,29 @@ namespace IFix.Core
                                             {
                                                 var fieldAddr = managedStack[ptr - evaluationStackBase] as FieldAddr;
                                                 var fieldIdList = fieldAddr.FieldIdList;
-                                                fieldType
-                                                    = fieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+
+                                                if(fieldInfos[fieldIdList[fieldIdList.Length - 1]] == null)
+                                                {
+                                                    fieldType
+                                                        = newFieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+                                                }
+                                                else
+                                                {
+                                                    fieldType
+                                                        = fieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+                                                }
+
                                             }
                                             else
                                             {
-                                                fieldType = fieldInfos[ptr->Value2].FieldType;
+                                                if(fieldInfos[ptr->Value2] == null)
+                                                {
+                                                    fieldType = newFieldInfos[ptr->Value2].FieldType;
+                                                }
+                                                else
+                                                {
+                                                    fieldType = fieldInfos[ptr->Value2].FieldType;
+                                                }
                                             }
                                             EvaluationStackOperation.UpdateReference(evaluationStackBase, ptr,
                                                 managedStack, EvaluationStackOperation.ToObject(evaluationStackBase,
@@ -1808,9 +2107,28 @@ namespace IFix.Core
                                             if (fieldIndex >= 0)
                                             {
                                                 var fieldInfo = fieldInfos[fieldIndex];
-                                                fieldInfo.SetValue(null,
-                                                    EvaluationStackOperation.ToObject(evaluationStackBase, src,
-                                                    managedStack, fieldInfo.FieldType, this));
+                                                Type fieldType = null;
+
+                                                if(fieldInfo == null)
+                                                {
+                                                    fieldType = newFieldInfos[fieldIndex].FieldType;
+                                                }
+                                                else
+                                                {
+                                                    fieldType = fieldInfo.FieldType;
+                                                }
+                                               
+                                                var val = EvaluationStackOperation.ToObject(evaluationStackBase, src,
+                                                        managedStack, fieldType, this);
+                                               
+                                                if(fieldInfo == null)
+                                                {
+                                                    newFieldInfos[fieldIndex].SetValue(null, val);
+                                                }
+                                                else
+                                                {
+                                                    fieldInfo.SetValue(null, val);
+                                                }
                                             }
                                             else
                                             {
@@ -1851,7 +2169,7 @@ namespace IFix.Core
                                         break;
                                     default:
                                         throwRuntimeException(new InvalidProgramException(code
-                                            + " expect ref, but got " + ptr->Type), true);
+                                            + " expect ref, but got " + ptr->Type + " value1:" + ptr->Value1 + " value2:" + ptr->Value2), true);
                                         break;
                                 }
                             }
@@ -1874,12 +2192,18 @@ namespace IFix.Core
                                 {
                                     case ValueType.FieldReference:
                                         {
-                                            //_Info("ptr->Value2:" + ptr->Value2);
                                             var fieldIndex = ptr->Value2;
                                             if (fieldIndex >= 0)
                                             {
                                                 Type fieldType = null;
-                                                fieldType = fieldInfos[fieldIndex].FieldType;
+                                                if(fieldInfos[fieldIndex] == null)
+                                                {
+                                                    fieldType = newFieldInfos[fieldIndex].FieldType;
+                                                }
+                                                else
+                                                {
+                                                    fieldType = fieldInfos[fieldIndex].FieldType;
+                                                }
 
                                                 //var fieldInfo = fieldInfos[ptr->Value2];
                                                 var val = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
@@ -1899,18 +2223,22 @@ namespace IFix.Core
                                         break;
                                     case ValueType.ChainFieldReference:
                                         {
-                                            //_Info("ptr->Value2:" + ptr->Value2);
                                             Type fieldType = null;
 
                                             var fieldAddr = managedStack[ptr - evaluationStackBase] as FieldAddr;
                                             var fieldIdList = fieldAddr.FieldIdList;
-                                            //_Info("fieldIdList:" + fieldIdList);
-                                            fieldType = fieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+                                            if(fieldInfos[fieldIdList[fieldIdList.Length - 1]] == null)
+                                            {
+                                                fieldType = newFieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+                                            }
+                                            else
+                                            {
+                                                fieldType = fieldInfos[fieldIdList[fieldIdList.Length - 1]].FieldType;
+                                            }
 
                                             //var fieldInfo = fieldInfos[ptr->Value2];
                                             var val = EvaluationStackOperation.ToObject(evaluationStackBase, ptr,
                                                 managedStack, fieldType, this, false);
-                                            //_Info("val = " + val);
                                             EvaluationStackOperation.PushObject(evaluationStackBase, ptr,
                                                 managedStack, val, fieldType);
                                         }
@@ -1929,8 +2257,23 @@ namespace IFix.Core
                                             if (fieldIndex >= 0)
                                             {
                                                 var fieldInfo = fieldInfos[ptr->Value1];
+                                                object value = null;
+                                                Type fieldType = null;
+                                                if(fieldInfo == null)
+                                                {
+                                                    newFieldInfos[fieldIndex].CheckInit(this, null);
+                                                    
+                                                    fieldType = newFieldInfos[fieldIndex].FieldType;
+                                                    value = newFieldInfos[fieldIndex].GetValue(null);
+                                                }
+                                                else
+                                                {
+                                                    fieldType = fieldInfo.FieldType;
+                                                    value = fieldInfo.GetValue(null);
+                                                }
+                                                
                                                 EvaluationStackOperation.PushObject(evaluationStackBase, ptr,
-                                                    managedStack, fieldInfo.GetValue(null), fieldInfo.FieldType);
+                                                    managedStack, value, fieldType);
                                             }
                                             else
                                             {
@@ -1960,7 +2303,7 @@ namespace IFix.Core
                                         break;
                                     default:
                                         throwRuntimeException(new InvalidProgramException(code
-                                            + " expect ref, but got " + ptr->Type), true);
+                                            + " expect ref, but got " + ptr->Type + " value1:" + ptr->Value1 + " value2:" + ptr->Value2), true);
                                         break;
                                 }
                             }
@@ -2083,34 +2426,37 @@ namespace IFix.Core
                         case Code.Unbox_Any://0.0848605%
                             {
                                 var ptr = evaluationStackPointer - 1;
-                                var type = externTypes[pc->Operand];
-                                //var pos = (int)(ptr - evaluationStackBase);
-                                var obj = managedStack[ptr->Value1];
-                                if (ptr->Type == ValueType.Object)
+                                if(pc->Operand >= 0)
                                 {
-                                    if (type.IsValueType)
+                                    var type = externTypes[pc->Operand];
+                                    //var pos = (int)(ptr - evaluationStackBase);
+                                    var obj = managedStack[ptr->Value1];
+                                    if (ptr->Type == ValueType.Object)
                                     {
-                                        if (obj == null)
+                                        if (type.IsValueType)
                                         {
-                                            throw new NullReferenceException();
+                                            if (obj == null)
+                                            {
+                                                throw new NullReferenceException();
+                                            }
+                                            else if(type.IsPrimitive)
+                                            {
+                                                EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
+                                            }
+                                            else if(type.IsEnum)
+                                            {
+                                                EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
+                                            }
+                                            else
+                                            {
+                                                ptr->Type = ValueType.ValueType;
+                                            }
                                         }
-                                        else if(type.IsPrimitive)
+                                        //泛型函数是有可能Unbox_Any一个非值类型的
+                                        else if (obj != null && !type.IsAssignableFrom(obj.GetType())) 
                                         {
-                                            EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
+                                            throw new InvalidCastException();
                                         }
-                                        else if(type.IsEnum)
-                                        {
-                                            EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
-                                        }
-                                        else
-                                        {
-                                            ptr->Type = ValueType.ValueType;
-                                        }
-                                    }
-                                    //泛型函数是有可能Unbox_Any一个非值类型的
-                                    else if (obj != null && !type.IsAssignableFrom(obj.GetType())) 
-                                    {
-                                        throw new InvalidCastException();
                                     }
                                 }
                             }
@@ -3548,6 +3894,11 @@ namespace IFix.Core
                     }
                 }
             }
+        }
+
+        public static void Sweep()
+        {
+            NewFieldInfo.Sweep();
         }
 
         public string Statistics()
