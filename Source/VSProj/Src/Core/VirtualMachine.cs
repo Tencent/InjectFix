@@ -1804,15 +1804,18 @@ namespace IFix.Core
                                 Type fieldType = null;
                                 var ptr = evaluationStackPointer - 1;
 
-                                if(fieldInfo == null)
+                                if(pc->Operand >= 0)
                                 {
-                                    fieldType = newFieldInfos[pc->Operand].FieldType;
-                                    declaringType = newFieldInfos[pc->Operand].DeclaringType;
-                                }
-                                else
-                                {
-                                    fieldType = fieldInfo.FieldType;
-                                    declaringType = fieldInfo.DeclaringType;
+                                    if(fieldInfo == null)
+                                    {
+                                        fieldType = newFieldInfos[pc->Operand].FieldType;
+                                        declaringType = newFieldInfos[pc->Operand].DeclaringType;
+                                    }
+                                    else
+                                    {
+                                        fieldType = fieldInfo.FieldType;
+                                        declaringType = fieldInfo.DeclaringType;
+                                    }
                                 }
                                 
                                 //栈顶也是字段引用，而且该字段是值类型，需要update上层对象
