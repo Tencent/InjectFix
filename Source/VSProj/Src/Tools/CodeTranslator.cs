@@ -3371,6 +3371,7 @@ namespace IFix
         {
             var staticConstructorAttributes =
                     MethodAttributes.Private |
+                    MethodAttributes.Static |
                     MethodAttributes.HideBySig |
                     MethodAttributes.SpecialName |
                     MethodAttributes.RTSpecialName;
@@ -3378,10 +3379,8 @@ namespace IFix
             MethodDefinition fieldDefaultValue = new MethodDefinition("<>__ctor_" + field.Name, staticConstructorAttributes, assembly.MainModule.TypeSystem.Object);
 
             var local0 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
-            var local1 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
 
             fieldDefaultValue.Body.Variables.Add(local0);
-            fieldDefaultValue.Body.Variables.Add(local1);
 
             var instructions = fieldDefaultValue.Body.Instructions;
             instructions.Add(Instruction.Create(OpCodes.Nop));
@@ -3393,8 +3392,6 @@ namespace IFix
                 }
             }
 
-            var bp1 = Instruction.Create(OpCodes.Ret);
-            
             if(field.FieldType.IsValueType)
             {
                 instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
@@ -3402,10 +3399,7 @@ namespace IFix
 
             instructions.Add(Instruction.Create(OpCodes.Stloc, local0));
             instructions.Add(Instruction.Create(OpCodes.Ldloc, local0));
-            instructions.Add(Instruction.Create(OpCodes.Stloc, local1));
-            instructions.Add(Instruction.Create(OpCodes.Br_S, bp1));
-            instructions.Add(Instruction.Create(OpCodes.Ldloc, local1));
-            instructions.Add(bp1);
+            instructions.Add(Instruction.Create(OpCodes.Ret));
 
             field.DeclaringType.Methods.Add(fieldDefaultValue);
 

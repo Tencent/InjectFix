@@ -13,7 +13,7 @@
 
 ## 生成 Patch 的时候遇到`Error: the new assembly must not be inject, please reimport the project!`报错
 
-生成 Patch 的 dll，不能进行注入
+这个dll执行过注入，不能对注入过的dll生成patch，在Unit选工程根目录，右键选reimport
 
 ## 补丁制作的条件编译宏如何处理
 

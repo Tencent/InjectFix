@@ -1474,11 +1474,41 @@ namespace IFix.Core
                                 var ptr = evaluationStackPointer - 1;
                                 var type = pc->Operand >= 0 ? externTypes[pc->Operand] : typeof(AnonymousStorey);
                                 var obj = managedStack[ptr->Value1];
-                                bool canAssign = type.IsAssignableFrom(obj.GetType());
-                                if (obj != null && (!canAssign || (canAssign && pc->Operand < 0 && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )))
+                                if (obj != null)
                                 {
-                                    throw new InvalidCastException(type + " is not assignable from "
-                                        + obj.GetType());
+                                    bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                    if(!canAssign)
+                                    {
+                                        throw new InvalidCastException(type + " is not assignable from "
+                                            + obj.GetType());
+                                    }
+
+                                    if(canAssign && pc->Operand < 0 && (obj is AnonymousStorey) && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )
+                                    {
+                                        var fromInfo = anonymousStoreyInfos[(obj as AnonymousStorey).typeId];
+                                        var targetInfo = anonymousStoreyInfos[-(pc->Operand+1)];
+                                        
+                                        if(fromInfo.Slots != null && targetInfo.Slots != null && fromInfo.Slots.Length == targetInfo.Slots.Length)
+                                        {
+                                            for(int i = 0; i < fromInfo.Slots.Length; ++i)
+                                            {
+                                                if(fromInfo.Slots[i] != targetInfo.Slots[i])
+                                                {
+                                                    canAssign = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            canAssign = false;
+                                        }
+                                        
+                                        if(!canAssign)
+                                        {
+                                            throw new InvalidCastException("AnonymousStorey typeid different, " + (obj as AnonymousStorey).typeId + " <-> " + -(pc->Operand+1));
+                                        }
+                                    }
                                 }
                             }
                             break;
@@ -1602,9 +1632,31 @@ namespace IFix.Core
                                     ? obj : null;
                                 if(pc->Operand < 0 && canAssign)
                                 {
-                                    if((obj as AnonymousStorey).typeId != -(pc->Operand + 1))
+                                    if((obj is AnonymousStorey) && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )
                                     {
-                                        managedStack[pos] = null;
+                                        var fromInfo = anonymousStoreyInfos[(obj as AnonymousStorey).typeId];
+                                        var targetInfo = anonymousStoreyInfos[-(pc->Operand+1)];
+                                        
+                                        if(fromInfo.Slots != null && targetInfo.Slots != null && fromInfo.Slots.Length == targetInfo.Slots.Length)
+                                        {
+                                            for(int i = 0; i < fromInfo.Slots.Length; ++i)
+                                            {
+                                                if(fromInfo.Slots[i] != targetInfo.Slots[i])
+                                                {
+                                                    canAssign = false;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            canAssign = false;
+                                        }
+                                        
+                                        if(!canAssign)
+                                        {
+                                            managedStack[pos] = null;
+                                        }
                                     }
                                 }
                             }
@@ -1804,15 +1856,18 @@ namespace IFix.Core
                                 Type fieldType = null;
                                 var ptr = evaluationStackPointer - 1;
 
-                                if(fieldInfo == null)
+                                if(pc->Operand >= 0)
                                 {
-                                    fieldType = newFieldInfos[pc->Operand].FieldType;
-                                    declaringType = newFieldInfos[pc->Operand].DeclaringType;
-                                }
-                                else
-                                {
-                                    fieldType = fieldInfo.FieldType;
-                                    declaringType = fieldInfo.DeclaringType;
+                                    if(fieldInfo == null)
+                                    {
+                                        fieldType = newFieldInfos[pc->Operand].FieldType;
+                                        declaringType = newFieldInfos[pc->Operand].DeclaringType;
+                                    }
+                                    else
+                                    {
+                                        fieldType = fieldInfo.FieldType;
+                                        declaringType = fieldInfo.DeclaringType;
+                                    }
                                 }
                                 
                                 //栈顶也是字段引用，而且该字段是值类型，需要update上层对象
