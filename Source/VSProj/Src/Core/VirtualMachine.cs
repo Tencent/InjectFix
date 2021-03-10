@@ -61,6 +61,8 @@ namespace IFix.Core
 
         static readonly int staticObjectKey = 0;
 
+        static readonly object[] managedStack = new object[VirtualMachine.MAX_EVALUATION_STACK_SIZE];
+
         static readonly Dictionary<int, Dictionary<string, object>> newFieldValues = new Dictionary<int, Dictionary<string, object>>();
 
         static readonly Dictionary<int, WeakReference> objList = new Dictionary<int, WeakReference>();
@@ -96,12 +98,17 @@ namespace IFix.Core
         {
             if( MethodId >= 0 && !HasInitialize(obj) )
             {
-                Call call = Call.Begin();
-
+                var stack = ThreadStackInfo.Stack;
+                var unmanagedStack = stack.UnmanagedStack;
+                
                 try
                 {
-                    virtualMachine.Execute(MethodId, ref call, 0, 0);
-                    SetValue(obj, call.GetObject());
+                    virtualMachine.Execute(MethodId, unmanagedStack->Top, managedStack, unmanagedStack->Base, 0);
+
+                    object value = managedStack[unmanagedStack->Top->Value1];
+                    managedStack[unmanagedStack->Top - unmanagedStack->Base] = null;
+
+                    SetValue(obj, value);
                 }
                 catch(Exception e)
                 {
