@@ -480,7 +480,7 @@ namespace IFix
                     
                     var defination = newAssembly.MainModule.GetType(property.DeclaringType.FullName);
                     foreach (var field in ( from method in methods
-                        where method.IsSpecialName && method.Body != null 
+                        where method != null && method.IsSpecialName && method.Body != null 
                             && method.Body.Instructions != null
                         from instruction in method.Body.Instructions
                         where instruction.OpCode.Code == Mono.Cecil.Cil.Code.Ldsfld
