@@ -2223,6 +2223,82 @@ namespace IFix
             itfBridgeType.Methods.Add(targetMethod);
         }
 
+        private void EmitAsyncBuilderStartMethod(IEnumerable<TypeDefinition> allTypes)
+        {
+            var builders        = new List<TypeReference>();
+            var genericBuilders = new List<TypeReference>();
+
+            // 找到所有异步方法的builder
+            foreach(var typeDefinition in allTypes)
+            {
+                foreach(var nestedType in typeDefinition.NestedTypes)
+                {
+                    var isStateMachine =
+                        nestedType.Interfaces.Any(e => e.InterfaceType.Name == "IAsyncStateMachine");
+
+                    if(!isStateMachine)
+                        continue;
+
+                    var builder     = nestedType.Fields.First(e => e.Name.EndsWith("builder"));
+                    var builderType = builder.FieldType;
+
+                    if(builderType.ContainsGenericParameter)
+                        continue;
+
+                    if(!builderType.IsValueType)
+                        continue;
+
+                    if(builderType.IsGenericInstance)
+                    {
+                        if(genericBuilders.Any(e => ((GenericInstanceType) e).GenericArguments[0]
+                                                 == ((GenericInstanceType) builderType).GenericArguments[0]))
+                            continue;
+
+                        genericBuilders.Add(builderType);
+                    }
+                    else
+                    {
+                        if(builders.Contains(builderType))
+                            continue;
+
+                        builders.Add(builderType);
+                    }
+                }
+            }
+
+            // 生成Start函数引用
+            builders.AddRange(genericBuilders);
+
+            var targetMethod = new MethodDefinition($"RefAsyncBuilderStartMethod"
+                                                  , MethodAttributes.Public
+                                                  , assembly.MainModule.TypeSystem.Void);
+            var instructions = targetMethod.Body.Instructions;
+            var localBridge  = new VariableDefinition(itfBridgeType);
+            targetMethod.Body.Variables.Add(localBridge);
+
+            foreach(var builder in builders)
+            {
+                var start = new MethodReference("Start", voidType, builder)
+                            {
+                                HasThis = true, CallingConvention = MethodCallingConvention.Generic
+                            };
+                var genericParameter = new GenericParameter("!!0", start);
+                start.GenericParameters.Add(genericParameter);
+                var byReferenceType = new ByReferenceType(genericParameter);
+                start.Parameters.Add(new ParameterDefinition(byReferenceType));
+
+                var localBuilder = new VariableDefinition(builder);
+                targetMethod.Body.Variables.Add(localBuilder);
+
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBuilder));
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
+                instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(start, itfBridgeType)));
+            }
+
+            instructions.Add(Instruction.Create(OpCodes.Ret));
+            itfBridgeType.Methods.Add(targetMethod);
+        }
+
 
         /// <summary>
         /// 获取一个方法的适配器
@@ -3271,7 +3347,7 @@ namespace IFix
 
             var allTypes = (from type in assembly.GetAllType()
                             where type.Namespace != "IFix" && !type.IsGeneric() && !(isCompilerGenerated(type) || isNewClass(type))
-                            select type);
+                            select type).ToList();
 
             foreach (var method in (
                 from type in allTypes
@@ -3362,6 +3438,8 @@ namespace IFix
                 {
                     EmitRefAwaitUnsafeOnCompletedMethod();
                 }
+                
+                EmitAsyncBuilderStartMethod(allTypes);
             } 
 
             return ProcessResult.OK;
