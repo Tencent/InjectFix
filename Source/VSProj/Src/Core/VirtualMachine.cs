@@ -103,10 +103,13 @@ namespace IFix.Core
                 
                 try
                 {
+                    var top = unmanagedStack->Top;
+                    var @base = unmanagedStack->Base;
+
                     virtualMachine.Execute(MethodId, unmanagedStack->Top, managedStack, unmanagedStack->Base, 0);
 
-                    object value = managedStack[unmanagedStack->Top->Value1];
-                    managedStack[unmanagedStack->Top - unmanagedStack->Base] = null;
+                    object value = managedStack[top->Value1];
+                    managedStack[top - @base] = null;
 
                     SetValue(obj, value);
                 }
