@@ -2269,9 +2269,8 @@ namespace IFix
             // 生成Start函数引用
             builders.AddRange(genericBuilders);
 
-            var targetMethod = new MethodDefinition($"RefAsyncBuilderStartMethod"
-                                                  , MethodAttributes.Public
-                                                  , assembly.MainModule.TypeSystem.Void);
+            var targetMethod = new MethodDefinition("RefAsyncBuilderStartMethod", MethodAttributes.Public,
+                assembly.MainModule.TypeSystem.Void);
             var instructions = targetMethod.Body.Instructions;
             var localBridge  = new VariableDefinition(itfBridgeType);
             targetMethod.Body.Variables.Add(localBridge);
