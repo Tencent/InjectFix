@@ -70,6 +70,13 @@ public string Name
     }
 }
 
+[IFix.Interpret]
+public string Id
+{
+    set;
+    get;
+}
+
 ```
 
 ​		新增一个函数
