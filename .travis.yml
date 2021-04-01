@@ -3,7 +3,7 @@ before_script:
   - cd Source/VSProj/vs2013
   - chmod +x inject_redirect_dll
   - nuget restore IFix.sln
-  - nuget install NUnit.Runners -Version 3.2.0 -OutputDirectory testrunner -ExcludeVersion
+  - nuget install NUnit.Runners -Version 3.2.0 -OutputDirectory ../testrunner -ExcludeVersion
 script:
   - msbuild /property:Configuration=Release IFix.sln
-  - ./testrunner/NUnit.ConsoleRunner/tools/nunit3-console.exe ../Lib/IFix.UnitTest.dll
+  - ../testrunner/NUnit.ConsoleRunner/tools/nunit3-console.exe bin/Debug/net40/IFix.UnitTest.dll

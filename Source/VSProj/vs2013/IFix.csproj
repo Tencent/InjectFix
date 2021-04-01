@@ -1,83 +1,45 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{F54E867C-E185-870D-8A72-6D107688030F}</ProjectGuid>
-    <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>IFix</RootNamespace>
-    <AssemblyName>IFix</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>..\Bin\</OutputPath>
-    <BaseIntermediateOutputPath>obj\Any CPU\Debug\IFix\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
-    <DefineConstants>_DEBUG;TRACE;;DEBUG</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>..\Bin\</OutputPath>
-    <BaseIntermediateOutputPath>obj\Any CPU\Release\IFix\</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
-    <DefineConstants></DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
+        <LangVersion>8</LangVersion>
+	<DefineConstants></DefineConstants>
+	<OutputType>Exe</OutputType>
+	<Nullable>enable</Nullable>
+	<TargetFramework>net40</TargetFramework>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <DebugType>full</DebugType>
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Mono.Cecil, Version=0.9.6.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756">
+      <HintPath>../../UnityProj/Assets/Plugins/Mono.Cecil.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="Mono.Cecil">
-      <HintPath>..\ThirdParty\Mono.Cecil.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Cecil.Mdb">
-      <HintPath>..\ThirdParty\Mono.Cecil.Mdb.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Cecil.Pdb">
-      <HintPath>..\ThirdParty\Mono.Cecil.Pdb.dll</HintPath>
-    </Reference>
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="..\Src\Core\Instruction.cs">
-      <Link>Src\Core\Instruction.cs</Link>
+    <Compile Include="..\..\UnityProj\Assets\IFix\Editor\Tools\CecilExtensions.cs">
+      <Link>Tools\CecilExtensions.cs</Link>
     </Compile>
-    <Compile Include="..\Src\Tools\CSFix.cs">
-      <Link>Src\Tools\CSFix.cs</Link>
+    <Compile Include="..\..\UnityProj\Assets\IFix\Editor\Tools\CodeTranslator.cs">
+      <Link>Tools\CodeTranslator.cs</Link>
     </Compile>
-    <Compile Include="..\Src\Tools\CecilExtensions.cs">
-      <Link>Src\Tools\CecilExtensions.cs</Link>
+    <Compile Include="..\..\UnityProj\Assets\IFix\Editor\Tools\CSFix.cs">
+      <Link>Tools\CSFix.cs</Link>
     </Compile>
-    <Compile Include="..\Src\Tools\CodeTranslator.cs">
-      <Link>Src\Tools\CodeTranslator.cs</Link>
-    </Compile>
-    <Compile Include="..\Src\Tools\GenerateConfigure.cs">
-      <Link>Src\Tools\GenerateConfigure.cs</Link>
-    </Compile>
-    <Compile Include="..\Src\Version.cs">
-      <Link>Src\Version.cs</Link>
+    <Compile Include="..\..\UnityProj\Assets\IFix\Editor\Tools\GenerateConfigure.cs">
+      <Link>Tools\GenerateConfigure.cs</Link>
     </Compile>
   </ItemGroup>
+
   <ItemGroup>
+    <ProjectReference Include="IFix.Core.csproj" />
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>
