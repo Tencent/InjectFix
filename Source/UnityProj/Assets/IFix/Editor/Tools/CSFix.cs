@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace IFix
 {
-    public static class Program
+    public static class Tools
     {
         static void usage()
         {
@@ -33,7 +33,7 @@ namespace IFix
         }
 
         // #lizard forgives
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             if (!argsValid(args))
             {

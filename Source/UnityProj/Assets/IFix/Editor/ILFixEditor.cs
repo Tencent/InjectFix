@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Reflection;
+
 #if UNITY_2018_3_OR_NEWER
 using UnityEditor.Build.Player;
 #endif
@@ -25,7 +26,7 @@ namespace IFix.Editor
     public class VersionSelector : EditorWindow
     {
         public string buttonText = "Patch";
-        public string[] options = new string[] {};
+        public string[] options = new string[] { };
         public int index = 0;
         public Action<int> callback = null;
 
@@ -51,14 +52,18 @@ namespace IFix.Editor
             {
                 callback(index);
             }
+
             Close();
         }
     }
 
     public class IFixEditor
     {
+        public const string IFixCoreDllPath = "Library/ScriptAssemblies/IFix.Core.dll";
+
         //备份目录
         const string BACKUP_PATH = "./IFixDllBackup";
+
         //备份文件的时间戳生成格式
         const string TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
@@ -71,7 +76,7 @@ namespace IFix.Editor
 #if UNITY_EDITOR_OSX
             var mono_path = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                 "../MonoBleedingEdge/bin/mono");
-            if(!File.Exists(mono_path))
+            if (!File.Exists(mono_path))
             {
                 mono_path = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                     "../../MonoBleedingEdge/bin/mono");
@@ -84,64 +89,11 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.LogError("can not find mono!");
             }
-            var inject_tool_path = "./IFixToolKit/IFix.exe";
-            //"--runtime = v4.0.30319"
-            if (!File.Exists(inject_tool_path))
-            {
-                UnityEngine.Debug.LogError("please install the ToolKit");
-                return;
-            }
 
-            Process hotfix_injection = new Process();
-            hotfix_injection.StartInfo.FileName = mono_path;
-#if UNITY_5_6_OR_NEWER
-            hotfix_injection.StartInfo.Arguments = "--debug --runtime=v4.0.30319 \"" + inject_tool_path + "\" \""
-#else
-            hotfix_injection.StartInfo.Arguments = "--debug \"" + inject_tool_path + "\" \""
-#endif
-                + string.Join("\" \"", args.ToArray()) + "\"";
-            hotfix_injection.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            hotfix_injection.StartInfo.RedirectStandardOutput = true;
-            hotfix_injection.StartInfo.UseShellExecute = false;
-            hotfix_injection.StartInfo.CreateNoWindow = true;
-            hotfix_injection.Start();
-
-            //UnityEngine.Debug.Log(hotfix_injection.StartInfo.FileName);
-            //UnityEngine.Debug.Log(hotfix_injection.StartInfo.Arguments);
-
-            StringBuilder exceptionInfo = null;
-            while(!hotfix_injection.StandardOutput.EndOfStream)
-            {
-                string line = hotfix_injection.StandardOutput.ReadLine();
-                if (exceptionInfo != null)
-                {
-                    exceptionInfo.AppendLine(line);
-                }
-                else
-                {
-                    if (line.StartsWith("Warning:"))
-                    {
-                        UnityEngine.Debug.LogWarning(line);
-                    }
-                    else if (line.StartsWith("Error:"))
-                    {
-                        UnityEngine.Debug.LogError(line);
-                    }
-                    else if (line.StartsWith("Unhandled Exception:"))
-                    {
-                        exceptionInfo = new StringBuilder(line);
-                    }
-                    else
-                    {
-                        UnityEngine.Debug.Log(line);
-                    }
-                }
-            }
-            hotfix_injection.WaitForExit();
-            if (exceptionInfo != null)
-            {
-                UnityEngine.Debug.LogError(exceptionInfo);
-            }
+            UnityEngine.Debug.Log(string.Format("#ifix args:[{0}]", string.Join("\n", args.ToArray())));
+            BuildTargetGroup bg = EditorUserBuildSettings.selectedBuildTargetGroup; //BuildTargetGroup.Android;
+            // UnityEngine.Debug.Log("DefineSymbols: " + PlayerSettings.GetScriptingDefineSymbolsForGroup(bg));
+            IFix.Tools.Main(args.ToArray());
         }
 
         [MenuItem("InjectFix/Inject", false, 1)]
@@ -152,15 +104,17 @@ namespace IFix.Editor
                 UnityEngine.Debug.LogError("compiling or playing");
                 return;
             }
+
             EditorUtility.DisplayProgressBar("Inject", "injecting...", 0);
             try
             {
                 InjectAllAssemblys();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
         }
 
@@ -195,7 +149,7 @@ namespace IFix.Editor
 
             backups = allBackup.Select(path => r.Match(path).Groups[1].Captures[0].Value).ToArray();
             timestamps = allBackup.Select(path => DateTime.ParseExact(r.Match(path).Groups[1].Captures[0].Value,
-                TIMESTAMP_FORMAT, System.Globalization.CultureInfo.InvariantCulture)
+                    TIMESTAMP_FORMAT, System.Globalization.CultureInfo.InvariantCulture)
                 .ToString("yyyy-MM-dd hh:mm:ss tt")).ToArray();
         }
 
@@ -206,10 +160,7 @@ namespace IFix.Editor
             string[] timestamps;
             GetBackupInfo(out backups, out timestamps);
 
-            VersionSelector.Show(timestamps.ToArray(), index =>
-            {
-                cb(backups[index]);
-            }, buttonText);
+            VersionSelector.Show(timestamps.ToArray(), index => { cb(backups[index]); }, buttonText);
         }
 
         /// <summary>
@@ -218,7 +169,8 @@ namespace IFix.Editor
         /// <param name="assembly">程序集路径</param>
         public static void InjectAssembly(string assembly)
         {
-            var configure = Configure.GetConfigureByTags(new List<string>() {
+            var configure = Configure.GetConfigureByTags(new List<string>()
+            {
                 "IFix.IFixAttribute",
                 "IFix.InterpretAttribute",
                 "IFix.ReverseWrapperAttribute",
@@ -259,13 +211,14 @@ namespace IFix.Editor
                         writer.Write(cfgItem.Value);
                         if (filters.Count > 0 && kv.Key == "IFix.IFixAttribute")
                         {
-                            foreach(var method in cfgItem.Key.GetMethods(BindingFlags.Instance 
-                                | BindingFlags.Static | BindingFlags.Public 
-                                | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                            foreach (var method in cfgItem.Key.GetMethods(BindingFlags.Instance
+                                                                          | BindingFlags.Static | BindingFlags.Public
+                                                                          | BindingFlags.NonPublic |
+                                                                          BindingFlags.DeclaredOnly))
                             {
-                                foreach(var filter in filters)
+                                foreach (var filter in filters)
                                 {
-                                    if ((bool)filter.Invoke(null, new object[]
+                                    if ((bool) filter.Invoke(null, new object[]
                                     {
                                         method
                                     }))
@@ -283,12 +236,14 @@ namespace IFix.Editor
 
             if (hasSomethingToDo)
             {
-
-                var core_path = "./Assets/Plugins/IFix.Core.dll";
+                var core_path = IFixCoreDllPath;
                 var assembly_path = string.Format("./Library/{0}/{1}.dll", targetAssembliesFolder, assembly);
-                var patch_path = string.Format("./{0}.ill.bytes", assembly);
-                List<string> args = new List<string>() { "-inject", core_path, assembly_path,
-                    processCfgPath, patch_path, assembly_path };
+                var patch_path = string.Format("./{0}.ill.ifix", assembly);
+                List<string> args = new List<string>()
+                {
+                    "-inject", core_path, assembly_path,
+                    processCfgPath, patch_path, assembly_path
+                };
 
                 foreach (var path in
                     (from asm in AppDomain.CurrentDomain.GetAssemblies()
@@ -299,13 +254,16 @@ namespace IFix.Editor
                         //UnityEngine.Debug.Log("searchPath:" + path);
                         args.Add(path);
                     }
-                    catch { }
+                    catch (Exception e)
+                    {
+                        UnityEngine.Debug.LogError(e);
+                    }
                 }
 
                 CallIFix(args);
             }
 
-            File.Delete(processCfgPath);
+            // File.Delete(processCfgPath);
         }
 
         /// <summary>
@@ -324,7 +282,7 @@ namespace IFix.Editor
             {
                 InjectAssembly(assembly);
             }
-            
+
             //doBackup(DateTime.Now.ToString(TIMESTAMP_FORMAT));
 
             AssetDatabase.Refresh();
@@ -337,6 +295,7 @@ namespace IFix.Editor
             {
                 assembliesFolder = "ScriptAssemblies";
             }
+
             return assembliesFolder;
         }
 
@@ -368,6 +327,7 @@ namespace IFix.Editor
                 {
                     continue;
                 }
+
                 File.Copy(dllFile, string.Format("{0}/{1}-{2}.dll", BACKUP_PATH, assembly, ts), true);
 
                 var mdbFile = string.Format("{0}{1}.dll.mdb", scriptAssembliesDir, assembly);
@@ -399,6 +359,7 @@ namespace IFix.Editor
                 {
                     continue;
                 }
+
                 File.Copy(dllFile, string.Format("{0}{1}.dll", scriptAssembliesDir, assembly), true);
                 UnityEngine.Debug.Log("Revert to: " + dllFile);
 
@@ -434,8 +395,8 @@ namespace IFix.Editor
                 else
                 {
                     return Regex.Replace(type.ToString().Replace('+', '/'), @"(`\d).+", "$1")
-                        + "<" + string.Join(",", type.GetGenericArguments().Select(t => GetCecilTypeName(t))
-                        .ToArray()) + ">";
+                           + "<" + string.Join(",", type.GetGenericArguments().Select(t => GetCecilTypeName(t))
+                               .ToArray()) + ">";
                 }
             }
             else
@@ -459,13 +420,13 @@ namespace IFix.Editor
         private static string parseCompileTemplate(string path)
         {
             return string.Join("\n", File.ReadAllLines(path).Where(line => !line.StartsWith("Assets/")
-                && !line.StartsWith("\"Assets/")
-                && !line.StartsWith("'Assets/")
-                && !line.StartsWith("-r:Assets/")
-                && !line.StartsWith("-r:\"Assets/")
-                && !line.StartsWith("-r:'Assets/")
-                && !line.StartsWith("-out")
-                ).ToArray());
+                                                                           && !line.StartsWith("\"Assets/")
+                                                                           && !line.StartsWith("'Assets/")
+                                                                           && !line.StartsWith("-r:Assets/")
+                                                                           && !line.StartsWith("-r:\"Assets/")
+                                                                           && !line.StartsWith("-r:'Assets/")
+                                                                           && !line.StartsWith("-out")
+            ).ToArray());
         }
 
         //对路径预处理，然后添加到StringBuilder
@@ -491,10 +452,11 @@ namespace IFix.Editor
             foreach (var file in Directory.GetFiles(dir))
             {
                 //排除调Editor下的东西
-                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0 )
+                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0)
                 {
                     continue;
                 }
+
                 //排除Assembly-CSharp-firstpass
                 if (file.Substring(file.Length - 3).ToLower() == ".cs")
                 {
@@ -504,11 +466,12 @@ namespace IFix.Editor
                     {
                         continue;
                     }
+
                     appendFile(src, file);
                 }
             }
 
-            foreach(var subDir in Directory.GetDirectories(dir))
+            foreach (var subDir in Directory.GetDirectories(dir))
             {
                 appendDirectory(src, subDir);
             }
@@ -537,9 +500,11 @@ namespace IFix.Editor
                             + " in IFixToolKit directory!");
                     }
                 }
+
                 compileTemplate = parseCompileTemplate(path);
                 compileTemplates.Add(platform, compileTemplate);
             }
+
             StringBuilder cmd = new StringBuilder();
             StringBuilder src = new StringBuilder();
             StringBuilder dll = new StringBuilder();
@@ -564,7 +529,10 @@ namespace IFix.Editor
 #if (UNITY_EDITOR || XLUA_GENERAL) && !NET_STANDARD_2_0
                     }
 #endif
-                } catch { }
+                }
+                catch
+                {
+                }
             }
 
             cmd.AppendLine(compileTemplate);
@@ -589,7 +557,7 @@ namespace IFix.Editor
                 "../MonoBleedingEdge/bin/mono");
             var mcsPath = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                 "../MonoBleedingEdge/lib/mono/4.5/mcs.exe");
-            if(!File.Exists(monoPath))
+            if (!File.Exists(monoPath))
             {
                 monoPath = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                     "../../MonoBleedingEdge/bin/mono");
@@ -629,41 +597,35 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.Log(compileProcess.StandardOutput.ReadLine());
             }
-            
+
             compileProcess.WaitForExit();
         }
 
         //生成特定平台的patch
-        public static void GenPlatformPatch(Platform platform, string patchOutputDir,
-            string corePath = "./Assets/Plugins/IFix.Core.dll")
+        public static void GenPlatformPatch(BuildTargetGroup group, BuildTarget buildTarget,
+            string corePath = IFixCoreDllPath)
         {
-            var outputDir = "Temp/ifix";
-            Directory.CreateDirectory("Temp");
-            Directory.CreateDirectory(outputDir);
 #if UNITY_2018_3_OR_NEWER
-            ScriptCompilationSettings scriptCompilationSettings = new ScriptCompilationSettings();
-            if (platform == Platform.android)
+            RuntimePlatform rplatform;
+            ScriptCompilationSettings scriptCompilationSettings = new ScriptCompilationSettings()
             {
-                scriptCompilationSettings.group = BuildTargetGroup.Android;
-                scriptCompilationSettings.target = BuildTarget.Android;
-            }
-            else if(platform == Platform.ios)
-            {
-                scriptCompilationSettings.group = BuildTargetGroup.iOS;
-                scriptCompilationSettings.target = BuildTarget.iOS;
-            }
-            else
-            {
-                scriptCompilationSettings.group = BuildTargetGroup.Standalone;
-                scriptCompilationSettings.target = BuildTarget.StandaloneWindows;
-            }
+                group = group,
+                target = buildTarget,
+            };
+            
+            var patchOutputDir = $"Assets/IFix/patch/{IFixCfg.TargetName(buildTarget)}/";
+            if(!Directory.Exists(patchOutputDir))
+                Directory.CreateDirectory(patchOutputDir);
 
-            ScriptCompilationResult scriptCompilationResult = PlayerBuildInterface.CompilePlayerScripts(scriptCompilationSettings, outputDir);
+            var assemblyOutputDir = $"obj/{IFixCfg.TargetName(buildTarget)}/";
+            Directory.CreateDirectory(assemblyOutputDir);
+            ScriptCompilationResult scriptCompilationResult =
+            PlayerBuildInterface.CompilePlayerScripts(scriptCompilationSettings, assemblyOutputDir);
 
             foreach (var assembly in injectAssemblys)
             {
-                GenPatch(assembly, string.Format("{0}/{1}.dll", outputDir, assembly),
-                    "./Assets/Plugins/IFix.Core.dll", string.Format("{0}{1}.patch.bytes", patchOutputDir, assembly));
+                GenPatch(assembly, string.Format("{0}/{1}.dll", assemblyOutputDir, assembly),
+                    IFixCoreDllPath, string.Format("{0}{1}.ifix", patchOutputDir, assembly), buildTarget);
             }
 #else
             throw new NotImplementedException();
@@ -752,6 +714,7 @@ namespace IFix.Editor
             {
                 return hasGenericParameter(type.GetElementType());
             }
+
             if (type.IsGenericType)
             {
                 foreach (var typeArg in type.GetGenericArguments())
@@ -761,8 +724,10 @@ namespace IFix.Editor
                         return true;
                     }
                 }
+
                 return false;
             }
+
             return type.IsGenericParameter;
         }
 
@@ -778,8 +743,8 @@ namespace IFix.Editor
                     return true;
                 }
             }
-            return false;
 
+            return false;
         }
 
         /// <summary>
@@ -789,15 +754,17 @@ namespace IFix.Editor
         /// <param name="assemblyCSharpPath">程序集路径</param>
         /// <param name="corePath">IFix.Core.dll所在路径</param>
         /// <param name="patchPath">生成的patch的保存路径</param>
-        public static void GenPatch(string assembly, string assemblyCSharpPath
-            = "./Library/ScriptAssemblies/Assembly-CSharp.dll", 
-            string corePath = "./Assets/Plugins/IFix.Core.dll", string patchPath = "Assembly-CSharp.patch.bytes")
+        public static void GenPatch(string assembly,
+            string assemblyCSharpPath = "./Library/ScriptAssemblies/Assembly-CSharp.dll",
+            string corePath = IFixCoreDllPath,
+            string patchPath = "Assembly-CSharp.ifix",
+            BuildTarget buildTarget = BuildTarget.Android)
         {
             var patchMethods = Configure.GetTagMethods(typeof(PatchAttribute), assembly).ToList();
             var genericMethod = patchMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
-                throw new InvalidDataException("not support generic method: " + genericMethod);
+                throw new Exception("not support generic method: " + genericMethod);
             }
 
             if (patchMethods.Count == 0)
@@ -812,10 +779,13 @@ namespace IFix.Editor
             genericMethod = newMethods.FirstOrDefault(m => hasGenericParameter(m));
             if (genericMethod != null)
             {
-                throw new InvalidDataException("not support generic method: " + genericMethod);
+                throw new Exception("not support generic method: " + genericMethod);
             }
 
-            var processCfgPath = "./process_cfg";
+            var patchCfgDir = "Assets/IFix/Editor/icfg";
+            if (!Directory.Exists(patchCfgDir))
+                Directory.CreateDirectory(patchCfgDir);
+            var processCfgPath = patchCfgDir + "/" + assembly + "-" + IFixCfg.TargetName(buildTarget) + ".icfg";
 
             using (BinaryWriter writer = new BinaryWriter(new FileStream(processCfgPath, FileMode.Create,
                 FileAccess.Write)))
@@ -827,8 +797,11 @@ namespace IFix.Editor
                 writeClasses(writer, newClasses);
             }
 
-            List<string> args = new List<string>() { "-patch", corePath, assemblyCSharpPath, "null",
-                processCfgPath, patchPath };
+            List<string> args = new List<string>()
+            {
+                "-patch", corePath, assemblyCSharpPath, "null",
+                processCfgPath, patchPath
+            };
 
             foreach (var path in
                 (from asm in AppDomain.CurrentDomain.GetAssemblies()
@@ -839,12 +812,14 @@ namespace IFix.Editor
                     //UnityEngine.Debug.Log("searchPath:" + path);
                     args.Add(path);
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
             CallIFix(args);
 
-            File.Delete(processCfgPath);
+            // File.Delete(processCfgPath);
 
             AssetDatabase.Refresh();
         }
@@ -852,20 +827,28 @@ namespace IFix.Editor
         [MenuItem("InjectFix/Fix", false, 2)]
         public static void Patch()
         {
+            if (Application.isPlaying)
+                return;
+
             EditorUtility.DisplayProgressBar("Generate Patch for Edtior", "patching...", 0);
             try
             {
+                var patchDir = string.Format("Assets/IFix/patch/{0}/", IFixCfg.PlatformName());
+                if (!Directory.Exists(patchDir))
+                    Directory.CreateDirectory(patchDir);
+            	var ts = IFixCfg.IFixTypes;//hold IFixTypes
                 foreach (var assembly in injectAssemblys)
                 {
+                    var patchPath = patchDir + string.Format("{0}.ifix", assembly);
                     var assembly_path = string.Format("./Library/{0}/{1}.dll", GetScriptAssembliesFolder(), assembly);
-                    GenPatch(assembly, assembly_path, "./Assets/Plugins/IFix.Core.dll",
-                        string.Format("{0}.patch.bytes", assembly));
+                    GenPatch(assembly, assembly_path, IFixCoreDllPath, patchPath);
                 }
             }
             catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
         }
 
@@ -876,7 +859,7 @@ namespace IFix.Editor
             EditorUtility.DisplayProgressBar("Generate Patch for Android", "patching...", 0);
             try
             {
-                GenPlatformPatch(Platform.android, "");
+            	GenPlatformPatch(BuildTargetGroup.Android, BuildTarget.Android);
             }
             catch(Exception e)
             {
@@ -891,12 +874,36 @@ namespace IFix.Editor
             EditorUtility.DisplayProgressBar("Generate Patch for IOS", "patching...", 0);
             try
             {
-                GenPlatformPatch(Platform.ios, "");
+            	GenPlatformPatch(BuildTargetGroup.iOS, BuildTarget.iOS);
             }
             catch(Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+            EditorUtility.ClearProgressBar();
+        }
+         
+        [MenuItem("InjectFix/GenPatch(OSX)", false, 4)]
+        public static void CompileToOSX()
+        {
+            EditorUtility.DisplayProgressBar("Generate Patch for OSX", "patching...", 0);
+            GenPlatformPatch(BuildTargetGroup.Standalone, BuildTarget.StandaloneOSX);
+            EditorUtility.ClearProgressBar();
+        }
+       
+        [MenuItem("InjectFix/GenPatch(Windows)", false, 4)]
+        public static void CompileToWindows()
+        {
+            EditorUtility.DisplayProgressBar("Generate Patch for Windows", "patching...", 0);
+            GenPlatformPatch(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows);
+            EditorUtility.ClearProgressBar();
+        }
+       
+        [MenuItem("InjectFix/GenPatch(Windows64)", false, 4)]
+        public static void CompileToWindows64()
+        {
+            EditorUtility.DisplayProgressBar("Generate Patch for Windows", "patching...", 0);
+            GenPlatformPatch(BuildTargetGroup.Standalone, BuildTarget.StandaloneWindows64);
             EditorUtility.ClearProgressBar();
         }
 #endif

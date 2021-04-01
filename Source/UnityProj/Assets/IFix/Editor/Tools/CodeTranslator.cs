@@ -1167,7 +1167,7 @@ namespace IFix
                         if (mode == ProcessMode.Patch || it == InjectType.Redirect)
                         {
                             // 打patch发现不支持指令应该报错
-                            throw new InvalidDataException("not support il[" + msIls[stopPos] + "] in " + method
+                            throw new Exception("not support il[" + msIls[stopPos] + "] in " + method
                                 + ", caller is " + caller);
                         }
                         else

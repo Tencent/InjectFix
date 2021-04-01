@@ -5,6 +5,8 @@
  * This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this source code package.
  */
 
+using System.Diagnostics;
+
 namespace IFix.Core
 {
     using System.Collections.Generic;
@@ -37,7 +39,7 @@ namespace IFix.Core
         }
 
         // #lizard forgives
-        static MethodBase readMethod(BinaryReader reader, Type[] externTypes)
+        public static MethodBase readMethod(BinaryReader reader, Type[] externTypes)
         {
             bool isGenericInstance = reader.ReadBoolean();
             BindingFlags flag = BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static
@@ -130,7 +132,8 @@ namespace IFix.Core
             }
             else
             {
-                Type declaringType = externTypes[reader.ReadInt32()];
+                var dtidx = reader.ReadInt32();
+                Type declaringType = externTypes[dtidx];
                 string methodName = reader.ReadString();
                 int paramCount = reader.ReadInt32();
                 //Console.WriteLine("load no generic method: " + declaringType + " ?? " + methodName + " pc "
@@ -154,9 +157,10 @@ namespace IFix.Core
                 //}
                 if (isConstructor)
                 {
+                    // Console.WriteLine("readMethod 21");
                     externMethod = declaringType.GetConstructor(BindingFlags.Public | (methodName == ".ctor" ?
-                        BindingFlags.Instance : BindingFlags.Static) |
-                        BindingFlags.NonPublic, null, paramTypes, null);
+                                                                    BindingFlags.Instance : BindingFlags.Static) |
+                                                                BindingFlags.NonPublic, null, paramTypes, null);
                     // : (MethodBase)(declaringType.GetMethod(methodName, paramTypes));
                 }
                 else
@@ -215,7 +219,7 @@ namespace IFix.Core
             return redirectField;
         }
 
-        static int getMapId(List<Type> idMapArray, MethodBase method)
+        public static int getMapId(List<Type> idMapArray, MethodBase method)
         {
             IDTagAttribute id = Attribute.GetCustomAttribute(method, typeof(IDTagAttribute), false) as IDTagAttribute;
             int overrideId = id == null ? 0 : id.ID;
@@ -235,7 +239,7 @@ namespace IFix.Core
             return (int)field.GetValue(null);
         }
 
-        static int[] readSlotInfo(BinaryReader reader, Dictionary<MethodInfo, int> itfMethodToId, Type[] externTypes,
+        public static int[] readSlotInfo(BinaryReader reader, Dictionary<MethodInfo, int> itfMethodToId, Type[] externTypes,
             int maxId)
         {
             int interfaceCount = reader.ReadInt32();
@@ -403,16 +407,17 @@ namespace IFix.Core
                                 DeclaringType = declaringType,
                                 MethodId = methodId,
                             });
+							VirtualMachine.Info(string.Format("IFix newField: {0}:{1}", fieldName, fieldType.Name));
                         }
                         else
                         {
                             if(fieldInfos[i].FieldType != fieldType)
                             {
-                                throw new Exception("can not change existing field [" + declaringType + "." + fieldName + "]'s type " + " from " + fieldInfos[i].FieldType + " to " + fieldType);
+                                Debug.Assert(fieldInfos[i].FieldType == fieldType, "can not change existing field [" + declaringType + "." + fieldName + "]'s type " + " from " + fieldInfos[i].FieldType + " to " + fieldType);
                             }
                             else
                             {
-                                throw new Exception(declaringType + "." + fieldName + " is expected to be a new field , but it already exists ");
+                                Debug.Assert(fieldInfos[i] == null, declaringType + "." + fieldName + " is expected to be a new field , but it already exists ");
                             }
                         }
                     }
@@ -567,6 +572,7 @@ namespace IFix.Core
                         {
                             maxPos = pos;
                         }
+                        VirtualMachine.Info(string.Format("IFix fixMethod: {0}.{1}", fixMethod.DeclaringType.FullName, fixMethod.Name));
                     }
                     Array arr = wrapperManager.InitWrapperArray(maxPos + 1) as Array;
                     for (int i = 0; i < fixCount; i++)
@@ -593,7 +599,7 @@ namespace IFix.Core
                         var newClassName = Type.GetType(newClassFullName);
                         if (newClassName != null)
                         {
-                            throw new Exception(newClassName + " class is expected to be a new class , but it already exists ");
+                            Debug.Assert(newClassName != null, newClassName + " class is expected to be a new class , but it already exists ");
                         }
                     }
                 }

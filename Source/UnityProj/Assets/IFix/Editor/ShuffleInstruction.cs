@@ -12,12 +12,19 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Collections;
 using System.Text;
+using UnityEditor;
 
 namespace IFix
 {
-    public static class Program
+    public static class ShuffleTool
     {
         private static string ConfuseKey = string.Empty;
+
+        [MenuItem("InjectFix/DoShuffle")]
+        public static void DoShuffle()
+        {
+            Main(new []{"Assets/IFix/IFix.Core/Core/Instruction.cs.tpl", "Assets/IFix/IFix.Core/Core/Instruction.cs"});
+        }
 
         static string[] Shuffle(string[] codes)
         {
@@ -43,12 +50,12 @@ namespace IFix
             if (args.Length >= 3)
                 ConfuseKey = args[2];
 
-            //已经生成了就不重新生成了
-            if (File.Exists(des))
-            {
-                Console.WriteLine(des + " existed");
-                return;
-            }
+            // //已经生成了就不重新生成了
+            // if (File.Exists(des))
+            // {
+            //     Console.WriteLine(des + " existed");
+            //     return;
+            // }
 
             using (var output = new StreamWriter(
                 new FileStream(args[1], FileMode.Create, FileAccess.Write), Encoding.UTF8))
