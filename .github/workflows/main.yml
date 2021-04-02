@@ -1,0 +1,29 @@
+name: build
+
+on: 
+  push:
+    paths: 
+      - build/**
+      - .github/workflows/build.yml
+
+jobs:
+  windows:
+    runs-on: windows-2016
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Insatll MSVC
+        uses: microsoft/setup-msbuild@v1.0.2
+      
+      - name: Build
+        run: |
+          cd Source/VSProj/vs2013
+          nuget restore IFix.sln
+          msbuild /property:Configuration=Release IFix.sln
+          
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          path: bin/Release/**/*
+          name: ifix
