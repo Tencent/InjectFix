@@ -19,8 +19,7 @@ jobs:
       - name: Build
         run: |
           cd Source/VSProj/vs2013
-          nuget restore IFix.sln
-          msbuild /property:Configuration=Release IFix.sln
+          msbuild /restore /property:Configuration=Release IFix.sln
           
       - name: Upload
         uses: actions/upload-artifact@v2
