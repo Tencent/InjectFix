@@ -1637,35 +1637,42 @@ namespace IFix.Core
                                 var obj = managedStack[ptr->Value1];
                                 ptr->Type = ValueType.Object;
                                 ptr->Value1 = pos;
-                                bool canAssign = type.IsAssignableFrom(obj.GetType());
-                                managedStack[pos] = (obj != null && canAssign)
-                                    ? obj : null;
-                                if(pc->Operand < 0 && canAssign)
+                                if (obj == null)
                                 {
-                                    if((obj is AnonymousStorey) && (obj as AnonymousStorey).typeId != -(pc->Operand+1) )
+                                    managedStack[pos] = null;
+                                }
+                                else
+                                {
+                                    bool canAssign = type.IsAssignableFrom(obj.GetType());
+                                    managedStack[pos] = canAssign
+                                        ? obj : null;
+                                    if (pc->Operand < 0 && canAssign)
                                     {
-                                        var fromInfo = anonymousStoreyInfos[(obj as AnonymousStorey).typeId];
-                                        var targetInfo = anonymousStoreyInfos[-(pc->Operand+1)];
-                                        
-                                        if(fromInfo.Slots != null && targetInfo.Slots != null && fromInfo.Slots.Length == targetInfo.Slots.Length)
+                                        if ((obj is AnonymousStorey) && (obj as AnonymousStorey).typeId != -(pc->Operand + 1))
                                         {
-                                            for(int i = 0; i < fromInfo.Slots.Length; ++i)
+                                            var fromInfo = anonymousStoreyInfos[(obj as AnonymousStorey).typeId];
+                                            var targetInfo = anonymousStoreyInfos[-(pc->Operand + 1)];
+
+                                            if (fromInfo.Slots != null && targetInfo.Slots != null && fromInfo.Slots.Length == targetInfo.Slots.Length)
                                             {
-                                                if(fromInfo.Slots[i] != targetInfo.Slots[i])
+                                                for (int i = 0; i < fromInfo.Slots.Length; ++i)
                                                 {
-                                                    canAssign = false;
-                                                    break;
+                                                    if (fromInfo.Slots[i] != targetInfo.Slots[i])
+                                                    {
+                                                        canAssign = false;
+                                                        break;
+                                                    }
                                                 }
                                             }
-                                        }
-                                        else
-                                        {
-                                            canAssign = false;
-                                        }
-                                        
-                                        if(!canAssign)
-                                        {
-                                            managedStack[pos] = null;
+                                            else
+                                            {
+                                                canAssign = false;
+                                            }
+
+                                            if (!canAssign)
+                                            {
+                                                managedStack[pos] = null;
+                                            }
                                         }
                                     }
                                 }
