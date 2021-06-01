@@ -3455,12 +3455,8 @@ namespace IFix
 
             MethodDefinition fieldDefaultValue = new MethodDefinition("<>__ctor_" + field.Name, staticConstructorAttributes, assembly.MainModule.TypeSystem.Object);
 
-            var local0 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
-
-            fieldDefaultValue.Body.Variables.Add(local0);
-
             var instructions = fieldDefaultValue.Body.Instructions;
-            instructions.Add(Instruction.Create(OpCodes.Nop));
+
             foreach (var instruction in insertInstructions)
             {
                 if(!instruction.OpCode.Code.ToString().Contains("Ldarg"))
@@ -3474,8 +3470,6 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
             }
 
-            instructions.Add(Instruction.Create(OpCodes.Stloc, local0));
-            instructions.Add(Instruction.Create(OpCodes.Ldloc, local0));
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
             field.DeclaringType.Methods.Add(fieldDefaultValue);
