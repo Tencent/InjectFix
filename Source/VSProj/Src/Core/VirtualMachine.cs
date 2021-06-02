@@ -33,13 +33,16 @@ namespace IFix.Core
 
         public static void Start()
         {
-            start = true;
-            new Cleanner();        
+            if(!start)
+            {
+                start = true;
+                new Cleanner();        
+            }
         }
 
         public static void Stop()
         {
-            start = false;        
+            start = false;
         }
 
         ~Cleanner()
@@ -61,7 +64,7 @@ namespace IFix.Core
 
         static readonly int staticObjectKey = 0;
 
-        static readonly object[] managedStack = new object[VirtualMachine.MAX_EVALUATION_STACK_SIZE];
+        static readonly ThreadStackInfo stack = new ThreadStackInfo();
 
         static readonly Dictionary<int, Dictionary<string, object>> newFieldValues = new Dictionary<int, Dictionary<string, object>>();
 
@@ -98,25 +101,9 @@ namespace IFix.Core
         {
             if( MethodId >= 0 && !HasInitialize(obj) )
             {
-                var stack = ThreadStackInfo.Stack;
-                var unmanagedStack = stack.UnmanagedStack;
-                
-                try
-                {
-                    var top = unmanagedStack->Top;
-                    var @base = unmanagedStack->Base;
-
-                    virtualMachine.Execute(MethodId, unmanagedStack->Top, managedStack, unmanagedStack->Base, 0);
-
-                    object value = managedStack[top->Value1];
-                    managedStack[top - @base] = null;
-
-                    SetValue(obj, value);
-                }
-                catch(Exception e)
-                {
-                    VirtualMachine._Info(e.ToString());
-                }
+                Call call = Call.BeginForStack(stack);
+                virtualMachine.Execute(MethodId, ref call, 0, 0);
+                SetValue(obj, call.GetObject());
             }
         }
 
@@ -365,6 +352,8 @@ namespace IFix.Core
         ~VirtualMachine()
         {
             onDispose();
+
+            Cleanner.Stop();
             unmanagedCodes = null;
         }
 

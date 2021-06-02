@@ -561,6 +561,18 @@ namespace IFix.Core
             };
         }
 
+        internal static Call BeginForStack(ThreadStackInfo stack)
+        {
+            return new Call()
+            {
+                managedStack = stack.ManagedStack,
+                currentTop = stack.UnmanagedStack->Top,
+                argumentBase = stack.UnmanagedStack->Top,
+                evaluationStackBase = stack.UnmanagedStack->Base,
+                topWriteBack = &(stack.UnmanagedStack->Top)
+            };
+        }
+
         public void PushBoolean(bool b)
         {
             currentTop->Value1 = b ? 1 : 0;
