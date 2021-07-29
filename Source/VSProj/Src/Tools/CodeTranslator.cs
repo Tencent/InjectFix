@@ -1563,6 +1563,12 @@ namespace IFix
                                     break;
                                 }
                                 var methodToCall = msIl.Operand as MethodReference;
+                                if (methodToCall.ReturnType.IsByReference)
+                                {
+                                    Console.WriteLine("Warning: method returning ByRef type is not supported. caller={0} callee={1}", 
+                                        method.FullName,
+                                        methodToCall.FullName);
+                                }
                                 if (msIl.OpCode.Code == Code.Newobj && (isCompilerGeneratedPlainObject(
                                     methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType)))
                                 {
