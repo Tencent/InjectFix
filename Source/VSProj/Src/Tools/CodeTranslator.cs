@@ -2239,35 +2239,42 @@ namespace IFix
             {
                 foreach(var nestedType in typeDefinition.NestedTypes)
                 {
-                    var isStateMachine =
-                        nestedType.Interfaces.Any(e => e.InterfaceType.Name == "IAsyncStateMachine");
-
-                    if(!isStateMachine)
-                        continue;
-
-                    var builder     = nestedType.Fields.First(e => e.Name.EndsWith("builder"));
-                    var builderType = builder.FieldType;
-
-                    if(builderType.ContainsGenericParameter)
-                        continue;
-
-                    if(!builderType.IsValueType)
-                        continue;
-
-                    if(builderType.IsGenericInstance)
+                    try
                     {
-                        if(genericBuilders.Any(e => ((GenericInstanceType) e).GenericArguments[0]
-                                                 == ((GenericInstanceType) builderType).GenericArguments[0]))
+                        var isStateMachine =
+                            nestedType.Interfaces.Any(e => e.InterfaceType.Name == "IAsyncStateMachine");
+
+                        if(!isStateMachine)
                             continue;
 
-                        genericBuilders.Add(builderType);
+                        var builder     = nestedType.Fields.First(e => e.Name.EndsWith("builder"));
+                        var builderType = builder.FieldType;
+
+                        if(builderType.ContainsGenericParameter)
+                            continue;
+
+                        if(!builderType.IsValueType)
+                            continue;
+
+                        if(builderType.IsGenericInstance)
+                        {
+                            if(genericBuilders.Any(e => ((GenericInstanceType) e).GenericArguments[0]
+                                                     == ((GenericInstanceType) builderType).GenericArguments[0]))
+                                continue;
+
+                            genericBuilders.Add(builderType);
+                        }
+                        else
+                        {
+                            if(builders.Contains(builderType))
+                                continue;
+
+                            builders.Add(builderType);
+                        }
                     }
-                    else
+                    catch (Exception e)
                     {
-                        if(builders.Contains(builderType))
-                            continue;
-
-                        builders.Add(builderType);
+                        Console.WriteLine("Warning: get builder in " + typeDefinition + " throw: " + e);
                     }
                 }
             }
