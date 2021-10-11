@@ -162,6 +162,7 @@ namespace IFix.Editor
                 UnityEngine.Debug.LogError(e);
             }
             EditorUtility.ClearProgressBar();
+            EditorUtility.RequestScriptReload();
         }
 
         public static bool AutoInject = true; //可以在外部禁用掉自动注入
