@@ -1563,6 +1563,12 @@ namespace IFix
                                     break;
                                 }
                                 var methodToCall = msIl.Operand as MethodReference;
+                                if (methodToCall.ReturnType.IsByReference)
+                                {
+                                    Console.WriteLine("Warning: method returning ByRef type is not supported. caller={0} callee={1}", 
+                                        method.FullName,
+                                        methodToCall.FullName);
+                                }
                                 if (msIl.OpCode.Code == Code.Newobj && (isCompilerGeneratedPlainObject(
                                     methodToCall.DeclaringType) || isCustomClassPlainObject(methodToCall.DeclaringType)))
                                 {
@@ -2219,6 +2225,88 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
                 instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(awaitUnsafeOnCompletedMethods[j].GetElementMethod(), ((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0], itfBridgeType)));
             }
+            instructions.Add(Instruction.Create(OpCodes.Ret));
+            itfBridgeType.Methods.Add(targetMethod);
+        }
+
+        private void EmitAsyncBuilderStartMethod(IEnumerable<TypeDefinition> allTypes)
+        {
+            var builders        = new List<TypeReference>();
+            var genericBuilders = new List<TypeReference>();
+
+            // 找到所有异步方法的builder
+            foreach(var typeDefinition in allTypes)
+            {
+                foreach(var nestedType in typeDefinition.NestedTypes)
+                {
+                    try
+                    {
+                        var isStateMachine =
+                            nestedType.Interfaces.Any(e => e.InterfaceType.Name == "IAsyncStateMachine");
+
+                        if(!isStateMachine)
+                            continue;
+
+                        var builder     = nestedType.Fields.First(e => e.Name.EndsWith("builder"));
+                        var builderType = builder.FieldType;
+
+                        if(builderType.ContainsGenericParameter)
+                            continue;
+
+                        if(!builderType.IsValueType)
+                            continue;
+
+                        if(builderType.IsGenericInstance)
+                        {
+                            if(genericBuilders.Any(e => ((GenericInstanceType) e).GenericArguments[0]
+                                                     == ((GenericInstanceType) builderType).GenericArguments[0]))
+                                continue;
+
+                            genericBuilders.Add(builderType);
+                        }
+                        else
+                        {
+                            if(builders.Contains(builderType))
+                                continue;
+
+                            builders.Add(builderType);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Warning: get builder in " + typeDefinition + " throw: " + e);
+                    }
+                }
+            }
+
+            // 生成Start函数引用
+            builders.AddRange(genericBuilders);
+
+            var targetMethod = new MethodDefinition("RefAsyncBuilderStartMethod", MethodAttributes.Public,
+                assembly.MainModule.TypeSystem.Void);
+            var instructions = targetMethod.Body.Instructions;
+            var localBridge  = new VariableDefinition(itfBridgeType);
+            targetMethod.Body.Variables.Add(localBridge);
+
+            foreach(var builder in builders)
+            {
+                var start = new MethodReference("Start", voidType, builder)
+                            {
+                                HasThis = true, CallingConvention = MethodCallingConvention.Generic
+                            };
+                var genericParameter = new GenericParameter("!!0", start);
+                start.GenericParameters.Add(genericParameter);
+                var byReferenceType = new ByReferenceType(genericParameter);
+                start.Parameters.Add(new ParameterDefinition(byReferenceType));
+
+                var localBuilder = new VariableDefinition(builder);
+                targetMethod.Body.Variables.Add(localBuilder);
+
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBuilder));
+                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
+                instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(start, itfBridgeType)));
+            }
+
             instructions.Add(Instruction.Create(OpCodes.Ret));
             itfBridgeType.Methods.Add(targetMethod);
         }
@@ -3271,7 +3359,7 @@ namespace IFix
 
             var allTypes = (from type in assembly.GetAllType()
                             where type.Namespace != "IFix" && !type.IsGeneric() && !(isCompilerGenerated(type) || isNewClass(type))
-                            select type);
+                            select type).ToList();
 
             foreach (var method in (
                 from type in allTypes
@@ -3362,6 +3450,8 @@ namespace IFix
                 {
                     EmitRefAwaitUnsafeOnCompletedMethod();
                 }
+                
+                EmitAsyncBuilderStartMethod(allTypes);
             } 
 
             return ProcessResult.OK;
@@ -3378,12 +3468,8 @@ namespace IFix
 
             MethodDefinition fieldDefaultValue = new MethodDefinition("<>__ctor_" + field.Name, staticConstructorAttributes, assembly.MainModule.TypeSystem.Object);
 
-            var local0 = new VariableDefinition(assembly.MainModule.TypeSystem.Object);
-
-            fieldDefaultValue.Body.Variables.Add(local0);
-
             var instructions = fieldDefaultValue.Body.Instructions;
-            instructions.Add(Instruction.Create(OpCodes.Nop));
+
             foreach (var instruction in insertInstructions)
             {
                 if(!instruction.OpCode.Code.ToString().Contains("Ldarg"))
@@ -3397,8 +3483,6 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
             }
 
-            instructions.Add(Instruction.Create(OpCodes.Stloc, local0));
-            instructions.Add(Instruction.Create(OpCodes.Ldloc, local0));
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
             field.DeclaringType.Methods.Add(fieldDefaultValue);
