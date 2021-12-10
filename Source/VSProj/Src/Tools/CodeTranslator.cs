@@ -1095,7 +1095,7 @@ namespace IFix
             }
             if (methodToId.ContainsKey(callee))
             {
-                if (isCallvirt)
+                if (isCallvirt && isNewClass(callee.DeclaringType as TypeDefinition))
                 {
                     getVirtualMethodForType(method.DeclaringType);
                     if (virtualMethodToIndex.ContainsKey(callee))
