@@ -166,7 +166,13 @@ namespace IFix
             if (type.IsRequiredModifier) return addExternType((type as RequiredModifierType).ElementType, contextType);
             if (type.IsGenericParameter || type.HasGenericArgumentFromMethod())
             {
-                throw new InvalidProgramException("try to use a generic type definition: " + type);
+                var genericTypeInfo = "{None}";
+                try {
+                    var genericType = (GenericParameter)type;
+                    var owner = (TypeDefinition)genericType.Owner;
+                    genericTypeInfo = string.Format("{{Owner: {0}, Scope: {1}}}", owner.FullName, genericType.Scope.Name);
+                } catch { }
+                throw new InvalidProgramException("try to use a generic type definition: " + type + ", generic type info: " + genericTypeInfo);
             }
             if (externTypeToId.ContainsKey(type))
             {
