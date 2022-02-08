@@ -412,7 +412,8 @@ namespace IFix.Core
                             }
                             else
                             {
-                                throw new Exception(declaringType + "." + fieldName + " is expected to be a new field , but it already exists ");
+                                if(checkNew)
+                                    throw new Exception(declaringType + "." + fieldName + " is expected to be a new field , but it already exists ");
                             }
                         }
                     }

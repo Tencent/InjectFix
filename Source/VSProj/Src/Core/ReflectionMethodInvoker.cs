@@ -158,7 +158,14 @@ namespace IFix.Core
                     }
                     else
                     {
-                        ret = method.Invoke(instance, args);
+                        if (method.IsStatic == false && instance == null)
+                        {
+                            throw new TargetException(string.Format("can not invoke method [{0}.{1}], Non-static method require instance but got null.", method.DeclaringType, method.Name));
+                        }
+                        else
+                        {
+                            ret = method.Invoke(instance, args);
+                        }
                     }
                 }
 
