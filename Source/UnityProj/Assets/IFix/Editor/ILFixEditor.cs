@@ -68,7 +68,7 @@ namespace IFix.Editor
         //system("mono ifix.exe [args]")
         public static void CallIFix(List<string> args)
         {
-#if UNITY_EDITOR_OSX
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
             var mono_path = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                 "../MonoBleedingEdge/bin/mono");
             if(!File.Exists(mono_path))
@@ -587,7 +587,7 @@ namespace IFix.Editor
         //TODO: 目前的做法挺繁琐的，需要用户去获取Unity的编译命令文件，更好的做法应该是直接
         public static void Compile(string compileArgFile)
         {
-#if UNITY_EDITOR_OSX
+#if UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX
             var monoPath = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
                 "../MonoBleedingEdge/bin/mono");
             var mcsPath = Path.Combine(Path.GetDirectoryName(typeof(UnityEngine.Debug).Module.FullyQualifiedName),
