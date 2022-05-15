@@ -2447,6 +2447,15 @@ namespace IFix
 
             var ilProcessor = wrapperMethod.Body.GetILProcessor();
 
+            if (method.DeclaringType.IsValueType && isCompilerGenerated(method.DeclaringType) && method.Name == "SetStateMachine")
+            {
+                var methodId = new FieldDefinition(METHODIDPERFIX + mid, FieldAttributes.Private, assembly.MainModule.TypeSystem.Int32);
+                type.Fields.Add(methodId);
+                instructions.Add(Instruction.Create(OpCodes.Ret));
+                type.Methods.Add(wrapperMethod);
+                return wrapperMethod;
+            }
+
             VariableDefinition call = new VariableDefinition(Call_Ref);
             wrapperMethod.Body.Variables.Add(call);
 
@@ -4021,8 +4030,18 @@ namespace IFix
                             writer.Write(-2);
                         }
                     }
-                    writer.Write(methodToId[anonymousTypeInfos[i]]);
-                    writer.Write(anonymousTypeInfos[i].Parameters.Count);
+
+                    if (anonymousTypeInfos[i].IsConstructor)
+                    {
+                        writer.Write(methodToId[anonymousTypeInfos[i]]);
+                        writer.Write(anonymousTypeInfos[i].Parameters.Count);
+                    }
+                    else
+                    {
+                        writer.Write(-1);
+                        writer.Write(0);
+                    }
+
                     writeSlotInfo(writer, anonymousType);
                     List<MethodDefinition> vT = getVirtualMethodForType(anonymousType);
                     writer.Write(vT.Count);

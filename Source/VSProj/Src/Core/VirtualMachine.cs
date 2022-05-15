@@ -2774,11 +2774,14 @@ namespace IFix.Core
                                     //_Info("p " + p + ":" + dsp->Type + ",v:" + dsp->Value1);
                                 //}
                                 managedStack[pos->Value1] = anonymousStorey;
-                                Execute(unmanagedCodes[anonymousStoreyInfo.CtorId], pos, managedStack,
+                                if (anonymousStoreyInfo.CtorId >= 0)
+                                {
+                                    Execute(unmanagedCodes[anonymousStoreyInfo.CtorId], pos, managedStack,
                                     evaluationStackBase, pn + 1, anonymousStoreyInfo.CtorId);
-                                pos->Type = ValueType.Object;
-                                pos->Value1 = (int)(pos - evaluationStackBase);
-                                managedStack[pos->Value1] = anonymousStorey;
+                                    pos->Type = ValueType.Object;
+                                    pos->Value1 = (int)(pos - evaluationStackBase);
+                                    managedStack[pos->Value1] = anonymousStorey;
+                                }
                                 evaluationStackPointer = pos + 1;
                             }
                             break;
