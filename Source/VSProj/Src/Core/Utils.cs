@@ -50,7 +50,8 @@ namespace IFix.Core
         }
 
         //适配器的缓存，如果不做缓存，每次都调用IsAssignable一个个的取匹配会非常慢
-        static Dictionary<Type, MethodInfo> delegateAdptCache = new Dictionary<Type, MethodInfo>();
+        static Dictionary<string, Dictionary<Type, MethodInfo>> delegateAdptCache =
+            new Dictionary<string, Dictionary<Type, MethodInfo>>();
 
         /// <summary>
         /// 从一个wrapper对象里头，查找能够适配到特定delegate的方法
@@ -62,20 +63,28 @@ namespace IFix.Core
         public static Delegate TryAdapterToDelegate(object obj, Type delegateType, string perfix)
         {
             MethodInfo method;
-            if (!delegateAdptCache.TryGetValue(delegateType, out method))
+            if (!delegateAdptCache.TryGetValue(obj.GetType().Assembly.FullName, out var cache))
+            {
+                cache = new Dictionary<Type, MethodInfo>();
+                delegateAdptCache.Add(obj.GetType().Assembly.FullName, cache);
+            }
+
+            if (!cache.TryGetValue(delegateType, out method))
             {
                 MethodInfo delegateMethod = delegateType.GetMethod("Invoke");
                 var methods = obj.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance
-                    | BindingFlags.DeclaredOnly);
+                                                                           | BindingFlags.DeclaredOnly);
                 for (int i = 0; i < methods.Length; i++)
                 {
                     if (methods[i].Name.StartsWith(perfix) && IsAssignable(delegateMethod, methods[i]))
                     {
                         method = methods[i];
-                        delegateAdptCache[delegateType] = method;
+                        cache[delegateType] = method;
                     }
                 }
             }
+
+
             if (method == null)
             {
                 return null;
