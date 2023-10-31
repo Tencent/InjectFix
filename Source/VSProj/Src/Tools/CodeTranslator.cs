@@ -1261,6 +1261,26 @@ namespace IFix
                     }
                 }
 
+                //修复out struct问题
+                for (int i = 0; i < method.Parameters.Count; i++)
+                {
+                    var parameter = method.Parameters[i];
+                    if (parameter.IsOut && parameter.ParameterType.GetElementType().IsValueType && !parameter.ParameterType.GetElementType().IsPrimitive)
+                    {
+                        code.Add(new Core.Instruction
+                        {
+                            Code = Core.Code.Ldarg,
+                            Operand = i + (method.HasThis ? 1 : 0)
+                        });
+                        code.Add(new Core.Instruction
+                        {
+                            Code = Core.Code.Initobj,
+                            Operand = addExternType(parameter.ParameterType.GetElementType())
+                        });
+                        offsetAdd += 2;
+                    }
+                }
+
                 if (offsetAdd > 0)
                 {
                     var ilNewOffset = new Dictionary<Instruction, int>();
