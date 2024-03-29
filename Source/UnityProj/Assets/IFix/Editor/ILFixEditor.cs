@@ -15,9 +15,50 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Reflection;
+using System.Reflection.Emit;
+using Debug = System.Diagnostics.Debug;
 #if UNITY_2018_3_OR_NEWER
 using UnityEditor.Build.Player;
 #endif
+
+
+public static class OpCodeLookup
+{
+    // 单字节操作码集合
+    public static readonly OpCode[] SingleByteOpCodes;
+
+    // 多字节操作码集合
+    public static readonly OpCode[] MultiByteOpCodes;
+
+    // 静态构造函数，用于初始化操作码集合
+    static OpCodeLookup()
+    {
+        // 获取所有操作码
+        var opcodes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+        // 初始化单字节操作码集合
+        SingleByteOpCodes = new OpCode[256];
+        foreach (var opcode in opcodes)
+        {
+            var code = (OpCode)opcode.GetValue(null);
+            if (code.Size == 1)
+            {
+                SingleByteOpCodes[code.Value] = code;
+            }
+        }
+
+        // 初始化多字节操作码集合
+        MultiByteOpCodes = new OpCode[256];
+        foreach (var opcode in opcodes)
+        {
+            var code = (OpCode)opcode.GetValue(null);
+            if (code.Size == 2)
+            {
+                MultiByteOpCodes[code.Value & 0xff] = code;
+            }
+        }
+    }
+}
 
 namespace IFix.Editor
 {
@@ -25,7 +66,7 @@ namespace IFix.Editor
     public class VersionSelector : EditorWindow
     {
         public string buttonText = "Patch";
-        public string[] options = new string[] {};
+        public string[] options = new string[] { };
         public int index = 0;
         public Action<int> callback = null;
 
@@ -51,6 +92,7 @@ namespace IFix.Editor
             {
                 callback(index);
             }
+
             Close();
         }
     }
@@ -59,6 +101,7 @@ namespace IFix.Editor
     {
         //备份目录
         const string BACKUP_PATH = "./IFixDllBackup";
+
         //备份文件的时间戳生成格式
         const string TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
@@ -84,6 +127,7 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.LogError("can not find mono!");
             }
+
             var inject_tool_path = "./IFixToolKit/IFix.exe";
             //"--runtime = v4.0.30319"
             if (!File.Exists(inject_tool_path))
@@ -99,7 +143,7 @@ namespace IFix.Editor
 #else
             hotfix_injection.StartInfo.Arguments = "--debug \"" + inject_tool_path + "\" \""
 #endif
-                + string.Join("\" \"", args.ToArray()) + "\"";
+                                                   + string.Join("\" \"", args.ToArray()) + "\"";
             hotfix_injection.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             hotfix_injection.StartInfo.RedirectStandardOutput = true;
             hotfix_injection.StartInfo.UseShellExecute = false;
@@ -110,7 +154,7 @@ namespace IFix.Editor
             //UnityEngine.Debug.Log(hotfix_injection.StartInfo.Arguments);
 
             StringBuilder exceptionInfo = null;
-            while(!hotfix_injection.StandardOutput.EndOfStream)
+            while (!hotfix_injection.StandardOutput.EndOfStream)
             {
                 string line = hotfix_injection.StandardOutput.ReadLine();
                 if (exceptionInfo != null)
@@ -137,6 +181,7 @@ namespace IFix.Editor
                     }
                 }
             }
+
             hotfix_injection.WaitForExit();
             if (exceptionInfo != null)
             {
@@ -152,15 +197,17 @@ namespace IFix.Editor
                 UnityEngine.Debug.LogError("compiling or playing");
                 return;
             }
+
             EditorUtility.DisplayProgressBar("Inject", "injecting...", 0);
             try
             {
                 InjectAllAssemblys();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
 #if UNITY_2019_3_OR_NEWER
             EditorUtility.RequestScriptReload();
@@ -198,7 +245,7 @@ namespace IFix.Editor
 
             backups = allBackup.Select(path => r.Match(path).Groups[1].Captures[0].Value).ToArray();
             timestamps = allBackup.Select(path => DateTime.ParseExact(r.Match(path).Groups[1].Captures[0].Value,
-                TIMESTAMP_FORMAT, System.Globalization.CultureInfo.InvariantCulture)
+                    TIMESTAMP_FORMAT, System.Globalization.CultureInfo.InvariantCulture)
                 .ToString("yyyy-MM-dd hh:mm:ss tt")).ToArray();
         }
 
@@ -209,10 +256,7 @@ namespace IFix.Editor
             string[] timestamps;
             GetBackupInfo(out backups, out timestamps);
 
-            VersionSelector.Show(timestamps.ToArray(), index =>
-            {
-                cb(backups[index]);
-            }, buttonText);
+            VersionSelector.Show(timestamps.ToArray(), index => { cb(backups[index]); }, buttonText);
         }
 
         /// <summary>
@@ -221,7 +265,8 @@ namespace IFix.Editor
         /// <param name="assembly">程序集路径</param>
         public static void InjectAssembly(string assembly)
         {
-            var configure = Configure.GetConfigureByTags(new List<string>() {
+            var configure = Configure.GetConfigureByTags(new List<string>()
+            {
                 "IFix.IFixAttribute",
                 "IFix.InterpretAttribute",
                 "IFix.ReverseWrapperAttribute",
@@ -237,7 +282,7 @@ namespace IFix.Editor
             var blackList = new List<MethodInfo>();
 
             using (BinaryWriter writer = new BinaryWriter(new FileStream(processCfgPath, FileMode.Create,
-                FileAccess.Write)))
+                       FileAccess.Write)))
             {
                 writer.Write(configure.Count);
 
@@ -262,16 +307,17 @@ namespace IFix.Editor
                         writer.Write(cfgItem.Value);
                         if (filters.Count > 0 && kv.Key == "IFix.IFixAttribute")
                         {
-                            foreach(var method in cfgItem.Key.GetMethods(BindingFlags.Instance 
-                                | BindingFlags.Static | BindingFlags.Public 
-                                | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                            foreach (var method in cfgItem.Key.GetMethods(BindingFlags.Instance
+                                                                          | BindingFlags.Static | BindingFlags.Public
+                                                                          | BindingFlags.NonPublic |
+                                                                          BindingFlags.DeclaredOnly))
                             {
-                                foreach(var filter in filters)
+                                foreach (var filter in filters)
                                 {
                                     if ((bool)filter.Invoke(null, new object[]
-                                    {
-                                        method
-                                    }))
+                                        {
+                                            method
+                                        }))
                                     {
                                         blackList.Add(method);
                                     }
@@ -286,23 +332,27 @@ namespace IFix.Editor
 
             if (hasSomethingToDo)
             {
-
                 var core_path = "./Assets/Plugins/IFix.Core.dll";
                 var assembly_path = string.Format("./Library/{0}/{1}.dll", targetAssembliesFolder, assembly);
                 var patch_path = string.Format("./{0}.ill.bytes", assembly);
-                List<string> args = new List<string>() { "-inject", core_path, assembly_path,
-                    processCfgPath, patch_path, assembly_path };
+                List<string> args = new List<string>()
+                {
+                    "-inject", core_path, assembly_path,
+                    processCfgPath, patch_path, assembly_path
+                };
 
                 foreach (var path in
-                    (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                        select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                         (from asm in AppDomain.CurrentDomain.GetAssemblies()
+                             select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
                 {
                     try
                     {
                         //UnityEngine.Debug.Log("searchPath:" + path);
                         args.Add(path);
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                 }
 
                 CallIFix(args);
@@ -327,7 +377,7 @@ namespace IFix.Editor
             {
                 InjectAssembly(assembly);
             }
-            
+
             //doBackup(DateTime.Now.ToString(TIMESTAMP_FORMAT));
 
             AssetDatabase.Refresh();
@@ -340,6 +390,7 @@ namespace IFix.Editor
             {
                 assembliesFolder = "ScriptAssemblies";
             }
+
             return assembliesFolder;
         }
 
@@ -371,6 +422,7 @@ namespace IFix.Editor
                 {
                     continue;
                 }
+
                 File.Copy(dllFile, string.Format("{0}/{1}-{2}.dll", BACKUP_PATH, assembly, ts), true);
 
                 var mdbFile = string.Format("{0}{1}.dll.mdb", scriptAssembliesDir, assembly);
@@ -402,6 +454,7 @@ namespace IFix.Editor
                 {
                     continue;
                 }
+
                 File.Copy(dllFile, string.Format("{0}{1}.dll", scriptAssembliesDir, assembly), true);
                 UnityEngine.Debug.Log("Revert to: " + dllFile);
 
@@ -437,8 +490,8 @@ namespace IFix.Editor
                 else
                 {
                     return Regex.Replace(type.ToString().Replace('+', '/'), @"(`\d).+", "$1")
-                        + "<" + string.Join(",", type.GetGenericArguments().Select(t => GetCecilTypeName(t))
-                        .ToArray()) + ">";
+                           + "<" + string.Join(",", type.GetGenericArguments().Select(t => GetCecilTypeName(t))
+                               .ToArray()) + ">";
                 }
             }
             else
@@ -462,13 +515,13 @@ namespace IFix.Editor
         private static string parseCompileTemplate(string path)
         {
             return string.Join("\n", File.ReadAllLines(path).Where(line => !line.StartsWith("Assets/")
-                && !line.StartsWith("\"Assets/")
-                && !line.StartsWith("'Assets/")
-                && !line.StartsWith("-r:Assets/")
-                && !line.StartsWith("-r:\"Assets/")
-                && !line.StartsWith("-r:'Assets/")
-                && !line.StartsWith("-out")
-                ).ToArray());
+                                                                           && !line.StartsWith("\"Assets/")
+                                                                           && !line.StartsWith("'Assets/")
+                                                                           && !line.StartsWith("-r:Assets/")
+                                                                           && !line.StartsWith("-r:\"Assets/")
+                                                                           && !line.StartsWith("-r:'Assets/")
+                                                                           && !line.StartsWith("-out")
+            ).ToArray());
         }
 
         //对路径预处理，然后添加到StringBuilder
@@ -494,10 +547,11 @@ namespace IFix.Editor
             foreach (var file in Directory.GetFiles(dir))
             {
                 //排除调Editor下的东西
-                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0 )
+                if (file.IndexOf(Path.DirectorySeparatorChar + "Editor" + Path.DirectorySeparatorChar) > 0)
                 {
                     continue;
                 }
+
                 //排除Assembly-CSharp-firstpass
                 if (file.Substring(file.Length - 3).ToLower() == ".cs")
                 {
@@ -507,11 +561,12 @@ namespace IFix.Editor
                     {
                         continue;
                     }
+
                     appendFile(src, file);
                 }
             }
 
-            foreach(var subDir in Directory.GetDirectories(dir))
+            foreach (var subDir in Directory.GetDirectories(dir))
             {
                 appendDirectory(src, subDir);
             }
@@ -540,9 +595,11 @@ namespace IFix.Editor
                             + " in IFixToolKit directory!");
                     }
                 }
+
                 compileTemplate = parseCompileTemplate(path);
                 compileTemplates.Add(platform, compileTemplate);
             }
+
             StringBuilder cmd = new StringBuilder();
             StringBuilder src = new StringBuilder();
             StringBuilder dll = new StringBuilder();
@@ -567,7 +624,10 @@ namespace IFix.Editor
 #if (UNITY_EDITOR || XLUA_GENERAL) && !NET_STANDARD_2_0
                     }
 #endif
-                } catch { }
+                }
+                catch
+                {
+                }
             }
 
             cmd.AppendLine(compileTemplate);
@@ -632,7 +692,7 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.Log(compileProcess.StandardOutput.ReadLine());
             }
-            
+
             compileProcess.WaitForExit();
         }
 
@@ -650,7 +710,7 @@ namespace IFix.Editor
                 scriptCompilationSettings.group = BuildTargetGroup.Android;
                 scriptCompilationSettings.target = BuildTarget.Android;
             }
-            else if(platform == Platform.ios)
+            else if (platform == Platform.ios)
             {
                 scriptCompilationSettings.group = BuildTargetGroup.iOS;
                 scriptCompilationSettings.target = BuildTarget.iOS;
@@ -661,7 +721,8 @@ namespace IFix.Editor
                 scriptCompilationSettings.target = BuildTarget.StandaloneWindows;
             }
 
-            ScriptCompilationResult scriptCompilationResult = PlayerBuildInterface.CompilePlayerScripts(scriptCompilationSettings, outputDir);
+            ScriptCompilationResult scriptCompilationResult =
+                PlayerBuildInterface.CompilePlayerScripts(scriptCompilationSettings, outputDir);
 
             foreach (var assembly in injectAssemblys)
             {
@@ -755,6 +816,7 @@ namespace IFix.Editor
             {
                 return hasGenericParameter(type.GetElementType());
             }
+
             if (type.IsGenericType)
             {
                 foreach (var typeArg in type.GetGenericArguments())
@@ -764,8 +826,10 @@ namespace IFix.Editor
                         return true;
                     }
                 }
+
                 return false;
             }
+
             return type.IsGenericParameter;
         }
 
@@ -781,8 +845,8 @@ namespace IFix.Editor
                     return true;
                 }
             }
-            return false;
 
+            return false;
         }
 
         /// <summary>
@@ -793,7 +857,7 @@ namespace IFix.Editor
         /// <param name="corePath">IFix.Core.dll所在路径</param>
         /// <param name="patchPath">生成的patch的保存路径</param>
         public static void GenPatch(string assembly, string assemblyCSharpPath
-            = "./Library/ScriptAssemblies/Assembly-CSharp.dll", 
+                = "./Library/ScriptAssemblies/Assembly-CSharp.dll",
             string corePath = "./Assets/Plugins/IFix.Core.dll", string patchPath = "Assembly-CSharp.patch.bytes")
         {
             var patchMethods = Configure.GetTagMethods(typeof(PatchAttribute), assembly).ToList();
@@ -821,7 +885,7 @@ namespace IFix.Editor
             var processCfgPath = "./process_cfg";
 
             using (BinaryWriter writer = new BinaryWriter(new FileStream(processCfgPath, FileMode.Create,
-                FileAccess.Write)))
+                       FileAccess.Write)))
             {
                 writeMethods(writer, patchMethods);
                 writeMethods(writer, newMethods);
@@ -830,19 +894,24 @@ namespace IFix.Editor
                 writeClasses(writer, newClasses);
             }
 
-            List<string> args = new List<string>() { "-patch", corePath, assemblyCSharpPath, "null",
-                processCfgPath, patchPath };
+            List<string> args = new List<string>()
+            {
+                "-patch", corePath, assemblyCSharpPath, "null",
+                processCfgPath, patchPath
+            };
 
             foreach (var path in
-                (from asm in AppDomain.CurrentDomain.GetAssemblies()
-                    select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
+                     (from asm in AppDomain.CurrentDomain.GetAssemblies()
+                         select Path.GetDirectoryName(asm.ManifestModule.FullyQualifiedName)).Distinct())
             {
                 try
                 {
                     //UnityEngine.Debug.Log("searchPath:" + path);
                     args.Add(path);
                 }
-                catch { }
+                catch
+                {
+                }
             }
 
             CallIFix(args);
@@ -869,8 +938,135 @@ namespace IFix.Editor
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
         }
+
+        [MenuItem("InjectFix/GenBinding", false, 2)]
+        public static void GenBinding()
+        {
+            ILFixCodeGen gen = new ILFixCodeGen();
+            gen.path = "Assets/IFix/Binding/";
+            ILFixCodeGen.ClearMethod();
+            gen.DeleteAll();
+            // custom type
+            gen.Generate(typeof(List<int>));
+            //gen.Generate(typeof(string));
+            
+            // search by dll caller
+            var methods = FindAllMethod(typeof(Helloworld).Assembly);
+            foreach (var item in methods)
+            {
+                gen.GenerateMethod(item);
+            }
+        }
+
+        public bool Generate(Type t)
+        {
+            if (!t.IsGenericTypeDefinition && (t != typeof(YieldInstruction) && t != typeof(Coroutine))
+                || (t.BaseType != null && t.BaseType == typeof(System.MulticastDelegate)))
+            {
+            }
+
+            return false;
+        }
+
+        public static List<MethodBase> FindAllMethod(Assembly assembly)
+        {
+            HashSet<MethodBase> result = new HashSet<MethodBase>();
+
+            // 遍历程序集中的所有类型
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.IsSubclassOf(typeof(Delegate)))
+                    continue;
+                // 遍历类型中的所有方法
+                var methods = type.GetMethods(BindingFlags.Public 
+                                              | BindingFlags.DeclaredOnly | BindingFlags.NonPublic 
+                                              | BindingFlags.Instance | BindingFlags.Static);
+                foreach (var methodInfo in methods)
+                {
+                    if(methodInfo.ReflectedType.Namespace.Contains("IFix")) continue;
+                    // 输出方法的名称
+                    //UnityEngine.Debug.Log($"方法: {ILFixCodeGen.GetUniqueStringForMethod(methodInfo)}");
+
+                    // 获取方法体
+                    var methodBody = methodInfo.GetMethodBody();
+
+                    // 检查方法是否有方法体
+                    if (methodBody != null)
+                    {
+                        // 获取方法体中的 IL 字节码
+                        var ilBytes = methodBody.GetILAsByteArray();
+
+                        // 创建一个指向 IL 字节码的索引
+                        int ilIndex = 0;
+
+                        // 遍历 IL 字节码
+                        while (ilIndex < ilBytes.Length)
+                        {
+                            // 从 IL 字节码中读取操作码
+                            var opcodeValue = ilBytes[ilIndex++];
+                            var opcode = OpCodes.Nop; // 默认为 Nop，以防止未知操作码
+                            if (opcodeValue != 0xFE) // 如果操作码的值不在 0xFE 开头的范围内
+                            {
+                                opcode = OpCodeLookup.SingleByteOpCodes[opcodeValue]; // 使用单字节操作码查找表
+                            }
+                            else // 如果操作码的值在 0xFE 开头的范围内
+                            {
+                                opcodeValue = ilBytes[ilIndex++];
+                                opcode = OpCodeLookup.MultiByteOpCodes[opcodeValue]; // 使用多字节操作码查找表
+                            }
+
+                            // 检查是否是方法调用指令
+                            if (opcode == OpCodes.Call || opcode == OpCodes.Callvirt || opcode == OpCodes.Newobj)
+                            {
+                                // 读取调用的方法的元数据标记
+                                int metadataToken = BitConverter.ToInt32(ilBytes, ilIndex);
+                                ilIndex += 4;
+
+                                // 解析元数据标记获取调用的方法信息
+                                var calledMethod = methodInfo.Module.ResolveMethod(metadataToken);
+                                if (!result.Contains(calledMethod))
+                                {
+                                    result.Add(calledMethod);
+                                    // 输出调用的方法信息
+                                    //UnityEngine.Debug.Log($"    调用方法: {ILFixCodeGen.GetUniqueStringForMethod(calledMethod)}");
+                                }
+                            }
+
+                            // 检查是否有操作数，并根据操作码的操作数类型移动索引
+                            switch (opcode.OperandType)
+                            {
+                                case OperandType.InlineBrTarget:
+                                case OperandType.InlineField:
+                                case OperandType.InlineI:
+                                case OperandType.InlineI8:
+                                case OperandType.InlineMethod:
+                                case OperandType.InlineR:
+                                case OperandType.InlineSig:
+                                case OperandType.InlineString:
+                                case OperandType.InlineSwitch:
+                                case OperandType.InlineTok:
+                                case OperandType.InlineType:
+                                case OperandType.InlineVar:
+                                    ilIndex += 4;
+                                    break;
+                                case OperandType.ShortInlineBrTarget:
+                                case OperandType.ShortInlineI:
+                                case OperandType.ShortInlineR:
+                                case OperandType.ShortInlineVar:
+                                    ilIndex += 1;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result.ToList();
+        }
+
 
 #if UNITY_2018_3_OR_NEWER
         [MenuItem("InjectFix/Fix(Android)", false, 3)]
@@ -881,10 +1077,11 @@ namespace IFix.Editor
             {
                 GenPlatformPatch(Platform.android, "");
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
         }
 
@@ -896,10 +1093,11 @@ namespace IFix.Editor
             {
                 GenPlatformPatch(Platform.ios, "");
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 UnityEngine.Debug.LogError(e);
             }
+
             EditorUtility.ClearProgressBar();
         }
 #endif
