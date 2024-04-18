@@ -13,7 +13,6 @@ namespace IFix.Core
     internal class ReflectionMethodInvoker
     {
         int paramCount;
-
         bool hasThis;
 
         bool hasReturn;
@@ -24,7 +23,7 @@ namespace IFix.Core
 
         Type[] rawTypes;
 
-        //object[] args;
+        object[] args;
 
         MethodBase method;
 
@@ -43,7 +42,7 @@ namespace IFix.Core
             refFlags = new bool[paramCount];
             outFlags = new bool[paramCount];
             rawTypes = new Type[paramCount];
-            //args = new object[paramCount];
+            args = new object[paramCount];
 
             for (int i = 0; i < paramerInfos.Length; i++)
             {
@@ -84,7 +83,6 @@ namespace IFix.Core
         {
             var managedStack = call.managedStack;
             var pushResult = false;
-            var args = new object[paramCount];
             try
             {
                 //virtualMachine._Info("method: " + method);
@@ -161,9 +159,9 @@ namespace IFix.Core
 					else if (isNullableGetValueOrDefault)
 					{
 						if(instance == null)
-						{
-							if(paramCount == 0)
-								ret = System.Activator.CreateInstance(returnType);
+                        {
+                            if (paramCount == 0)
+                                ret = EvaluationStackOperation.CreateBoxValue(returnType);
 							else
 								ret = args[0];
 						}
@@ -183,6 +181,8 @@ namespace IFix.Core
                             ret = method.Invoke(instance, args);
                         }
                     }
+
+                    EvaluationStackOperation.RecycleObject(instance);
                 }
 
                 for (int i = 0; i < paramCount; i++)
@@ -239,10 +239,11 @@ namespace IFix.Core
             //}
             finally
             {
-                //for (int i = 0; i < paramCount; i++)
-                //{
-                //    args[i] = null;
-                //}
+                for (int i = 0; i < paramCount; i++)
+                {
+                    EvaluationStackOperation.RecycleObject(args[i]);
+                    args[i] = null;
+                }
                 Value* pArg = call.argumentBase;
                 if (pushResult)
                 {
@@ -250,6 +251,7 @@ namespace IFix.Core
                 }
                 for (int i = (pushResult ? 1 : 0); i < paramCount + ((hasThis && !isInstantiate) ? 1 : 0); i++)
                 {
+                    EvaluationStackOperation.RecycleObject(managedStack[pArg - call.evaluationStackBase]);
                     managedStack[pArg - call.evaluationStackBase] = null;
                     pArg++;
                 }

@@ -9,8 +9,15 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using FieldAttributes = Mono.Cecil.FieldAttributes;
+using MethodAttributes = Mono.Cecil.MethodAttributes;
+using ParameterAttributes = Mono.Cecil.ParameterAttributes;
+using PropertyAttributes = Mono.Cecil.PropertyAttributes;
+using TypeAttributes = Mono.Cecil.TypeAttributes;
 
 namespace IFix
 {
@@ -2037,6 +2044,7 @@ namespace IFix
             new Dictionary<string, TypeReference>();
 
         private MethodReference Call_PushValueType_Ref;
+        private MethodReference Call_PushValueUnmanaged;
         TypeReference wrapperParamerterType(TypeReference type)
         {
             if (type.IsByReference)
@@ -2317,6 +2325,19 @@ namespace IFix
             itfBridgeType.Methods.Add(targetMethod);
         }
 
+        public static bool IsUnmanaged(TypeReference t)
+        {
+            if (!t.IsValueType) return false;
+
+            TypeDefinition typeDef = t.Resolve();
+            foreach (var f in typeDef.Fields)
+            {
+                if(f.IsStatic) continue;
+                if (!IsUnmanaged(f.FieldType)) return false;
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// 获取一个方法的适配器
@@ -2516,15 +2537,20 @@ namespace IFix
                             emitLdarg(instructions, ilProcessor, i + 1);
                             emitLoadRef(instructions, paramRawType);
                             MethodReference push;
+
                             if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                             {
                                 instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
                             }
                             else
                             {
-                                if (paramRawType.IsValueType)
+                                if (IsUnmanaged(paramRawType))
                                 {
-                                    instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
+                                    var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
+                                    instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                                        makeGenericMethod(Call_PushValueUnmanaged, rawType))
+                                    );
+                                    //instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
                                 }
                                 else
                                 {
@@ -2580,11 +2606,16 @@ namespace IFix
                     {
                         if (paramRawType.IsValueType)
                         {
-                            instructions.Add(Instruction.Create(OpCodes.Box, paramRawType));
+                            var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
+                            instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                                makeGenericMethod(Call_PushValueUnmanaged, rawType))
+                            );
+                            
+                            //instructions.Add(Instruction.Create(OpCodes.Box, paramRawType));
                             //Console.WriteLine("Call_PushValueType_Ref for " + method.Name + ", pidx:" + i
                             //    + ", ptype:" + parameterTypes[i] + ", paramRawType:" + paramRawType + ",wrap:"
                             //    + wrapperMethod.Name);
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
+                            //instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
                         }
                         else
                         {
@@ -2762,12 +2793,12 @@ namespace IFix
             }
             else
             {
-                if (type.IsValueType)
-                {
-                    instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
-                    instructions.Add(Instruction.Create(OpCodes.Box, type));
-                }
-                else
+                // if (type.IsValueType)
+                // {
+                //     instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
+                //     instructions.Add(Instruction.Create(OpCodes.Box, type));
+                // }
+                // else
                 {
                     instructions.Add(Instruction.Create(OpCodes.Ldind_Ref));
                 }
@@ -2907,7 +2938,10 @@ namespace IFix
             Call_Ref = assembly.MainModule.ImportReference(Call);
             Call_Begin_Ref = importMethodReference(Call, "Begin");
             Call_PushRef_Ref = importMethodReference(Call, "PushRef");
+            
             Call_PushValueType_Ref = importMethodReference(Call, "PushValueType");
+            Call_PushValueUnmanaged = importMethodReference(Call, "PushValueUnmanaged");
+
             Call_GetAsType_Ref = importMethodReference(Call, "GetAsType");
 
             VirtualMachine_Execute_Ref = assembly.MainModule.ImportReference(

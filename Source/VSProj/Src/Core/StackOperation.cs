@@ -5,6 +5,10 @@
  * This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this source code package.
  */
 
+using System.Text;
+using Unity.Collections.LowLevel.Unsafe;
+using UnityEngine;
+
 namespace IFix.Core
 {
     using System;
@@ -14,13 +18,13 @@ namespace IFix.Core
     using System.Collections.Generic;
 
     [StructLayout(LayoutKind.Sequential)]
-    unsafe struct UnmanagedStack
+    public unsafe struct UnmanagedStack
     {
         public Value* Base;
         public Value* Top;
     }
 
-    unsafe class ThreadStackInfo
+    public unsafe class ThreadStackInfo
     {
         public UnmanagedStack* UnmanagedStack;
         public object[] ManagedStack;
@@ -85,7 +89,7 @@ namespace IFix.Core
         }
     }
 
-    unsafe internal static class EvaluationStackOperation
+    unsafe public static class EvaluationStackOperation
     {
         internal static void UnboxPrimitive(Value* evaluationStackPointer, object obj, Type type)
         {
@@ -264,24 +268,48 @@ namespace IFix.Core
                     {
                         int i = evaluationStackPointer->Value1;
                         if (type == typeof(int))
-                            return i;
+                        {
+                            var ret = BoxValueToObject<int>(i);
+                            return ret;
+                        }
                         else if (type == typeof(bool))
-                            return i == 1;
+                        {
+                            var ret = BoxValueToObject<bool>(i == 1);
+                            return ret;
+                        }
                         else if (type == typeof(sbyte))
-                            return (sbyte)i;
+                        {
+                            var ret = BoxValueToObject<sbyte>((sbyte)i);
+                            return ret;
+                        }
                         else if (type == typeof(byte))
-                            return (byte)i;
+                        {
+                            var ret = BoxValueToObject<byte>((byte)i);
+                            return ret;
+                        }
                         else if (type == typeof(char))
-                            return (char)i;
+                        {
+                            var ret = BoxValueToObject<char>((char)i);
+                            return ret;
+                        }
                         else if (type == typeof(short))
-                            return (short)i;
+                        {
+                            var ret = BoxValueToObject<short>((short)i);
+                            return ret;
+                        }
                         else if (type == typeof(ushort))
-                            return (ushort)i;
+                        {
+                            var ret = BoxValueToObject<ushort>((ushort)i);
+                            return ret;
+                        }
                         else if (type == typeof(uint))
-                            return (uint)i;
+                        {
+                            var ret = BoxValueToObject<uint>((uint)i);
+                            return ret;
+                        }
                         else if (type.IsEnum)
                         {
-                            return Enum.ToObject(type, i);
+                            return CreateEnumValue(type, i);
                         }
                         else 
                             return null;
@@ -291,23 +319,27 @@ namespace IFix.Core
                         long l = *(long*)&evaluationStackPointer->Value1;
                         if (type == typeof(long))
                         {
-                            return l;
+                            var ret = BoxValueToObject<long>((long)l);
+                            return ret;
                         }
                         else if (type == typeof(ulong))
                         {
-                            return (ulong)l;
+                            var ret = BoxValueToObject<ulong>((ulong)l);
+                            return ret;
                         }
                         else if (type == typeof(IntPtr))
                         {
-                            return new IntPtr(l);
+                            var ret = BoxValueToObject<IntPtr>(new IntPtr(l));
+                            return ret;
                         }
                         else if (type == typeof(UIntPtr))
                         {
-                            return new UIntPtr((ulong)l);
+                            var ret = BoxValueToObject<UIntPtr>(new UIntPtr((ulong)l));
+                            return ret;
                         }
                         else if (type.IsEnum)
                         {
-                            return Enum.ToObject(type, l);
+                            return CreateEnumValue(type, l);
                         }
                         else
                         {
@@ -318,7 +350,8 @@ namespace IFix.Core
                     {
                         if (type == typeof(float))
                         {
-                            return *(float*)&evaluationStackPointer->Value1;
+                            var ret = BoxValueToObject<float>(*(float*)&evaluationStackPointer->Value1);
+                            return ret;
                         }
                         else
                         {
@@ -329,7 +362,8 @@ namespace IFix.Core
                     {
                         if (type == typeof(double))
                         {
-                            return *(double*)&evaluationStackPointer->Value1;
+                            var ret = BoxValueToObject<double>(*(double*)&evaluationStackPointer->Value1);
+                            return ret;
                         }
                         else
                         {
@@ -341,7 +375,7 @@ namespace IFix.Core
                 case ValueType.ValueType:
                     if (valueTypeClone && managedStack[evaluationStackPointer->Value1] != null)
                     {
-                        return virtualMachine.objectClone.Clone(managedStack[evaluationStackPointer->Value1]);
+                        return CloneObject(managedStack[evaluationStackPointer->Value1]);
                     }
                     else
                     {
@@ -414,6 +448,437 @@ namespace IFix.Core
             }
         }
 
+        static Dictionary<Type, Stack<object>> cacheDict = new Dictionary<Type, Stack<object>>();
+
+        public static unsafe object CreateBoxValue(Type t)
+        {
+            if (!UnsafeUtility.IsUnmanaged(t)) return Activator.CreateInstance(t);
+
+            Stack<object> cache;
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(t, out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[t] = cache;
+                }
+            }
+            
+            object result = null;
+            lock (cache)
+            {
+                result = cache.Count <= 0 ? Activator.CreateInstance(t) : cache.Pop();
+            }
+
+            GCHandle h = GCHandle.Alloc(result, GCHandleType.Pinned);
+            IntPtr ptr = h.AddrOfPinnedObject();
+
+            void* valuePtr = ptr.ToPointer();
+            int size = UnsafeUtility.SizeOf(t);
+            UnsafeUtility.MemClear(valuePtr, size);
+        
+            h.Free();
+
+            return result;
+        }
+
+        public static unsafe object CreateEnumValue(Type t, int value)
+        {
+            if (!t.IsEnum) return null;
+
+            Stack<object> cache;
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(t, out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[t] = cache;
+                }
+            }
+            
+            object result = null;
+            lock (cache)
+            {
+                result = cache.Count <= 0 ? Enum.ToObject(t, value) : cache.Pop();
+            }
+
+            ulong gcHandle;
+            byte* b = (byte*)UnsafeUtility.PinGCObjectAndGetAddress(result, out gcHandle);
+            *(int*)(b + 16) = value;
+            UnsafeUtility.ReleaseGCObject(gcHandle);
+            
+            return result;
+        }
+        
+        public static unsafe object CreateEnumValue(Type t, long value)
+        {
+            if (!t.IsEnum) return null;
+
+            Stack<object> cache;
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(t, out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[t] = cache;
+                }
+            }
+            
+            object result = null;
+            lock (cache)
+            {
+                result = cache.Count <= 0 ? Activator.CreateInstance(t) : cache.Pop();
+            }
+            
+            ulong gcHandle;
+            byte* b = (byte*)UnsafeUtility.PinGCObjectAndGetAddress(result, out gcHandle);
+            *(long*)(b + 16) = value;
+            UnsafeUtility.ReleaseGCObject(gcHandle);
+
+            return result;
+        }
+        
+        public static unsafe object BoxValueToObject<T>(T value) where T : unmanaged
+        {
+            Stack<object> cache;
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(typeof(T), out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[typeof(T)] = cache;
+                }
+            }
+    
+            object result = null;
+            lock (cache)
+            {
+                result = cache.Count <= 0 ? default(T) : cache.Pop();
+            }
+
+            GCHandle h = GCHandle.Alloc(result, GCHandleType.Pinned);
+            IntPtr ptr = h.AddrOfPinnedObject();
+
+            T* valuePtr = (T*)(ptr).ToPointer();
+            *valuePtr = value;
+        
+            h.Free();
+
+            return result;
+        }
+
+        public static unsafe object CloneObject(object value)
+        {
+            if (value == null) return null;
+            Type t = value.GetType();
+            if (!t.IsValueType) return value;
+            
+            if(!UnsafeUtility.IsUnmanaged(t)) return ObjectClone.Clone(value);
+            
+            Stack<object> cache;
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(t, out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[t] = cache;
+                }
+            }
+    
+            object result = null;
+            lock (cache)
+            {
+                if (cache.Count > 0)
+                {
+                    result = cache.Pop();
+                    GCHandle h1 = GCHandle.Alloc(value, GCHandleType.Pinned);
+                    byte* ptr1 = (byte*)h1.AddrOfPinnedObject();
+                    
+                    GCHandle h2 = GCHandle.Alloc(result, GCHandleType.Pinned);
+                    byte* ptr2 = (byte*)h2.AddrOfPinnedObject().ToPointer();
+                    
+                    int size = UnsafeUtility.SizeOf(t);
+                    UnsafeUtility.MemCpy(ptr2, ptr1, size);
+                    
+                    h1.Free();h2.Free();
+                }
+                else
+                {
+                    result = ObjectClone.Clone(value);
+                }
+            }
+
+            return result;
+        }
+
+        public static unsafe void UnBoxObjectToValue<T>(object value, out T ret) where T : unmanaged
+        {
+            Stack<object> cache;
+            Type t = value.GetType();
+            lock (cacheDict)
+            {
+                if (!cacheDict.TryGetValue(t, out cache))
+                {
+                    cache = new Stack<object>(4);
+                    cacheDict[t] = cache;
+                }
+            }
+        
+            GCHandle h = GCHandle.Alloc(value, GCHandleType.Pinned);
+            IntPtr ptr = h.AddrOfPinnedObject();
+            T* valuePtr = (T*)(ptr).ToPointer();
+            lock (cache)
+            {
+                cache.Push(value);
+            }
+
+            fixed (T* p = &ret)
+            {
+                *p = *valuePtr; 
+            }
+            
+            h.Free();
+        }
+        
+        public static void RecycleObject(object value)
+        {
+            if (value == null) return;
+            if (!UnsafeUtility.IsUnmanaged(value.GetType())) return;
+            
+            Stack<object> cache;
+            Type t = value.GetType();
+            if (!cacheDict.TryGetValue(t, out cache))
+            {
+                 cache = new Stack<object>(8);
+                    cacheDict[t] = cache;
+                }
+    
+                // 防止泄漏
+                if (cache.Count > 32) return;
+                foreach (var item in cache)
+                {
+                    if (item == value) return;
+                }
+
+                cache.Push(value);
+        }
+
+        public static string BoxObjectInfo()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            lock (cacheDict)
+            {
+                foreach (var item in cacheDict)
+                {
+                    sb.Append(item.Key.ToString());
+                    sb.Append(":");
+                    sb.AppendLine(item.Value.Count.ToString());
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static void PushValueUnmanaged<T>(Value* evaluationStackBase, Value* evaluationStackPointer,
+            object[] managedStack, T v) where T : unmanaged
+        {
+            var o = BoxValueToObject(v);
+            PushObject(evaluationStackBase, evaluationStackPointer, managedStack, o, typeof(T));
+        }
+
+        public static T GetValueUnmanaged<T>(Value* evaluationStackBase, byte* valueStackBase, int offset = 0) where T : unmanaged
+        {
+            var ptr = evaluationStackBase + offset;
+            return *((T*)((long)valueStackBase + ptr->Value1));
+        }
+
+        public delegate void PushFieldHandle(byte* ptr, Value* evaluationStackBase, Value* evaluationStackPointer, object[] managedStack);
+        private static Dictionary<Type, PushFieldHandle> PushFieldAction = new Dictionary<Type, PushFieldHandle>();
+
+        public static void RegistPushFieldAction(Type t, PushFieldHandle a)
+        {
+            PushFieldAction.Add(t, a);
+        }
+
+        public static void PushField(Value* evaluationStackBase, Value* evaluationStackPointer,
+            object[] managedStack, object obj, FieldInfo fieldInfo)
+        {
+            Type t = fieldInfo.FieldType;
+            if (UnsafeUtility.IsUnmanaged(t))
+            {
+                ulong gcHandle;
+                byte* ptr = (byte*)UnsafeUtility.PinGCObjectAndGetAddress(obj, out gcHandle);
+                int offset = UnsafeUtility.GetFieldOffset(fieldInfo);
+                if (t == typeof(bool))
+                {
+                    var v = *(bool*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v);
+                }
+                else if (t == typeof(byte))
+                {
+                    var v = *(byte*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(sbyte))
+                {
+                    var v = *(sbyte*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(char))
+                {
+                    var v = *(char*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(short))
+                {
+                    var v = *(short*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(ushort))
+                {
+                    var v = *(ushort*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(int))
+                {
+                    var v = *(int*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(uint))
+                {
+                    var v = *(uint*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(long))
+                {
+                    var v = *(long*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(ulong))
+                {
+                    var v = *(ulong*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(float))
+                {
+                    var v = *(float*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(double))
+                {
+                    var v = *(double*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(IntPtr))
+                {
+                    var v = *(IntPtr*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(UIntPtr))
+                {
+                    var v = *(UIntPtr*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Vector3))
+                {
+                    var v = *(Vector3*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Vector2))
+                {
+                    var v = *(Vector2*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Vector4))
+                {
+                    var v = *(Vector4*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Rect))
+                {
+                    var v = *(Rect*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Color))
+                {
+                    var v = *(Color*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Color32))
+                {
+                    var v = *(Color32*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(Ray))
+                {
+                    var v = *(Ray*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t == typeof(RaycastHit))
+                {
+                    var v = *(RaycastHit*)(ptr + offset);
+                    PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                }
+                else if (t.IsEnum)
+                {
+                    var underlyingType = Enum.GetUnderlyingType(t);
+                    if (underlyingType == typeof(long))
+                    {
+                        var v = *(long*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(ulong))
+                    {
+                        var v = *(ulong*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(int))
+                    {
+                        var v = *(int*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(uint))
+                    {
+                        var v = *(uint*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(short))
+                    {
+                        var v = *(short*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(ushort))
+                    {
+                        var v = *(ushort*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                    else if (underlyingType == typeof(byte))
+                    {
+                        var v = *(byte*)(ptr + offset);
+                        PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+                    }
+                }
+                else if (PushFieldAction.TryGetValue(t, out PushFieldHandle a))
+                {
+                    var addr = ptr + offset;
+                    a?.Invoke(addr, evaluationStackBase, evaluationStackPointer, managedStack);
+                }
+                else
+                {
+                    object ret = fieldInfo.GetValue(obj);
+                    PushObject(evaluationStackBase, evaluationStackPointer, managedStack, ret, t);    
+                }
+                UnsafeUtility.ReleaseGCObject(gcHandle);
+            }
+            else
+            {
+                object ret = fieldInfo.GetValue(obj);
+                PushObject(evaluationStackBase, evaluationStackPointer, managedStack, ret, t);    
+            }
+            
+        }
+
         public static void PushObject(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, object obj, Type type)
         {
@@ -422,6 +887,7 @@ namespace IFix.Core
                 if (type.IsPrimitive)
                 {
                     UnboxPrimitive(evaluationStackPointer, obj, type);
+                    RecycleObject(obj);
                     return;
                 }
                 else if (type.IsEnum)
@@ -438,15 +904,94 @@ namespace IFix.Core
                         evaluationStackPointer->Type = ValueType.Integer;
                         evaluationStackPointer->Value1 = Convert.ToInt32(obj);
                     }
+                    RecycleObject(obj);
                     return;
                 }
             }
             int pos = (int)(evaluationStackPointer - evaluationStackBase);
             evaluationStackPointer->Value1 = pos;
+            RecycleObject(managedStack[pos]);
             managedStack[pos] = obj;
 
             evaluationStackPointer->Type = (obj != null && type.IsValueType) ?
                 ValueType.ValueType : ValueType.Object;
+        }
+
+
+        public static void PushDouble(Value* evaluationStackPointer, double d)
+        {
+            evaluationStackPointer->Type = ValueType.Double;
+            *(double*)(&evaluationStackPointer->Value1) = d;
+        }
+        
+        public static void PushInt64(Value* evaluationStackPointer, Int64 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Long;
+            *(long*)(&evaluationStackPointer->Value1) = obj;
+        }
+        
+        public static void PushUInt64(Value* evaluationStackPointer, UInt64 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Long;
+            *(UInt64*)(&evaluationStackPointer->Value1) = obj;
+        }
+        
+        public static void PushSingle(Value* evaluationStackPointer, float f)
+        {
+            evaluationStackPointer->Type = ValueType.Float;
+            *(float*)(&evaluationStackPointer->Value1) = f;
+        }
+
+        public static void PushInt32(Value* evaluationStackPointer, Int32 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Integer;
+            evaluationStackPointer->Value1 = (int)obj;
+        }
+        
+        public static void PushIntPtr(Value* evaluationStackPointer, IntPtr i)
+        {
+            PushInt64(evaluationStackPointer, i.ToInt64());
+        }
+        
+        public static void PushUIntPtr(Value* evaluationStackPointer, UIntPtr i)
+        {
+            PushUInt64(evaluationStackPointer, i.ToUInt64());
+        }
+        
+        public static void PushUInt32(Value* evaluationStackPointer, UInt32 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Integer;
+            evaluationStackPointer->Value1 = (int)obj;
+        }
+        
+        public static void PushInt16(Value* evaluationStackPointer, short us)
+        {
+            PushInt32(evaluationStackPointer, us);
+        }
+        
+        public static void PushUInt16(Value* evaluationStackPointer, ushort us)
+        {
+            PushInt32(evaluationStackPointer, us);
+        }
+
+        public static void PushChar(Value* evaluationStackPointer, char c)
+        {
+            PushInt32(evaluationStackPointer, c);
+        }
+        
+        public static void PushSByte(Value* evaluationStackPointer, sbyte sb)
+        {
+            PushInt32(evaluationStackPointer, sb);
+        }
+        
+        public static void PushByte(Value* evaluationStackPointer, byte b)
+        {
+            PushInt32(evaluationStackPointer, b);
+        }
+
+        public static void PushBoolean(Value* evaluationStackPointer, bool b)
+        {
+            PushInt32(evaluationStackPointer, b ? 1 : 0);
         }
 
         public static void UpdateReference(Value* evaluationStackBase, Value* evaluationStackPointer,
@@ -538,15 +1083,15 @@ namespace IFix.Core
 
     unsafe public struct Call
     {
-        internal Value* argumentBase;
+        public Value* argumentBase;
 
-        internal Value* evaluationStackBase;
+        public Value* evaluationStackBase;
 
-        internal object[] managedStack;
+        public object[] managedStack;
 
-        internal Value* currentTop;//用于push状态
+        public Value* currentTop;//用于push状态
 
-        internal Value** topWriteBack;
+        public Value** topWriteBack;
 
         public static Call Begin()
         {
@@ -557,20 +1102,27 @@ namespace IFix.Core
                 currentTop = stack.UnmanagedStack->Top,
                 argumentBase = stack.UnmanagedStack->Top,
                 evaluationStackBase = stack.UnmanagedStack->Base,
-                topWriteBack = &(stack.UnmanagedStack->Top)
+                topWriteBack = &(stack.UnmanagedStack->Top),
             };
         }
-
-        internal static Call BeginForStack(ThreadStackInfo stack)
+        
+        public static void BeginRef(ref Call ret)
         {
-            return new Call()
-            {
-                managedStack = stack.ManagedStack,
-                currentTop = stack.UnmanagedStack->Top,
-                argumentBase = stack.UnmanagedStack->Top,
-                evaluationStackBase = stack.UnmanagedStack->Base,
-                topWriteBack = &(stack.UnmanagedStack->Top)
-            };
+            var stack = ThreadStackInfo.Stack;
+            ret.managedStack = stack.ManagedStack;
+            ret.currentTop = stack.UnmanagedStack->Top;
+            ret.argumentBase = stack.UnmanagedStack->Top;
+            ret.evaluationStackBase = stack.UnmanagedStack->Base;
+            ret.topWriteBack = &(stack.UnmanagedStack->Top);
+        }
+        
+        public static void BeginForStack(ThreadStackInfo stack, ref Call ret)
+        {
+            ret.managedStack = stack.ManagedStack;
+            ret.currentTop = stack.UnmanagedStack->Top;
+            ret.argumentBase = stack.UnmanagedStack->Top;
+            ret.evaluationStackBase = stack.UnmanagedStack->Base;
+            ret.topWriteBack = &(stack.UnmanagedStack->Top);
         }
 
         public void PushBoolean(bool b)
@@ -712,6 +1264,22 @@ namespace IFix.Core
         {
             return new IntPtr(GetInt64(offset));
         }
+        
+        public int* GetInt32Point(int offset = 0)
+        {
+            IntPtr p = new IntPtr(GetInt64(offset));
+            int* v = (int*)((byte*)p.ToPointer() + 4);
+
+            return v;
+        }
+        
+        public long* GetInt64Point(int offset = 0)
+        {
+            IntPtr p = new IntPtr(GetInt64(offset));
+            long* v = (long*)((byte*)p.ToPointer() + 4);
+
+            return v;
+        }
 
         public void PushUIntPtr(UIntPtr i)
         {
@@ -732,6 +1300,12 @@ namespace IFix.Core
             currentTop++;
         }
 
+        public void PushValueUnmanaged<T>(T v) where T : unmanaged
+        {
+            var o = EvaluationStackOperation.BoxValueToObject(v);
+            PushObject(o);
+        }
+
         public void PushValueType(object o)
         {
             int pos = (int)(currentTop - evaluationStackBase);
@@ -745,7 +1319,14 @@ namespace IFix.Core
         {
             var ptr = argumentBase + offset;
             object ret = managedStack[ptr->Value1];
+            
+            // 因为拿出去之后就被unbox掉了所以这里可以回收
+            if (ptr->Type == ValueType.ValueType)
+            {
+                EvaluationStackOperation.RecycleObject(ret);
+            }
             managedStack[ptr - evaluationStackBase] = null;
+            
             return ret;
         }
 
@@ -780,7 +1361,97 @@ namespace IFix.Core
             EvaluationStackOperation.PushObject(evaluationStackBase, argumentBase, managedStack, obj, type);
             currentTop = argumentBase + 1;
         }
+        
+        public void PushValueUnmanagedAsResult<T>(T v) where T : unmanaged//反射专用
+        {
+            EvaluationStackOperation.PushValueUnmanaged(evaluationStackBase, argumentBase, managedStack, v);
+            currentTop = argumentBase + 1;
+        }
 
+        public void PushInt32AsResult(int value)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushUInt32AsResult(uint value)
+        {
+            EvaluationStackOperation.PushUInt32(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushUIntPtr64AsResult(UIntPtr value)
+        {
+            EvaluationStackOperation.PushUIntPtr(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushIntPtr64AsResult(IntPtr value)
+        {
+            EvaluationStackOperation.PushIntPtr(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushUInt64AsResult(ulong value)
+        {
+            EvaluationStackOperation.PushUInt64(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushInt64AsResult(long value)
+        {
+            EvaluationStackOperation.PushInt64(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushDoubleAsResult(double value)
+        {
+            EvaluationStackOperation.PushDouble(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushSingleAsResult(float value)
+        {
+            EvaluationStackOperation.PushSingle(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushInt16AsResult(short s)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, s);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushUInt16AsResult(ushort us)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, us);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushCharAsResult(char c)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, c);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushSByteAsResult(sbyte sb)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, sb);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushByteAsResult(byte b)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, b);
+            currentTop = argumentBase + 1;
+        }
+        
+        public void PushBooleanAsResult(bool b)
+        {
+            EvaluationStackOperation.PushBoolean(argumentBase, b);
+            currentTop = argumentBase + 1;
+        }
+        
         public void PushRef(int offset)
         {
             //Console.WriteLine("PushRef:" + offset + " address:" + new IntPtr(argumentBase + offset));

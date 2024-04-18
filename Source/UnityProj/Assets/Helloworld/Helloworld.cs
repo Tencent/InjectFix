@@ -11,7 +11,9 @@ using UnityEngine;
 using IFix.Core;
 using System.IO;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
 
 public static class StackClass<T> where T : unmanaged
 {
@@ -19,7 +21,7 @@ public static class StackClass<T> where T : unmanaged
 }
 
 // 跑不同仔细看文档Doc/example.md
-public class Helloworld : MonoBehaviour {
+public unsafe class Helloworld : MonoBehaviour {
 
     public static unsafe object BoxValueToObject<T>(T value) where T : unmanaged
     {
@@ -54,14 +56,38 @@ public class Helloworld : MonoBehaviour {
         }
                        
         h.Free();
-
-        ret = *valuePtr;
+        fixed (T* p = &ret)
+        {
+            *p = *valuePtr; 
+        }
     }
-    
-    
+
+    public class TestHandle
+    {
+        public int v1;
+        public long v2;
+        public Vector3 v4;
+        public short v3;
+    }
+
+    private void StructHandle(byte* ptr, Value* evaluationStackBase, Value* evaluationStackPointer,
+        object[] managedStack)
+    {
+        var v = *(AllValueStruct*)ptr;
+        EvaluationStackOperation.PushValueUnmanaged(evaluationStackBase, evaluationStackPointer, managedStack, v); 
+    }
+
+    public TestEnumValue _enumValue = TestEnumValue.t1;
     // check and load patchs
     void Start ()
     {
+        print( UnsafeUtility.IsUnmanaged(typeof(TestEnumValue)));
+        
+        KeyValuePair<int, int> l = default;
+        List<int> li = default;
+        MyStruct ms = default;
+        Vector3 z = default;
+        
         VirtualMachine.Info = (s) => UnityEngine.Debug.Log(s);
         //try to load patch for Assembly-CSharp.dll
         var patch = Resources.Load<TextAsset>("Assembly-CSharp.patch");
@@ -69,7 +95,19 @@ public class Helloworld : MonoBehaviour {
         {
             UnityEngine.Debug.Log("loading Assembly-CSharp.patch ...");
             var sw = Stopwatch.StartNew();
-            PatchManager.Load(new MemoryStream(patch.bytes));
+            var vm = PatchManager.Load(new MemoryStream(patch.bytes));
+            vm.externInvokersHandle = (MethodBase  mb, out ExternInvoker ei) =>
+            {
+                bool ret = false; 
+                var fb = new IFix.Binding.IFixBindingCaller(mb, out ret);
+                ei = fb.Invoke;
+                return ret;
+            };
+
+            EvaluationStackOperation.RegistPushFieldAction(typeof(AllValueStruct), StructHandle);
+
+
+
             UnityEngine.Debug.Log("patch Assembly-CSharp.patch, using " + sw.ElapsedMilliseconds + " ms");
         }
         //try to load patch for Assembly-CSharp-firstpass.dll
@@ -83,9 +121,10 @@ public class Helloworld : MonoBehaviour {
         }
 
         test();
+        
     }
 
-    struct MyStruct
+    public struct MyStruct
     {
         public int x;
         public int y;
@@ -100,7 +139,7 @@ public class Helloworld : MonoBehaviour {
 
     private void CallObject(object o)
     {
-        Vector3 newPos;// = (Vector3)o;
+        Vector3 newPos = new Vector3();// = (Vector3)o;
         UnBoxObjectToValue(o, out newPos);
     }
 
@@ -112,28 +151,20 @@ public class Helloworld : MonoBehaviour {
     
     Vector3 pos = new Vector3(1, 2, 3);
     MyStruct s = new MyStruct(1, 1);
-    private unsafe void Update()
+    
+    Calculator calc;
+    private void Update()
     {
-        for (int i = 0; i < 1000; i++)
-        {
-            object v = BoxValueToObject(pos);//pos;
-            CallObject(v);
-        }
-        
-        for (int i = 0; i < 1000; i++)
-        {
-            object sv = BoxValueToObject(s);//s;
-            CallMyObject(sv);
-        }
-
+        if(calc == null) calc = new Calculator();
+        calc.Add(10, 9);
     }
 
-    [IFix.Patch]
+    //[IFix.Patch]
     void test()
     {
-        var calc = new IFix.Test.Calculator();
+        if(calc == null) calc = new Calculator();
         //test calc.Add
-        UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
+        UnityEngine.Debug.Log("10 + 9 = " +calc.Add(10, 9)); 
         //test calc.Sub
         UnityEngine.Debug.Log("10 - 2 = " + calc.Sub(10, 2));
 

@@ -11,13 +11,13 @@ namespace IFix.Core
     using System;
     using System.Linq.Expressions;
 
-    public class ObjectClone
+    public static class ObjectClone
     {
-        MethodInfo memberwiseClone;
+        static MethodInfo memberwiseClone;
         //Func<object> ptrToMemberwiseClone;
         //FieldInfo target;
-        //Func<object, object> cloneFunc;
-        public ObjectClone()
+        static Func<object, object> cloneFunc;
+        static ObjectClone()
         {
             memberwiseClone = typeof(object).GetMethod("MemberwiseClone", BindingFlags.Instance
                 | BindingFlags.NonPublic);
@@ -28,16 +28,16 @@ namespace IFix.Core
             //    | BindingFlags.NonPublic);
             //var p = Expression.Parameter(typeof(object), "obj");
             //var mce = Expression.Call(p, methodInfo);
-            //cloneFunc = Expression.Lambda<Func<object, object>>(mce, p).Compile();//TODO: 需要用到jit么？
+            cloneFunc = (Func<object, object>)Delegate.CreateDelegate(typeof(Func<object, object>), memberwiseClone); //Expression.Lambda<Func<object, object>>(mce, p).Compile();//TODO: 需要用到jit么？
         }
 
-        public object Clone(object obj)
+        public static object Clone(object obj)
         {
-            return memberwiseClone.Invoke(obj, null);//1.79s
+            //return memberwiseClone.Invoke(obj, null);//1.79s
             //target.SetValue(ptrToMemberwiseClone, obj);
             //return ptrToMemberwiseClone();//1.17s
             //return ((Func<object>)Delegate.CreateDelegate(typeof(Func<object>), obj, memberwiseClone))();//3.05s
-            //return cloneFunc(obj);//0.06s
+            return cloneFunc(obj);//0.06s
         }
     }
 }

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Tencent is pleased to support the open source community by making InjectFix available.
  * Copyright (C) 2019 THL A29 Limited, a Tencent company.  All rights reserved.
  * InjectFix is licensed under the MIT License, except for the third-party components listed in the file 'LICENSE' which may be subject to their corresponding license terms. 
@@ -947,18 +947,18 @@ namespace IFix.Editor
         {
             ILFixCodeGen gen = new ILFixCodeGen();
             gen.path = "Assets/IFix/Binding/";
-            ILFixCodeGen.ClearMethod();
+            gen.methodCount = 0;
+            gen.ClearMethod();
             gen.DeleteAll();
             // custom type
-            gen.Generate(typeof(List<int>));
+            //gen.Generate(typeof(List<int>));
             //gen.Generate(typeof(string));
-            
+
             // search by dll caller
-            var methods = FindAllMethod(typeof(Helloworld).Assembly);
-            foreach (var item in methods)
-            {
-                gen.GenerateMethod(item);
-            }
+            List<Type> initObjList = new List<Type>();
+            var methods = FindAllMethod(typeof(Helloworld).Assembly, initObjList);
+            gen.GenAll(methods);
+            
         }
 
         public bool Generate(Type t)
@@ -971,22 +971,40 @@ namespace IFix.Editor
             return false;
         }
 
-        public static List<MethodBase> FindAllMethod(Assembly assembly)
+        public static List<MethodBase> FindAllMethod(Assembly assembly, List<Type> initTypeList)
         {
             HashSet<MethodBase> result = new HashSet<MethodBase>();
 
             // 遍历程序集中的所有类型
             foreach (var type in assembly.GetTypes())
             {
+                if (type.FullName == "IFix.ILFixDynamicMethodWrapper")
+                {
+                    throw new Exception("You can't gen binding when dll is injected");
+                }
+
                 if (type.IsSubclassOf(typeof(Delegate)))
                     continue;
                 // 遍历类型中的所有方法
                 var methods = type.GetMethods(BindingFlags.Public 
                                               | BindingFlags.DeclaredOnly | BindingFlags.NonPublic 
                                               | BindingFlags.Instance | BindingFlags.Static);
-                foreach (var methodInfo in methods)
+
+                var constructors = type.GetConstructors(BindingFlags.Public
+                                     | BindingFlags.DeclaredOnly | BindingFlags.NonPublic
+                                     | BindingFlags.Instance | BindingFlags.Static);
+
+                List<MethodBase> mbList = new List<MethodBase>();
+                mbList.AddRange(methods);
+                mbList.AddRange(constructors);
+                
+                foreach (var methodInfo in mbList)
                 {
-                    if(methodInfo.ReflectedType.Namespace.Contains("IFix")) continue;
+                    // if (methodInfo == null) continue;
+                    // if(methodInfo.ReflectedType.ReflectedType == null) continue;
+                    // if(string.IsNullOrEmpty(methodInfo.ReflectedType.Namespace)) continue;
+                    if(methodInfo.ReflectedType.Namespace == "IFix.Core") continue;
+                    if(methodInfo.ReflectedType.Namespace == "IFix.Binding") continue;
                     // 输出方法的名称
                     //UnityEngine.Debug.Log($"方法: {ILFixCodeGen.GetUniqueStringForMethod(methodInfo)}");
 
@@ -1026,13 +1044,44 @@ namespace IFix.Editor
                                 ilIndex += 4;
 
                                 // 解析元数据标记获取调用的方法信息
-                                var calledMethod = methodInfo.Module.ResolveMethod(metadataToken);
-                                if (!result.Contains(calledMethod))
+                                try
                                 {
-                                    result.Add(calledMethod);
-                                    // 输出调用的方法信息
-                                    //UnityEngine.Debug.Log($"    调用方法: {ILFixCodeGen.GetUniqueStringForMethod(calledMethod)}");
+                                    var calledMethod = methodInfo.Module.ResolveMethod(metadataToken);
+                                    if (!result.Contains(calledMethod))
+                                    {
+                                        if (calledMethod is ConstructorInfo)
+                                        {
+                                            if (!calledMethod.ReflectedType.IsValueType)
+                                            {
+                                                //UnityEngine.Debug.Log($"class ctor:{calledMethod.ReflectedType}, {calledMethod.Name}");
+                                            }
+                                            else if(calledMethod.IsPublic)
+                                            {
+                                                result.Add(calledMethod);
+                                            }
+                                            // class对象的构造函数不处理
+                                        }
+                                        else
+                                        {
+                                            result.Add(calledMethod);
+                                        }
+                                   
+                                        // 输出调用的方法信息
+                                        //UnityEngine.Debug.Log($"    调用方法: {ILFixCodeGen.GetUniqueStringForMethod(calledMethod)}");
+                                    }
                                 }
+                                catch (Exception e)
+                                {
+                                    UnityEngine.Debug.LogError(e);
+                                }
+
+                            }
+                            else if (opcode == OpCodes.Initobj)
+                            {
+                                int metadataToken = BitConverter.ToInt32(ilBytes, ilIndex);
+                                ilIndex += 1;
+                                var operandType = methodInfo.Module.ResolveType(metadataToken);
+                                initTypeList.Add(operandType);
                             }
 
                             // 检查是否有操作数，并根据操作码的操作数类型移动索引
