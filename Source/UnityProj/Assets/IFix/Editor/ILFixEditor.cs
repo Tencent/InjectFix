@@ -955,23 +955,25 @@ namespace IFix.Editor
             //gen.Generate(typeof(string));
 
             // search by dll caller
-            List<Type> initObjList = new List<Type>();
-            var methods = FindAllMethod(typeof(Helloworld).Assembly, initObjList);
-            gen.GenAll(methods);
-            
-        }
-
-        public bool Generate(Type t)
-        {
-            if (!t.IsGenericTypeDefinition && (t != typeof(YieldInstruction) && t != typeof(Coroutine))
-                || (t.BaseType != null && t.BaseType == typeof(System.MulticastDelegate)))
+            List<MethodBase> mbList = new List<MethodBase>();
+            var asses = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var assembly in injectAssemblys)
             {
+                foreach (var ass in asses)
+                {
+                    if (!(ass.ManifestModule is System.Reflection.Emit.ModuleBuilder)
+                        && (ass.GetName().Name == assembly))
+                    {
+                        UnityEngine.Debug.Log( string.Format("Scan {0} assembly", ass.GetName().Name));
+                        mbList.AddRange(FindAllMethod(ass));
+                    }
+                }
             }
-
-            return false;
+            
+            gen.GenAll(mbList);
         }
 
-        public static List<MethodBase> FindAllMethod(Assembly assembly, List<Type> initTypeList)
+        public static List<MethodBase> FindAllMethod(Assembly assembly)
         {
             HashSet<MethodBase> result = new HashSet<MethodBase>();
 
@@ -1000,13 +1002,16 @@ namespace IFix.Editor
                 
                 foreach (var methodInfo in mbList)
                 {
-                    // if (methodInfo == null) continue;
-                    // if(methodInfo.ReflectedType.ReflectedType == null) continue;
-                    // if(string.IsNullOrEmpty(methodInfo.ReflectedType.Namespace)) continue;
-                    if(methodInfo.ReflectedType.Namespace == "IFix.Core") continue;
-                    if(methodInfo.ReflectedType.Namespace == "IFix.Binding") continue;
+                    if (methodInfo == null) continue;
+                    if(methodInfo.ReflectedType == null) continue;
+                    if (!string.IsNullOrEmpty(methodInfo.ReflectedType.Namespace))
+                    {
+                        if(methodInfo.ReflectedType.Namespace == "IFix.Core") continue;
+                        if(methodInfo.ReflectedType.Namespace == "IFix.Binding") continue;
+                        if(methodInfo.ReflectedType.Namespace.Contains("UnityEditor")) continue;
+                    }
                     // 输出方法的名称
-                    //UnityEngine.Debug.Log($"方法: {ILFixCodeGen.GetUniqueStringForMethod(methodInfo)}");
+
 
                     // 获取方法体
                     var methodBody = methodInfo.GetMethodBody();
@@ -1041,12 +1046,13 @@ namespace IFix.Editor
                             {
                                 // 读取调用的方法的元数据标记
                                 int metadataToken = BitConverter.ToInt32(ilBytes, ilIndex);
-                                ilIndex += 4;
+                                //ilIndex += 4;
 
                                 // 解析元数据标记获取调用的方法信息
                                 try
                                 {
                                     var calledMethod = methodInfo.Module.ResolveMethod(metadataToken);
+                                    //UnityEngine.Debug.Log($"find method: {calledMethod.ReflectedType.FullName}.{calledMethod.Name}");
                                     if (!result.Contains(calledMethod))
                                     {
                                         if (calledMethod is ConstructorInfo)
@@ -1063,25 +1069,25 @@ namespace IFix.Editor
                                         }
                                         else
                                         {
-                                            result.Add(calledMethod);
+                                            // struct的instance方法很难用无GC方法创建委托，暂时不管，以后可以用 直接调用方法
+                                            if (!calledMethod.IsStatic && calledMethod.ReflectedType.IsValueType)
+                                            {
+                                            }
+                                            else
+                                            {
+                                                result.Add(calledMethod);
+                                            }
                                         }
                                    
                                         // 输出调用的方法信息
                                         //UnityEngine.Debug.Log($"    调用方法: {ILFixCodeGen.GetUniqueStringForMethod(calledMethod)}");
                                     }
                                 }
-                                catch (Exception e)
+                                catch //(Exception e)
                                 {
-                                    UnityEngine.Debug.LogError(e);
+                                    //UnityEngine.Debug.LogError(e);
                                 }
 
-                            }
-                            else if (opcode == OpCodes.Initobj)
-                            {
-                                int metadataToken = BitConverter.ToInt32(ilBytes, ilIndex);
-                                ilIndex += 1;
-                                var operandType = methodInfo.Module.ResolveType(metadataToken);
-                                initTypeList.Add(operandType);
                             }
 
                             // 检查是否有操作数，并根据操作码的操作数类型移动索引

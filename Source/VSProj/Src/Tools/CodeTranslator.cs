@@ -9,15 +9,8 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using FieldAttributes = Mono.Cecil.FieldAttributes;
-using MethodAttributes = Mono.Cecil.MethodAttributes;
-using ParameterAttributes = Mono.Cecil.ParameterAttributes;
-using PropertyAttributes = Mono.Cecil.PropertyAttributes;
-using TypeAttributes = Mono.Cecil.TypeAttributes;
 
 namespace IFix
 {
@@ -2325,19 +2318,6 @@ namespace IFix
             itfBridgeType.Methods.Add(targetMethod);
         }
 
-        public static bool IsUnmanaged(TypeReference t)
-        {
-            if (!t.IsValueType) return false;
-
-            TypeDefinition typeDef = t.Resolve();
-            foreach (var f in typeDef.Fields)
-            {
-                if(f.IsStatic) continue;
-                if (!IsUnmanaged(f.FieldType)) return false;
-            }
-
-            return true;
-        }
 
         /// <summary>
         /// 获取一个方法的适配器
@@ -2537,14 +2517,13 @@ namespace IFix
                             emitLdarg(instructions, ilProcessor, i + 1);
                             emitLoadRef(instructions, paramRawType);
                             MethodReference push;
-
                             if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                             {
                                 instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
                             }
                             else
                             {
-                                if (IsUnmanaged(paramRawType))
+                                if (paramRawType.IsValueType)
                                 {
                                     var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
                                     instructions.Add(Instruction.Create(OpCodes.Callvirt,
@@ -2793,12 +2772,12 @@ namespace IFix
             }
             else
             {
-                // if (type.IsValueType)
-                // {
-                //     instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
-                //     instructions.Add(Instruction.Create(OpCodes.Box, type));
-                // }
-                // else
+                if (type.IsValueType)
+                {
+                    instructions.Add(Instruction.Create(OpCodes.Ldobj, type));
+                    instructions.Add(Instruction.Create(OpCodes.Box, type));
+                }
+                else
                 {
                     instructions.Add(Instruction.Create(OpCodes.Ldind_Ref));
                 }

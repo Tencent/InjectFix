@@ -2,20 +2,17 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using IFix.Utils;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace IFix.Editor
 {
     public class ILFixCodeGen
     {
         #region static
-
         public Dictionary<string, Tuple<int, string>> delegateDict = new Dictionary<string, Tuple<int, string>>();
         public Dictionary<string, Tuple<int, string>> ctorCache = new Dictionary<string, Tuple<int, string>>();
         public void ClearMethod()
@@ -28,6 +25,31 @@ namespace IFix.Editor
         {
             bool result = true;
             var key = TypeNameUtils.GetUniqueMethodName(mi);
+            
+            if (string.IsNullOrEmpty(key))
+            {
+                ret = "";
+                return true;
+            }
+
+            if (key.Contains("!"))
+            {
+                ret = "";
+                return true;
+            }
+            
+            if(key.Contains(">d__"))
+            {
+                ret = "";
+                return true;
+            }
+
+            if (key.Contains("<>"))
+            {
+                ret = "";
+                return true;
+            }
+            
             if (!delegateDict.ContainsKey(key))
             {
                 result = false;
@@ -70,7 +92,7 @@ namespace IFix.Editor
                 ? (method as MethodInfo).ReturnType
                 : (method as ConstructorInfo).ReflectedType;
             
-            return string.Format("delegate {0} IFixCallDel{2}({1});", TypeNameUtils.SimpleType(retType), parameterTypeNames, methodCount);
+            return string.Format("public delegate {0} IFixCallDel{2}({1});", TypeNameUtils.SimpleType(retType), parameterTypeNames, methodCount);
         }
 
         #endregion
@@ -256,7 +278,9 @@ namespace IFix.Editor
             {
                 return "call.GetUIntPtr";
             }
-    
+
+            if (t.IsGenericParameter) return "";
+            
             if (t.IsEnum)
             {
                 var underlyingType = Enum.GetUnderlyingType(t);
@@ -361,11 +385,12 @@ namespace IFix.Editor
             {
                 return "call.PushIntPtr64AsResult((IntPtr)result);";
             }
-            else if(UnsafeUtility.IsUnmanaged(t))
+            else if(UnsafeUtility.IsUnmanaged(t)
+                    && Nullable.GetUnderlyingType(t) == null )
             {
                 return "call.PushValueUnmanagedAsResult(result);";
             }
-            return "call.PushObjectAsResult(result, result.GetType());";
+            return $"call.PushObjectAsResult(result, typeof({TypeNameUtils.SimpleType(t)}));";
         }
 
         
@@ -394,6 +419,15 @@ namespace IFix.Editor
             if (fmt.EndsWith("{")) indent++;
         }
 
+        StreamWriter BeginNewPart()
+        {
+            string bindingFile = path + "IFixBindingCaller.New.cs";
+            
+            StreamWriter file = new StreamWriter(bindingFile, false, Encoding.UTF8);
+            file.NewLine = NewLine;
+            return file;
+        }
+
         private void WriteHead(StreamWriter file)
         {
             Write(file, "using System;");
@@ -409,42 +443,97 @@ namespace IFix.Editor
 
             Write(file, "namespace IFix.Binding");
             Write(file, "{");
-            Write(file, "public unsafe class IFixBindingCaller");
+            Write(file, "public unsafe partial class IFixBindingCaller");
             Write(file, "{");
             Write(file, "public ExternInvoker Invoke = null;");
             Write(file, "private MethodBase method;");
             Write(file, "private Delegate caller = null;");
+            Write(file, "#if DEBUG");
+            Write(file, "private string methodName;");
+            Write(file, "#endif");
+            Write(file, "");
+            
+            Write(file, "void PopEvaluationStack(ref Call call, bool pushResult, int start, int end)");
+
+            Write(file, "{");
+            Write(file, "Value* pArg = call.argumentBase;");
+            Write(file, "Value* evaluationStackBase = call.evaluationStackBase;");
+            Write(file, "object[] managedStack = call.managedStack;");
+
+            Write(file, "if (pushResult) pArg++;");
+            Write(file, "for (int i = start; i < end; i++)");
+            Write(file, "{");
+            Write(file, "EvaluationStackOperation.RecycleObject(managedStack[pArg - evaluationStackBase]);");
+            Write(file, "managedStack[pArg - evaluationStackBase] = null;");
+            Write(file, "pArg++;");
+            Write(file, "}");
+            Write(file, "}");
         }
 
         private void End(StreamWriter file)
         {
+            Write(file, "}");
+            Write(file, "}");
+            file.Flush();
+            file.Close();
+
+            indent = 0;
+            file = BeginNewPart();
+            Write(file, "namespace IFix.Binding");
+            Write(file, "{");
+            Write(file, "using System;");
+            Write(file, "using System.Reflection;");
+            Write(file, "using IFix.Utils;");
+            Write(file, "using System.Collections.Generic;");
+            Write(file, "using IFix.Core;");
+
+            Write(file, "public unsafe partial class IFixBindingCaller");
+            Write(file, "{");
+            Write(file, "private static Dictionary<string, Tuple<int, bool>> delDict = new Dictionary<string, Tuple<int, bool>> {");
+            foreach (var item in delegateDict)
+            {
+                Write(file, "[\"{0}\"] = new Tuple<int, bool>({1}, true),", item.Key, item.Value.Item1);
+            }
+            
+            foreach (var item in ctorCache)
+            {
+                Write(file, "[\"{0}\"] = new Tuple<int, bool>({1}, false),", item.Key, item.Value.Item1);
+            }
+
+            Write(file, "};");
+            
             Write(file, "public IFixBindingCaller(MethodBase method, out bool isSuccess)");
             Write(file, "{");
             Write(file, "this.method = method;");
             Write(file, "isSuccess = false;");
-            Write(file, "object methodUniqueStr = string.Intern(TypeNameUtils.GetUniqueMethodName(method));");
+            Write(file, "#if DEBUG");
+            Write(file, "methodName = $\"{method.ReflectedType.FullName}.{method.Name}\";");
+            Write(file, "#endif");
+            Write(file, "string methodUniqueStr = string.Intern(TypeNameUtils.GetUniqueMethodName(method));");
             Write(file, "");
-            foreach (var item in delegateDict)
-            {
-                Write(file, $"if (methodUniqueStr == \"{item.Key}\")");
-                Write(file, "{");
-                Write(file, $"Invoke = Invoke{item.Value.Item1};");
-                Write(file, "isSuccess = true;");
-                Write(file, "return;");
-                Write(file, "}");
-            }
 
+            Write(file, $"if (methodUniqueStr == \"\")");
+            Write(file, "{");
+            Write(file, "isSuccess = false;");
+            Write(file, "return;");
+            Write(file, "}");
+
+            Write(file, "if (delDict.TryGetValue(methodUniqueStr, out Tuple<int, bool> info))");
+            Write(file, "{");
+                
+            Write(file, "var invokeMethod = typeof(IFixBindingCaller).GetMethod($\"Invoke{info.Item1}\");");
+            Write(file, "Invoke =  (ExternInvoker)Delegate.CreateDelegate(typeof(ExternInvoker), this, invokeMethod);");
+            Write(file, "if (info.Item2)");
+            Write(file, "{");
+            Write(file, "var delType = Type.GetType($\"IFix.Binding.IFixBindingCaller+IFixCallDel{info.Item1}\");");
+            Write(file, "caller = Delegate.CreateDelegate(delType, (MethodInfo)method);");
+            Write(file, "}");
+
+            Write(file, "isSuccess = true;");
+            Write(file, "return;");
+            Write(file, "}");
             Write(file, "");
-            foreach (var item in ctorCache)
-            {
-                Write(file, $"if (methodUniqueStr == (object)\"{item.Key}\")");
-                Write(file, "{");
-                Write(file, $"Invoke = Invoke{item.Value.Item1};");
-                Write(file, "isSuccess = true;");
-                Write(file, "return;");
-                Write(file, "}");
-            }
-
+            
             Write(file, "}");
 
             Write(file, "}");
@@ -458,7 +547,7 @@ namespace IFix.Editor
             Write(file, "try");
             Write(file, "{");
             Write(file, "#if DEBUG");
-            Write(file, "Profiler.BeginSample(method.Name);");
+            Write(file, "Profiler.BeginSample(methodName);");
             Write(file, "#endif");
         }
 
@@ -470,34 +559,25 @@ namespace IFix.Editor
             Write(file, "#if DEBUG");
             Write(file, "Profiler.EndSample();");
             Write(file, "#endif");
-            
-            Write(file, "Value* pArg = call.argumentBase;");
-            Write(file, "if (pushResult) pArg++;");
-            Write(file, "var managedStack = call.managedStack;");
-            Write(file, $"for (int i = {paramStart}; i < {paramCount}; i++)");
-            Write(file, "{");
-            Write(file, "EvaluationStackOperation.RecycleObject(managedStack[pArg - call.evaluationStackBase]);");
-            Write(file, "managedStack[pArg - call.evaluationStackBase] = null;");
-            Write(file, "pArg++;");
-            Write(file, "}");
-
+            Write(file, $"PopEvaluationStack(ref call, pushResult, {paramStart}, {paramCount});");
             Write(file, "}");
         }
 
-        private void WriteMethodCaller(MethodBase mb, StreamWriter file)
+        private bool WriteMethodCaller(MethodBase mb, StreamWriter file)
         {
             if (mb is MethodInfo)
             {
                 string delegateStr;
                 if (TryGetDelegateStr((MethodInfo)mb, out delegateStr))
                 {
-                    return;
+                    return false;
                 }
                 Write(file, delegateStr);
             }
             else if (mb is ConstructorInfo)
             {
                 var cr = TypeNameUtils.GetUniqueMethodName(mb);
+                if (cr == "") return false;
                 if (!ctorCache.ContainsKey(cr))
                 {
                     ctorCache.Add(cr, new Tuple<int, string>(methodCount, MethodInfoToDelegate(mb)));
@@ -537,13 +617,15 @@ namespace IFix.Editor
                     Write(file, "var a{0} = ({1}){3}({2});", n, TypeNameUtils.SimpleType(p.ParameterType) ,n, FuncGetArg(p));
                 }
                 Write(file, "result = new {0}({1});", TypeNameUtils.SimpleType(mb.ReflectedType), FuncCall(mb));
-                if (UnsafeUtility.IsUnmanaged(mb.ReflectedType))
+
+                if (UnsafeUtility.IsUnmanaged(mb.ReflectedType) 
+                    && Nullable.GetUnderlyingType(mb.ReflectedType) == null )
                 {
                     Write(file, "call.PushValueUnmanagedAsResult(result);");
                 }
                 else
                 {
-                    Write(file, "call.PushObjectAsResult(result, result.GetType());");
+                    Write(file, $"call.PushObjectAsResult(result, typeof({TypeNameUtils.SimpleType(mb.ReflectedType)}));");
                 }
 
 
@@ -565,13 +647,16 @@ namespace IFix.Editor
                 {
                     var p = pars[n];
                     var idx = mb.IsStatic ? n : n + 1;
-                    Write(file, "var a{0} = ({1}){3}({2});", idx, TypeNameUtils.SimpleType(p.ParameterType) , idx, FuncGetArg(p));
+                    if (!p.IsOut)
+                    {
+                        Write(file, "var a{0} = ({1}){3}({2});", idx, TypeNameUtils.SimpleType(p.ParameterType) , idx, FuncGetArg(p));
+                    }
+                    else
+                    {
+                        Write(file, "{1} a{0};", idx, TypeNameUtils.SimpleType(p.ParameterType));
+                    }
                 }
                 
-                Write(file, "if (caller == null)");
-                Write(file, "{");
-                Write(file, "caller = Delegate.CreateDelegate(typeof(IFixCallDel{0}), (MethodInfo)method);", methodCount);
-                Write(file, "}");
                 if (mi.ReturnType != typeof(void))
                 {
                     Write(file, "result = ((IFixCallDel{1})caller)({0});", FuncCall(mi), methodCount);
@@ -587,14 +672,29 @@ namespace IFix.Editor
                 {
                     var p = pars[n];
                     var idx = mb.IsStatic ? n : n + 1;
-                    if(p.ParameterType.IsByRef)
-                        Write(file, "call.UpdateReference({0}, a{0}, vm, typeof({1}));", idx, TypeNameUtils.SimpleType(p.ParameterType));
+                    if (p.ParameterType.IsByRef)
+                    {
+                        Type t = p.ParameterType;
+                        if (UnsafeUtility.IsUnmanaged(t) 
+                            && Nullable.GetUnderlyingType(t) == null)
+                        {
+                            Write(file, "call.UpdateReference({0}, EvaluationStackOperation.BoxValueToObject(a{0}), vm, typeof({1}));", idx, TypeNameUtils.SimpleType(p.ParameterType));
+                        }
+                        else
+                        {
+                            Write(file, "call.UpdateReference({0}, a{0}, vm, typeof({1}));", idx, TypeNameUtils.SimpleType(p.ParameterType));
+                        }
+
+                    }
+
+
                 }
             }
 
             WriteFinaly(file, paramStart, paramCount);
             Write(file, "}");
             Write(file, "");
+            return true;
         }
 
         #endregion
@@ -619,8 +719,8 @@ namespace IFix.Editor
             
             for (int i = 0, imax = mbList.Count; i < imax; i++)
             {
-                WriteMethodCaller(mbList[i], file);
-                methodCount++;
+                if(WriteMethodCaller(mbList[i], file))
+                    methodCount++;
             }
             
             End(file);
@@ -630,6 +730,11 @@ namespace IFix.Editor
 
         StreamWriter Begin()
         {
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
             string bindingFile = path + "IFixBindingCaller.cs";
             
             StreamWriter file = new StreamWriter(bindingFile, false, Encoding.UTF8);
@@ -673,19 +778,9 @@ namespace IFix.Editor
 
         #region member
 
-        class PropPair
-        {
-            public string get = "null";
-            public string set = "null";
-            public bool isInstance = true;
-        }
-
         public string path;
         public int methodCount = 0;
         int indent = 0;
-        HashSet<string> funcname = new HashSet<string>();
-        Dictionary<string, PropPair> propname = new Dictionary<string, PropPair>();
-        Dictionary<string, bool> directfunc = new Dictionary<string, bool>();
 
         #endregion
     }

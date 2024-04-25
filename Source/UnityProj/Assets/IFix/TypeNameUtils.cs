@@ -111,6 +111,7 @@ namespace IFix.Utils
         public static string GenericBaseName(Type t)
         {
             string n = t.FullName;
+            if (string.IsNullOrEmpty(n)) return "!";
             if (n.IndexOf('[') > 0)
             {
                 n = n.Substring(0, n.IndexOf('['));
@@ -121,16 +122,39 @@ namespace IFix.Utils
 
         public static string GetUniqueMethodName(MethodBase method)
         {
+            Type retType = (method is MethodInfo)
+                ? (method as MethodInfo).ReturnType
+                : (method as ConstructorInfo).ReflectedType;
+            
+            if (!retType.IsVisible)
+            {
+                return "";
+            }
+
+            if (string.IsNullOrEmpty(retType.FullName)) return "";
+            string ctor = "";
             List<string> args = new List<string>();
             var parameters = method.GetParameters();
             if (!method.IsStatic && !(method is ConstructorInfo))
             {
+                if (!method.ReflectedType.IsVisible)
+                {
+                    return "";
+                }
                 args.Add( TypeNameUtils.SimpleType(method.ReflectedType));
+            }
+            else if (method is ConstructorInfo)
+            {
+                ctor = "ctor";
             }
 
             for (int i = 0, imax = parameters.Length; i<imax; i++)
             {
                 var p = parameters[i];
+                if (!p.ParameterType.IsVisible)
+                {
+                    return ""; 
+                }
                 if (p.ParameterType.IsByRef && p.IsOut)
                     args.Add("out " + TypeNameUtils.SimpleType(p.ParameterType));
                 else if (p.ParameterType.IsByRef)
@@ -139,12 +163,8 @@ namespace IFix.Utils
                     args.Add(TypeNameUtils.SimpleType(p.ParameterType));
             }
             var parameterTypeNames = string.Join(",", args);
-
-            Type retType = (method is MethodInfo)
-                ? (method as MethodInfo).ReturnType
-                : (method as ConstructorInfo).ReflectedType;
             
-            return string.Format("{0} ({1})", TypeNameUtils.SimpleType(retType), parameterTypeNames);
+            return string.Format("{0} {2}({1})", TypeNameUtils.SimpleType(retType), parameterTypeNames, ctor);
         }
 
         static string TypeDecl(Type t)
@@ -153,6 +173,7 @@ namespace IFix.Utils
             if (t.IsGenericType)
             {
                 string ret = GenericBaseName(t);
+                if (string.IsNullOrEmpty(ret)) return "";
 
                 string gs = "";
                 gs += "<";
