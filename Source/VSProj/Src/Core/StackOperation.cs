@@ -236,6 +236,7 @@ namespace IFix.Core
                         //VirtualMachine._Info("set1 " + val.GetType() + " to " + fieldInfo + " of " + root.GetType()
                         //    + ", root.hc = " + root.GetHashCode());
                         fieldInfo.SetValue(root, val);
+                        EvaluationStackOperation.RecycleObject(val);
                     }
                 }
             }
@@ -253,6 +254,7 @@ namespace IFix.Core
                 else
                 {
                     fieldInfo.SetValue(parent, val);
+                    EvaluationStackOperation.RecycleObject(val);
                 }
 
                 //VirtualMachine._Info("set2 " + val.GetType() + " to " + fieldInfo + " of " + parent.GetType());
@@ -970,6 +972,7 @@ namespace IFix.Core
                                 //    + managedStack[evaluationStackPointer->Value1]);
                                 //VirtualMachine._Info("update ref obj idx: " + evaluationStackPointer->Value1);
                                 fieldInfo.SetValue(managedStack[evaluationStackPointer->Value1], obj);
+                                EvaluationStackOperation.RecycleObject(obj);
                             }
                         }
                         else
@@ -996,6 +999,7 @@ namespace IFix.Core
                         else
                         {
                             fieldInfo.SetValue(null, obj);
+                            EvaluationStackOperation.RecycleObject(obj);
                         }
                     }
                     else
