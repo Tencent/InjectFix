@@ -2226,7 +2226,10 @@ namespace IFix
                 targetMethod.Body.Variables.Add(localTaskAwaiter);
                 var localAsync = new VariableDefinition(awaitUnsafeOnCompletedMethods[j].DeclaringType);
                 targetMethod.Body.Variables.Add(localAsync);
-                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localAsync));
+                if (awaitUnsafeOnCompletedMethods[j].DeclaringType.IsValueType)
+                    instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localAsync));
+                else
+                    instructions.Add(Instruction.Create(OpCodes.Ldloc_S, localAsync));
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localTaskAwaiter));
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
                 instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(awaitUnsafeOnCompletedMethods[j].GetElementMethod(), ((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0], itfBridgeType)));
