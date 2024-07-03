@@ -276,7 +276,6 @@ namespace IFix
 
             if (callee.Name == "AwaitUnsafeOnCompleted")
             {
-                
                 if (!awaitUnsafeOnCompletedMethods.Any(m => ((GenericInstanceMethod)callee).GenericArguments[0] == ((GenericInstanceMethod)m).GenericArguments[0]))
                 {
                     awaitUnsafeOnCompletedMethods.Add(callee);
@@ -2215,27 +2214,39 @@ namespace IFix
 
         void EmitRefAwaitUnsafeOnCompletedMethod()
         {
-            MethodDefinition targetMethod = new MethodDefinition("RefAwaitUnsafeOnCompleteMethod",
-                Mono.Cecil.MethodAttributes.Public, assembly.MainModule.TypeSystem.Void);
-            var instructions = targetMethod.Body.Instructions;
-            var localBridge = new VariableDefinition(itfBridgeType);
-            targetMethod.Body.Variables.Add(localBridge);
-            for (int j = 0;j < awaitUnsafeOnCompletedMethods.Count;j++)
+            int m = 0;
+            int rm = 0;
+            while (m < awaitUnsafeOnCompletedMethods.Count) 
             {
-                var localTaskAwaiter = new VariableDefinition(((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0]);
-                targetMethod.Body.Variables.Add(localTaskAwaiter);
-                var localAsync = new VariableDefinition(awaitUnsafeOnCompletedMethods[j].DeclaringType);
-                targetMethod.Body.Variables.Add(localAsync);
-                if (awaitUnsafeOnCompletedMethods[j].DeclaringType.IsValueType)
-                    instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localAsync));
-                else
-                    instructions.Add(Instruction.Create(OpCodes.Ldloc_S, localAsync));
-                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localTaskAwaiter));
-                instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
-                instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(awaitUnsafeOnCompletedMethods[j].GetElementMethod(), ((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0], itfBridgeType)));
+                MethodDefinition targetMethod = new MethodDefinition("RefAwaitUnsafeOnCompleteMethod" + (rm++),
+                    Mono.Cecil.MethodAttributes.Public, assembly.MainModule.TypeSystem.Void);
+                var instructions = targetMethod.Body.Instructions;
+
+                var localBridge = new VariableDefinition(itfBridgeType);
+                targetMethod.Body.Variables.Add(localBridge);
+
+                int j = m;
+                for (; j < awaitUnsafeOnCompletedMethods.Count && j - m < 128; j++)
+                {
+                    var localTaskAwaiter = new VariableDefinition(((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0]);
+                    targetMethod.Body.Variables.Add(localTaskAwaiter);
+                    var localAsync = new VariableDefinition(awaitUnsafeOnCompletedMethods[j].DeclaringType);
+                    targetMethod.Body.Variables.Add(localAsync);
+
+                    if (awaitUnsafeOnCompletedMethods[j].DeclaringType.IsValueType)
+                        instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localAsync));
+                    else
+                        instructions.Add(Instruction.Create(OpCodes.Ldloc_S, localAsync));
+                    instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localTaskAwaiter));
+                    instructions.Add(Instruction.Create(OpCodes.Ldloca_S, localBridge));
+
+                    instructions.Add(Instruction.Create(OpCodes.Call, makeGenericMethod(awaitUnsafeOnCompletedMethods[j].GetElementMethod(), ((GenericInstanceMethod)awaitUnsafeOnCompletedMethods[j]).GenericArguments[0], itfBridgeType)));
+                }
+
+                m = j;
+                instructions.Add(Instruction.Create(OpCodes.Ret));
+                itfBridgeType.Methods.Add(targetMethod);
             }
-            instructions.Add(Instruction.Create(OpCodes.Ret));
-            itfBridgeType.Methods.Add(targetMethod);
         }
 
         private void EmitAsyncBuilderStartMethod(IEnumerable<TypeDefinition> allTypes)
