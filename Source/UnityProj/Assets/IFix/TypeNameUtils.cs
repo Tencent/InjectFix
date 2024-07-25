@@ -111,7 +111,7 @@ namespace IFix.Utils
         public static string GenericBaseName(Type t)
         {
             string n = t.FullName;
-            if (string.IsNullOrEmpty(n)) return "!";
+            if (string.IsNullOrEmpty(n)) return "";
             if (n.IndexOf('[') > 0)
             {
                 n = n.Substring(0, n.IndexOf('['));
@@ -120,8 +120,18 @@ namespace IFix.Utils
             return n.Replace("+", ".");
         }
 
+        public static bool MethodIsStructPublic(MethodBase mb)
+        {
+            return mb is MethodInfo &&
+                (!mb.IsStatic && mb.ReflectedType.IsValueType && mb.IsPublic);
+        }
+
         public static string GetUniqueMethodName(MethodBase method)
         {
+            if(TypeNameUtils.SimpleType(method.ReflectedType) == "!")
+            {
+                return "";
+            }
             Type retType = (method is MethodInfo)
                 ? (method as MethodInfo).ReturnType
                 : (method as ConstructorInfo).ReflectedType;
@@ -132,7 +142,7 @@ namespace IFix.Utils
             }
 
             if (string.IsNullOrEmpty(retType.FullName)) return "";
-            string ctor = "";
+            string funName = "";
             List<string> args = new List<string>();
             var parameters = method.GetParameters();
             if (!method.IsStatic && !(method is ConstructorInfo))
@@ -141,11 +151,19 @@ namespace IFix.Utils
                 {
                     return "";
                 }
-                args.Add( TypeNameUtils.SimpleType(method.ReflectedType));
+
+                if (MethodIsStructPublic(method))
+                {
+                    funName = method.Name;
+                }
+                else
+                {
+                    args.Add( TypeNameUtils.SimpleType(method.ReflectedType));
+                }
             }
             else if (method is ConstructorInfo)
             {
-                ctor = "ctor";
+                funName = "ctor";
             }
 
             for (int i = 0, imax = parameters.Length; i<imax; i++)
@@ -164,7 +182,7 @@ namespace IFix.Utils
             }
             var parameterTypeNames = string.Join(",", args);
             
-            return string.Format("{0} {2}({1})", TypeNameUtils.SimpleType(retType), parameterTypeNames, ctor);
+            return string.Format("{0} {2}({1})", TypeNameUtils.SimpleType(retType), parameterTypeNames, funName);
         }
 
         static string TypeDecl(Type t)
@@ -173,7 +191,7 @@ namespace IFix.Utils
             if (t.IsGenericType)
             {
                 string ret = GenericBaseName(t);
-                if (string.IsNullOrEmpty(ret)) return "";
+                if (string.IsNullOrEmpty(ret)) return "!";
 
                 string gs = "";
                 gs += "<";

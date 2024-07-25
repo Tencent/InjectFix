@@ -74,7 +74,7 @@ namespace IFix.Core
 
         private object SetDefaultValue(object obj)
         {
-            if(FieldType.IsValueType)
+            if(BoxUtils.GetTypeIsValueType(FieldType))
             {
                 var ret = Activator.CreateInstance(FieldType);
                 SetValue(obj, ret);
@@ -198,6 +198,7 @@ namespace IFix.Core
         ExternInvoker[] externInvokers;
 
         MethodBase[] externMethods;
+        bool?[] externIsNewDelegate;
 
         Type[] externTypes;
 
@@ -253,7 +254,8 @@ namespace IFix.Core
             set
             {
                 externMethods = value;
-                externInvokers = new ExternInvoker[externMethods.Length]; 
+                externInvokers = new ExternInvoker[externMethods.Length];
+                externIsNewDelegate = new bool?[externMethods.Length];
             }
         }
 
@@ -390,15 +392,15 @@ namespace IFix.Core
             if (dst->Type >= ValueType.Object)
             {
                 var obj = (dst->Type == ValueType.ValueType && managedStack[src->Value1] != null) //Nullable box后可能为空
-                    ? EvaluationStackOperation.CloneObject(managedStack[src->Value1])
+                    ? BoxUtils.CloneObject(managedStack[src->Value1])
                     : managedStack[src->Value1];
                 var dstPos = dst->Value1 = (int)(dst - stackBase);
-                EvaluationStackOperation.RecycleObject(managedStack[dstPos]);
+                BoxUtils.RecycleObject(managedStack[dstPos]);
                 managedStack[dstPos] = obj;
             }
             else if (dst->Type == ValueType.ChainFieldReference)
             {
-                EvaluationStackOperation.RecycleObject(managedStack[dst - stackBase]);
+                BoxUtils.RecycleObject(managedStack[dst - stackBase]);
                 managedStack[dst - stackBase] = managedStack[src - stackBase];
             }
         }
@@ -413,15 +415,15 @@ namespace IFix.Core
             {
                 object obj = null;
                 if (managedStack[src->Value1] != null) //Nullable box后可能为空
-                    obj = EvaluationStackOperation.CloneObject(managedStack[src->Value1]);
+                    obj = BoxUtils.CloneObject(managedStack[src->Value1]);
 
                 var dstPos = dst->Value1 = (int)(dst - stackBase);
-                EvaluationStackOperation.RecycleObject(managedStack[dstPos]);
+                BoxUtils.RecycleObject(managedStack[dstPos]);
                 managedStack[dstPos] = obj;
             }
             else if (dst->Type == ValueType.ChainFieldReference)
             {
-                EvaluationStackOperation.RecycleObject(managedStack[dst - stackBase]);
+                BoxUtils.RecycleObject(managedStack[dst - stackBase]);
                 managedStack[dst - stackBase] = managedStack[src - stackBase];
             }
         }
@@ -859,12 +861,19 @@ namespace IFix.Core
                             if (code == Code.Newobj)
                             {
                                 var method = externMethods[methodId];
-                                if (method.DeclaringType.BaseType == typeof(MulticastDelegate)) // create delegate
+                                bool? isDelegate = externIsNewDelegate[methodId];
+                                if (isDelegate == null)
+                                {
+                                    isDelegate = method.DeclaringType.BaseType == typeof(MulticastDelegate);
+                                    externIsNewDelegate[methodId] = isDelegate;
+                                }
+
+                                if (isDelegate == true) // create delegate
                                 {
                                     var pm = evaluationStackPointer - 1;
                                     var po = pm - 1;
                                     var o = managedStack[po->Value1];
-                                    EvaluationStackOperation.RecycleObject(managedStack[po - evaluationStackBase]);
+                                    BoxUtils.RecycleObject(managedStack[po - evaluationStackBase]);
                                     managedStack[po - evaluationStackBase] = null;
                                     Delegate del = null;
                                     if (pm->Type == ValueType.Integer)
@@ -896,12 +905,12 @@ namespace IFix.Core
                                     else
                                     {
                                         var mi = managedStack[pm->Value1] as MethodInfo;
-                                        EvaluationStackOperation.RecycleObject(managedStack[pm - evaluationStackBase]);
+                                        BoxUtils.RecycleObject(managedStack[pm - evaluationStackBase]);
                                         managedStack[pm - evaluationStackBase] = null;
                                         del = Delegate.CreateDelegate(method.DeclaringType, o, mi);
                                     }
                                     po->Value1 = (int)(po - evaluationStackBase);
-                                    EvaluationStackOperation.RecycleObject(managedStack[po->Value1]);
+                                    BoxUtils.RecycleObject(managedStack[po->Value1]);
                                     managedStack[po->Value1] = del;
                                     evaluationStackPointer = pm;
                                     break;
@@ -911,16 +920,17 @@ namespace IFix.Core
                             var externInvokeFunc = externInvokers[methodId];
                             if (externInvokeFunc == null)
                             {
-                                if (externInvokersHandle != null && externInvokersHandle(externMethods[methodId], out externInvokeFunc))
-                                {
-                                    externInvokers[methodId] = externInvokeFunc;
-                                }
-                                else
-                                {
-                                    externInvokers[methodId] = externInvokeFunc
-                                        = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
-                                }
-
+                                externInvokers[methodId] = externInvokeFunc
+                                    = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
+                                // if (externInvokersHandle != null && externInvokersHandle(externMethods[methodId], out externInvokeFunc))
+                                // {
+                                //     externInvokers[methodId] = externInvokeFunc;
+                                // }
+                                // else
+                                // {
+                                //     externInvokers[methodId] = externInvokeFunc
+                                //         = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
+                                // }
                             }
                             //Info("call extern: " + externMethods[methodId]);
                             var top = evaluationStackPointer - paramCount;
@@ -1010,7 +1020,7 @@ namespace IFix.Core
                                         int resultPos = argumentBase->Value1;
                                         if (resultPos != argumentPos)
                                         {
-                                            EvaluationStackOperation.RecycleObject(managedStack[argumentPos]);
+                                            BoxUtils.RecycleObject(managedStack[argumentPos]);
                                             managedStack[argumentPos] = managedStack[resultPos];
                                             //managedStack[resultPos] = null;
                                         }
@@ -1018,7 +1028,7 @@ namespace IFix.Core
                                     }
                                     for (int i = 0; i < evaluationStackPointer - evaluationStackBase - 1; i++)
                                     {
-                                        EvaluationStackOperation.RecycleObject(managedStack[i + argumentPos + 1]);
+                                        BoxUtils.RecycleObject(managedStack[i + argumentPos + 1]);
                                         managedStack[i + argumentPos + 1] = null;
                                     }
 
@@ -1028,7 +1038,7 @@ namespace IFix.Core
                                 {
                                     for (int i = 0; i < evaluationStackPointer - evaluationStackBase; i++)
                                     {
-                                        EvaluationStackOperation.RecycleObject(managedStack[i + argumentPos]);
+                                        BoxUtils.RecycleObject(managedStack[i + argumentPos]);
                                         managedStack[i + argumentPos] = null;
                                     }
                                     return argumentBase;
@@ -1042,7 +1052,7 @@ namespace IFix.Core
                                 store(evaluationStackBase, localBase + pc->Operand, evaluationStackPointer,
                                     managedStack);
                                 //print("+++after stloc", locs + ins.Operand);
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - evaluationStackBase] = null;
                             }
                             break;
@@ -1128,11 +1138,11 @@ namespace IFix.Core
                                         break;
                                     case ValueType.Object:
                                     case ValueType.ValueType:
-                                        EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer->Value1]);
+                                        BoxUtils.RecycleObject(managedStack[evaluationStackPointer->Value1]);
                                         transfer = managedStack[evaluationStackPointer->Value1] == null;
                                         break;
                                 }
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - evaluationStackBase] = null;
                                 
                                 if (transfer)
@@ -1180,7 +1190,7 @@ namespace IFix.Core
                                         object value = EvaluationStackOperation.ToObject(evaluationStackBase,
                                             evaluationStackPointer - 1, managedStack, fieldType, this);
                                         fieldInfo.SetValue(obj, value);
-                                        EvaluationStackOperation.RecycleObject(value);
+                                        BoxUtils.RecycleObject(value);
                                     }
                                     else
                                     {
@@ -1194,15 +1204,15 @@ namespace IFix.Core
                                         || ptr->Type == ValueType.ChainFieldReference
                                         || ptr->Type == ValueType.StaticFieldReference
                                         || ptr->Type == ValueType.ArrayReference) 
-                                        && declaringType.IsValueType)
+                                        && BoxUtils.GetTypeIsValueType(declaringType))
                                     {
                                         EvaluationStackOperation.UpdateReference(evaluationStackBase, ptr,
                                             managedStack, obj, this, declaringType);
                                     }
 
-                                    EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                    BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                     managedStack[ptr - evaluationStackBase] = null;
-                                    EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - 1 - evaluationStackBase]);
+                                    BoxUtils.RecycleObject(managedStack[evaluationStackPointer - 1 - evaluationStackBase]);
                                     managedStack[evaluationStackPointer - 1 - evaluationStackBase] = null;
                                     evaluationStackPointer = ptr;
                                 }
@@ -1236,7 +1246,7 @@ namespace IFix.Core
                                         break;
                                 }
 
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - evaluationStackBase] = null;
                                 if (transfer)
                                 {
@@ -1283,7 +1293,7 @@ namespace IFix.Core
                         case Code.Ldnull://1.203347%
                             {
                                 var pos = (int)(evaluationStackPointer - evaluationStackBase);
-                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                BoxUtils.RecycleObject(managedStack[pos]);
                                 managedStack[pos] = null;
                                 evaluationStackPointer->Value1 = pos;
                                 evaluationStackPointer->Type = ValueType.Object;
@@ -1322,7 +1332,7 @@ namespace IFix.Core
                                     else
                                     {
                                         fieldType = fieldInfo.FieldType;
-                                        fieldValue = fieldInfo.GetValue(null);
+                                        fieldValue = EvaluationStackOperation.GetStaticValueFromeCache(fieldInfo);
                                     }
                                     
                                     EvaluationStackOperation.PushObject(evaluationStackBase, evaluationStackPointer,
@@ -1397,7 +1407,7 @@ namespace IFix.Core
                             {
                                 var ptr = evaluationStackPointer - 1;
                                 Array arr = managedStack[ptr->Value1] as Array;
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 ptr->Type = ValueType.Integer;
                                 ptr->Value1 = arr.Length;
@@ -1444,9 +1454,9 @@ namespace IFix.Core
                                     throw new ArrayTypeMismatchException();
                                 }
                                 arr[idx] = managedStack[valPtr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
                                 managedStack[arrPtr - evaluationStackBase] = null; //清理，如果有的话
-                                EvaluationStackOperation.RecycleObject(managedStack[valPtr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[valPtr - evaluationStackBase]);
                                 managedStack[valPtr - evaluationStackBase] = null;
                                 evaluationStackPointer = arrPtr;
                             }
@@ -1454,7 +1464,7 @@ namespace IFix.Core
                         case Code.Pop://0.4614846%
                             {
                                 evaluationStackPointer--;
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - evaluationStackBase] = null; ;
                             }
                             break;
@@ -1484,7 +1494,7 @@ namespace IFix.Core
                                 var type = externTypes[pc->Operand];
                                 var ptr = evaluationStackPointer - 1;
                                 int pos = (int)(ptr - evaluationStackBase);
-                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                BoxUtils.RecycleObject(managedStack[pos]);
                                 managedStack[pos] = Array.CreateInstance(type, ptr->Value1);
                                 ptr->Type = ValueType.Object;
                                 ptr->Value1 = pos;
@@ -1575,7 +1585,7 @@ namespace IFix.Core
                                 int idx = (evaluationStackPointer - 1)->Value1;
                                 var arrPos = arrPtr - evaluationStackBase;
                                 var arr = managedStack[arrPtr->Value1] as object[];
-                                EvaluationStackOperation.RecycleObject(managedStack[arrPos] );
+                                BoxUtils.RecycleObject(managedStack[arrPos] );
                                 managedStack[arrPos] = arr[idx];
                                 arrPtr->Value1 = (int)arrPos;
                                 evaluationStackPointer = evaluationStackPointer - 1;
@@ -1600,24 +1610,24 @@ namespace IFix.Core
                                         case ValueType.Object:
                                             break;
                                         case ValueType.Integer:
-                                            if (type.IsEnum)
+                                            if (BoxUtils.GetTypeIsEnum(type))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = Enum.ToObject(type, ptr->Value1);
                                             }
                                             else if (type == typeof(int))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = ptr->Value1;
                                             }
                                             else if (type == typeof(uint))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = (uint)ptr->Value1;
                                             }
                                             else
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = Convert.ChangeType(ptr->Value1, type);
                                             }
                                             ptr->Value1 = pos;
@@ -1625,43 +1635,43 @@ namespace IFix.Core
                                         case ValueType.Long:
                                             if (type == typeof(long))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = *(long*)&ptr->Value1;
                                             }
                                             else if (type == typeof(ulong))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = *(ulong*)&ptr->Value1;
                                             }
-                                            else if (type.IsEnum)
+                                            else if (BoxUtils.GetTypeIsEnum(type))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = Enum.ToObject(type, *(long*)&ptr->Value1);
                                             }
                                             else if (type == typeof(IntPtr))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = new IntPtr(*(long*)&ptr->Value1);
                                             }
                                             else if (type == typeof(UIntPtr))
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = new UIntPtr(*(ulong*)&ptr->Value1);
                                             }
                                             else
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = Convert.ChangeType(*(long*)&ptr->Value1, type);
                                             }
                                             ptr->Value1 = pos;
                                             break;
                                         case ValueType.Float:
-                                            EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                            BoxUtils.RecycleObject(managedStack[pos]);
                                             managedStack[pos] = *(float*)&ptr->Value1;
                                             ptr->Value1 = pos;
                                             break;
                                         case ValueType.Double:
-                                            EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                            BoxUtils.RecycleObject(managedStack[pos]);
                                             managedStack[pos] = *(double*)&ptr->Value1;
                                             ptr->Value1 = pos;
                                             break;
@@ -1684,13 +1694,13 @@ namespace IFix.Core
                                 ptr->Value1 = pos;
                                 if (obj == null)
                                 {
-                                    EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                    BoxUtils.RecycleObject(managedStack[pos]);
                                     managedStack[pos] = null;
                                 }
                                 else
                                 {
                                     bool canAssign = type.IsAssignableFrom(obj.GetType());
-                                    EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                    BoxUtils.RecycleObject(managedStack[pos]);
                                     managedStack[pos] = canAssign
                                         ? obj : null;
                                     if (pc->Operand < 0 && canAssign)
@@ -1718,7 +1728,7 @@ namespace IFix.Core
 
                                             if (!canAssign)
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                                BoxUtils.RecycleObject(managedStack[pos]);
                                                 managedStack[pos] = null;
                                             }
                                         }
@@ -1823,7 +1833,7 @@ namespace IFix.Core
                                     int exceptionPos = (int)(evaluationStackPointer - evaluationStackBase - 1);
                                     var exception = managedStack[(evaluationStackPointer - 1)->Value1]
                                         as Exception;
-                                    EvaluationStackOperation.RecycleObject(managedStack[exceptionPos]);
+                                    BoxUtils.RecycleObject(managedStack[exceptionPos]);
                                     managedStack[exceptionPos] = null;
                                     evaluationStackPointer--;
                                     throw exception;
@@ -1898,7 +1908,7 @@ namespace IFix.Core
                                     else
                                     {
                                         fieldInfo.SetValue(null, value);
-                                        EvaluationStackOperation.RecycleObject(value);
+                                        BoxUtils.RecycleObject(value);
                                     }
                                 }
                                 else
@@ -1912,7 +1922,7 @@ namespace IFix.Core
                                     //_Info("store static field " + fieldIndex + " : " + staticFields[fieldIndex]);
                                 }
 
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - 1 - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - 1 - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - 1 - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                             }
@@ -1943,7 +1953,7 @@ namespace IFix.Core
                                 if ((ptr->Type == ValueType.FieldReference
                                     || ptr->Type == ValueType.ChainFieldReference
                                     || ptr->Type == ValueType.ArrayReference) && pc->Operand >= 0
-                                    && fieldType.IsValueType)
+                                    && BoxUtils.GetTypeIsValueType(fieldType))
                                 {
                                     // if (pc->Operand < 0)
                                     // {
@@ -1965,7 +1975,7 @@ namespace IFix.Core
                                         var newFieldIdList = new int[fieldIdList.Length + 1];
                                         Array.Copy(fieldIdList, newFieldIdList, fieldIdList.Length);
                                         newFieldIdList[fieldIdList.Length] = pc->Operand;
-                                        EvaluationStackOperation.RecycleObject(managedStack[offset]);
+                                        BoxUtils.RecycleObject(managedStack[offset]);
                                         managedStack[offset] = new FieldAddr()
                                         {
                                             Object = fieldAddr.Object,
@@ -1985,7 +1995,7 @@ namespace IFix.Core
                                             Object = managedStack[ptr->Value1],
                                             FieldIdList = new int[] { ptr->Value2, pc->Operand }
                                         };
-                                        EvaluationStackOperation.RecycleObject(managedStack[offset]);
+                                        BoxUtils.RecycleObject(managedStack[offset]);
                                         managedStack[offset] = fieldAddr;
                                         ptr->Value2 = ptr->Type == ValueType.FieldReference ? -1 : -2;
                                     }
@@ -1999,7 +2009,7 @@ namespace IFix.Core
 
                                     ptr->Type = ValueType.FieldReference;
                                     ptr->Value1 = (int)(ptr - evaluationStackBase);
-                                    EvaluationStackOperation.RecycleObject(managedStack[ptr->Value1]);
+                                    BoxUtils.RecycleObject(managedStack[ptr->Value1]);
                                     managedStack[ptr->Value1] = obj;
                                     ptr->Value2 = pc->Operand;
                                     //_Info("sigle ref type = " + obj.GetType() + ",hc=" + obj.GetHashCode()
@@ -2075,7 +2085,7 @@ namespace IFix.Core
                                 evaluationStackPointer--;
                                 store(evaluationStackBase, argumentBase + pc->Operand, evaluationStackPointer,
                                     managedStack);
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
                                 managedStack[evaluationStackPointer - evaluationStackBase] = null; ;
                             }
                             break;
@@ -2092,9 +2102,9 @@ namespace IFix.Core
                                         var lpos = (int)(lhs - evaluationStackBase);
                                         var rpos = (int)(rhs - evaluationStackBase);
                                         eq = ReferenceEquals(managedStack[lhs->Value1], managedStack[rhs->Value1]);
-                                        EvaluationStackOperation.RecycleObject(managedStack[lpos]);
+                                        BoxUtils.RecycleObject(managedStack[lpos]);
                                         managedStack[lpos] = null;
-                                        EvaluationStackOperation.RecycleObject(managedStack[rpos]);
+                                        BoxUtils.RecycleObject(managedStack[rpos]);
                                         managedStack[rpos] = null;
                                     }
                                     else
@@ -2216,7 +2226,7 @@ namespace IFix.Core
                                             //managedStack[ptr->Value1] = null;
                                             if (src->Type >= ValueType.Object)
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[src - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[src - evaluationStackBase]);
                                                 managedStack[src - evaluationStackBase] = null;
                                             }
                                             evaluationStackPointer = ptr;
@@ -2225,13 +2235,13 @@ namespace IFix.Core
                                     case ValueType.ArrayReference:
                                         {
                                             var obj = managedStack[ptr->Value1];
-                                            EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                             managedStack[ptr - evaluationStackBase] = null;
                                             int idx = ptr->Value2;
                                             arraySet(obj, idx, src, managedStack, evaluationStackBase);
                                             if (src->Type >= ValueType.Object)
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[src - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[src - evaluationStackBase]);
                                                 managedStack[src - evaluationStackBase] = null;
                                             }
                                             evaluationStackPointer = ptr;
@@ -2264,7 +2274,7 @@ namespace IFix.Core
                                                 else
                                                 {
                                                     fieldInfo.SetValue(null, val);
-                                                    EvaluationStackOperation.RecycleObject(val);
+                                                    BoxUtils.RecycleObject(val);
                                                 }
                                             }
                                             else
@@ -2276,7 +2286,7 @@ namespace IFix.Core
                                             }
                                             if (src->Type >= ValueType.Object)
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[src - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[src - evaluationStackBase]);
                                                 managedStack[src - evaluationStackBase] = null;
                                             }
                                             evaluationStackPointer = ptr;
@@ -2290,18 +2300,18 @@ namespace IFix.Core
                                             {
                                                 int offset = (int)(des - evaluationStackBase);
                                                 des->Value1 = offset;
-                                                EvaluationStackOperation.RecycleObject(managedStack[offset]);
+                                                BoxUtils.RecycleObject(managedStack[offset]);
                                                 managedStack[offset] = managedStack[src->Value1];
-                                                EvaluationStackOperation.RecycleObject(managedStack[src - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[src - evaluationStackBase]);
                                                 managedStack[src - evaluationStackBase] = null;
                                             }
                                             else if (src->Type == ValueType.ValueType)
                                             {
                                                 int offset = (int)(des - evaluationStackBase);
                                                 des->Value1 = offset;
-                                                EvaluationStackOperation.RecycleObject(managedStack[offset]);
-                                                managedStack[offset] = EvaluationStackOperation.CloneObject(managedStack[src->Value1]);
-                                                EvaluationStackOperation.RecycleObject(managedStack[src - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[offset]);
+                                                managedStack[offset] = BoxUtils.CloneObject(managedStack[src->Value1]);
+                                                BoxUtils.RecycleObject(managedStack[src - evaluationStackBase]);
                                                 managedStack[src - evaluationStackBase] = null;
                                             }
                                             //Console.WriteLine("store to stack address:" + new IntPtr(des) 
@@ -2388,7 +2398,7 @@ namespace IFix.Core
                                     case ValueType.ArrayReference:
                                         {
                                             var obj = managedStack[ptr->Value1];
-                                            EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                             managedStack[ptr - evaluationStackBase] = null;
                                             int idx = ptr->Value2;
                                             arrayGet(obj, idx, ptr, managedStack, evaluationStackBase);
@@ -2412,7 +2422,7 @@ namespace IFix.Core
                                                 else
                                                 {
                                                     fieldType = fieldInfo.FieldType;
-                                                    value = fieldInfo.GetValue(null);
+                                                    value = EvaluationStackOperation.GetStaticValueFromeCache(fieldInfo);
                                                 }
                                                 
                                                 EvaluationStackOperation.PushObject(evaluationStackBase, ptr,
@@ -2433,14 +2443,14 @@ namespace IFix.Core
                                             *ptr = *src;
                                             if (src->Type == ValueType.Object)
                                             {
-                                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                                 managedStack[ptr - evaluationStackBase] = managedStack[src->Value1];
                                                 ptr->Value1 = (int)(ptr - evaluationStackBase);
                                             }
                                             else if (src->Type == ValueType.ValueType)
                                             {
                                                 managedStack[ptr - evaluationStackBase]
-                                                    = EvaluationStackOperation.CloneObject(managedStack[src->Value1]);
+                                                    = BoxUtils.CloneObject(managedStack[src->Value1]);
                                                 ptr->Value1 = (int)(ptr - evaluationStackBase);
                                             }
                                         }
@@ -2488,10 +2498,10 @@ namespace IFix.Core
                                 var ptr = evaluationStackPointer - 1;
                                 var type = externTypes[pc->Operand];
                                 EvaluationStackOperation.UpdateReference(evaluationStackBase, ptr, managedStack,
-                                    EvaluationStackOperation.CreateBoxValue(type), this, type);
+                                    BoxUtils.CreateDefaultBoxValue(type), this, type);
                                 if (ptr->Type >= ValueType.Object)
                                 {
-                                    EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                    BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                     managedStack[ptr - evaluationStackBase] = null;
                                 }
                                 evaluationStackPointer = ptr;
@@ -2521,7 +2531,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 byte[] byteArr = obj as byte[];
@@ -2550,7 +2560,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -2580,17 +2590,17 @@ namespace IFix.Core
                                     var obj = managedStack[ptr->Value1];
                                     if (ptr->Type == ValueType.Object)
                                     {
-                                        if (type.IsValueType)
+                                        if (BoxUtils.GetTypeIsValueType(type))
                                         {
                                             if (obj == null)
                                             {
                                                 throw new NullReferenceException();
                                             }
-                                            else if(type.IsPrimitive)
+                                            else if(BoxUtils.GetTypeIsValueType(type))
                                             {
                                                 EvaluationStackOperation.UnboxPrimitive(ptr, obj, type);
                                             }
-                                            else if(type.IsEnum)
+                                            else if(BoxUtils.GetTypeIsEnum(type))
                                             {
                                                 EvaluationStackOperation.UnboxPrimitive(ptr, obj, Enum.GetUnderlyingType(type));
                                             }
@@ -2669,7 +2679,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as int[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -2700,7 +2710,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 int[] intArr = obj as int[];
@@ -2774,7 +2784,7 @@ namespace IFix.Core
                                 var ptr = evaluationStackPointer - 1 - lastInstruction->Operand;
                                 var obj = EvaluationStackOperation.ToObject(evaluationStackBase, ptr, managedStack, type, this);
                                 var pos = (int)(ptr - evaluationStackBase);
-                                EvaluationStackOperation.RecycleObject(managedStack[pos]);
+                                BoxUtils.RecycleObject(managedStack[pos]);
                                 managedStack[pos] = obj;
                                 ptr->Value1 = pos;
                                 ptr->Type = ValueType.Object;
@@ -2824,7 +2834,7 @@ namespace IFix.Core
                             {
                                 evaluationStackPointer->Type = ValueType.Object;
                                 evaluationStackPointer->Value1 = (int)(evaluationStackPointer - evaluationStackBase);
-                                EvaluationStackOperation.RecycleObject(managedStack[evaluationStackPointer->Value1]);
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer->Value1]);
                                 managedStack[evaluationStackPointer->Value1] = externMethods[pc->Operand];
                                 evaluationStackPointer++;
                             }
@@ -2851,7 +2861,7 @@ namespace IFix.Core
                                     {
                                         var src = pos - 1;
                                         pos->Value1 = (int)(pos - evaluationStackBase);
-                                        EvaluationStackOperation.RecycleObject(managedStack[pos->Value1]);
+                                        BoxUtils.RecycleObject(managedStack[pos->Value1]);
                                         managedStack[pos->Value1] = managedStack[src->Value1];
                                     }
                                     //_Info("des t:" + pos->Type + ",v:" + pos->Value1);
@@ -2864,13 +2874,13 @@ namespace IFix.Core
                                 //    var dsp = pos + p;
                                     //_Info("p " + p + ":" + dsp->Type + ",v:" + dsp->Value1);
                                 //}
-                                EvaluationStackOperation.RecycleObject(managedStack[pos->Value1]);
+                                BoxUtils.RecycleObject(managedStack[pos->Value1]);
                                 managedStack[pos->Value1] = anonymousStorey;
                                 Execute(unmanagedCodes[anonymousStoreyInfo.CtorId], pos, managedStack,
                                     evaluationStackBase, pn + 1, anonymousStoreyInfo.CtorId);
                                 pos->Type = ValueType.Object;
                                 pos->Value1 = (int)(pos - evaluationStackBase);
-                                EvaluationStackOperation.RecycleObject(managedStack[pos->Value1]);
+                                BoxUtils.RecycleObject(managedStack[pos->Value1]);
                                 managedStack[pos->Value1] = anonymousStorey;
                                 evaluationStackPointer = pos + 1;
                             }
@@ -2884,9 +2894,9 @@ namespace IFix.Core
                                 var val = EvaluationStackOperation.ToObject(evaluationStackBase, valPtr,
                                         managedStack, arr.GetType().GetElementType(), this, false);
                                 arr.SetValue(val, idx);
-                                EvaluationStackOperation.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
                                 managedStack[arrPtr - evaluationStackBase] = null; //清理，如果有的话
-                                EvaluationStackOperation.RecycleObject(managedStack[valPtr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[valPtr - evaluationStackBase]);
                                 managedStack[valPtr - evaluationStackBase] = null;
                                 evaluationStackPointer = arrPtr;
                             }
@@ -2931,7 +2941,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 short[] shortArr = obj as short[];
@@ -3016,7 +3026,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -3249,7 +3259,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Long;
@@ -3323,7 +3333,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as uint[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -3359,7 +3369,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 long[] longArr = obj as long[];
@@ -3380,7 +3390,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -3468,7 +3478,7 @@ namespace IFix.Core
                                 {
                                     ptr->Type = ValueType.Object;
                                     ptr->Value1 = (int)(ptr - evaluationStackBase);
-                                    EvaluationStackOperation.RecycleObject(managedStack[ptr->Value1]);
+                                    BoxUtils.RecycleObject(managedStack[ptr->Value1]);
                                     managedStack[ptr->Value1] = externMethods[pc->Operand];
                                 }
                                 else
@@ -3508,7 +3518,7 @@ namespace IFix.Core
 
                                     ptr->Type = ValueType.Object;
                                     ptr->Value1 = (int)(ptr - evaluationStackBase);
-                                    EvaluationStackOperation.RecycleObject(managedStack[ptr->Value1]);
+                                    BoxUtils.RecycleObject(managedStack[ptr->Value1]);
                                     managedStack[ptr->Value1] = foundMethod;
                                 }
                             }
@@ -3604,7 +3614,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 IntPtr[] intPtrArr = obj as IntPtr[];
@@ -3627,7 +3637,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as double[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 arr[idx] = val;
@@ -3638,7 +3648,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Long;
@@ -3740,7 +3750,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as double[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Double;
@@ -3752,7 +3762,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as float[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Float;
@@ -3871,7 +3881,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1;
                                 var obj = managedStack[ptr->Value1];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer--;
                                 ptr->Type = ValueType.Integer;
@@ -3922,7 +3932,7 @@ namespace IFix.Core
                                 var idx = (evaluationStackPointer - 1 - 1)->Value1;
                                 var ptr = evaluationStackPointer - 1 - 1 - 1;
                                 var arr = managedStack[ptr->Value1] as float[];
-                                EvaluationStackOperation.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                 managedStack[ptr - evaluationStackBase] = null;
                                 evaluationStackPointer = ptr;
                                 arr[idx] = val;
@@ -3956,7 +3966,7 @@ namespace IFix.Core
                             {
                                 var exceptionPos = (evaluationStackPointer - evaluationStackBase - 1);
                                 var exception = managedStack[(evaluationStackPointer - 1)->Value1] as Exception;
-                                EvaluationStackOperation.RecycleObject(managedStack[exceptionPos]);
+                                BoxUtils.RecycleObject(managedStack[exceptionPos]);
                                 managedStack[exceptionPos] = null;
                                 evaluationStackPointer--;
                                 throw exception;
@@ -4034,14 +4044,14 @@ namespace IFix.Core
                         int newPos = (int)(newEvaluationStackPointer - evaluationStackBase);
                         for (int i = newPos; i < topPos; i++)
                         {
-                            EvaluationStackOperation.RecycleObject(managedStack[i]);
+                            BoxUtils.RecycleObject(managedStack[i]);
                             managedStack[i] = null;
                         }
 
                         evaluationStackPointer = newEvaluationStackPointer;
                         evaluationStackPointer->Type = ValueType.Object;
                         evaluationStackPointer->Value1 = newPos;
-                        EvaluationStackOperation.RecycleObject(managedStack[newPos]);
+                        BoxUtils.RecycleObject(managedStack[newPos]);
                         managedStack[newPos] = e;
                         evaluationStackPointer++;
 
@@ -4055,7 +4065,7 @@ namespace IFix.Core
                         int newPos = (int)(argumentBase - evaluationStackBase) - refCount;
                         for (int i = newPos; i < topPos; i++)
                         {
-                            EvaluationStackOperation.RecycleObject(managedStack[i]);
+                            BoxUtils.RecycleObject(managedStack[i]);
                             managedStack[i] = null;
                         }
 

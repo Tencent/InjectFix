@@ -942,7 +942,7 @@ namespace IFix.Editor
             EditorUtility.ClearProgressBar();
         }
 
-        [MenuItem("InjectFix/GenBinding", false, 2)]
+        //[MenuItem("InjectFix/GenBinding", false, 2)]
         public static void GenBinding()
         {
             ILFixCodeGen gen = new ILFixCodeGen();
@@ -1071,6 +1071,9 @@ namespace IFix.Editor
                                         {
                                             // struct的instance方法很难用无GC方法创建委托，暂时不管，以后可以用 直接调用方法
                                             if (!calledMethod.IsStatic && calledMethod.ReflectedType.IsValueType)
+                                            {
+                                            }
+                                            else if (calledMethod.ReflectedType.FullName.Contains("IFix.Core"))
                                             {
                                             }
                                             else

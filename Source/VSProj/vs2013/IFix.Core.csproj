@@ -54,6 +54,9 @@
     <Compile Include="..\Src\Core\AnonymousStorey.cs">
       <Link>Src\Core\AnonymousStorey.cs</Link>
     </Compile>
+    <Compile Include="..\Src\Core\BoxUtils.cs">
+      <Link>Src\Core\BoxUtils.cs</Link>
+    </Compile>
     <Compile Include="..\Src\Core\DataDefine.cs">
       <Link>Src\Core\DataDefine.cs</Link>
     </Compile>

@@ -68,9 +68,9 @@ namespace IFix.Core
                 MethodInfo delegateMethod = delegateType.GetMethod("Invoke");
 
                 var parameters = delegateMethod.GetParameters();
-                if ((delegateMethod.ReturnType.IsValueType && delegateMethod.ReturnType != typeof(void)) 
-                    || parameters.Length > 4
-                    || parameters.Any(p => p.ParameterType.IsValueType || p.ParameterType.IsByRef)
+                if ((BoxUtils.GetTypeIsValueType(delegateMethod.ReturnType) && delegateMethod.ReturnType != typeof(void)) 
+                     || parameters.Length > 4
+                     || parameters.Any(p => BoxUtils.GetTypeIsValueType(p.ParameterType) || p.ParameterType.IsByRef)
                     )
                 {
                     //如果不在支持的范围，则生成一个永远返回空的构造器

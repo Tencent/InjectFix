@@ -11,6 +11,7 @@ Instruction.cs
 Src\Builder\*.cs
 Src\Version.cs
 Src\Core\AnonymousStorey.cs
+Src\Core\BoxUtils.cs
 Src\Core\DataDefine.cs
 Src\Core\GenericDelegate.cs
 Src\Core\Il2CppSetOptionAttribute.cs
