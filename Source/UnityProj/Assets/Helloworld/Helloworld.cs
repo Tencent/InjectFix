@@ -27,38 +27,11 @@ public unsafe class Helloworld : MonoBehaviour
     public TestEnumValue _enumValue = TestEnumValue.t1;
 
     private Dictionary<Type, bool> dict = new Dictionary<Type, bool>();
-
-    [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr memset(void* dest, int c, void* count);
-
-    struct Dummpy<T>
-    {
-        public T v;
-    }
+    
 
     // check and load patchs
     void Start()
     {
-        int b = 100;
-        void* buff = (void*)(&b);
-
-        var sw = Stopwatch.StartNew();
-        for (int i = 0, imax = 10000000; i < imax; i++)
-        {
-            memset(buff, 0, (void*)4);
-        }
-        UnityEngine.Debug.Log("Test call 1000w memset, using " + (float)sw.ElapsedMilliseconds + " ms");
-        
-        print(b);
-        
-        sw = Stopwatch.StartNew();
-        for (int i = 0, imax = 10000000; i < imax; i++)
-        {
-            UnsafeUtility.MemClear(buff, 4);
-        }
-        UnityEngine.Debug.Log("Test call 1000w UnsafeUtility.MemClear, using " + (float)sw.ElapsedMilliseconds + " ms");
-        
-        print(b);
         
         Type t = typeof(int);
         void* addr = BoxUtils.GetObjectAddr(t);
@@ -92,7 +65,7 @@ public unsafe class Helloworld : MonoBehaviour
         
         test();
     }
-
+    
     public void TestRand()
     {
         var sw = Stopwatch.StartNew();
@@ -100,7 +73,7 @@ public unsafe class Helloworld : MonoBehaviour
         for(int i = 0;i<1000;i++)
             calc.Add(10, 9);
 
-        UnityEngine.Debug.Log("Test call 1000 Struct, using " + (float)sw.ElapsedMilliseconds + " ms");
+        UnityEngine.Debug.Log("Test call 1000 Struct, using " + (float)sw.ElapsedTicks / 10000 + " ms");
     }
 
     [Patch]

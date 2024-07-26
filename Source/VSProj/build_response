@@ -2,11 +2,11 @@
 /nowarn:0169
 /nowarn:0649
 /out:../UnityProj/Assets/Plugins/IFix.Core.dll
-/debug:portable
 /unsafe
 /preferreduilang:en-US
 /langversion:latest
 /define:UNITY_IPHONE
+/define:ENABLE_PROFILER
 Instruction.cs
 Src\Builder\*.cs
 Src\Version.cs

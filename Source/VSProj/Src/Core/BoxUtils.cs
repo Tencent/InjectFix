@@ -26,7 +26,7 @@ namespace IFix.Core
 
         // 第二个位置 用来上锁的。但是一般不会上锁 type，所以拿来存储自定义数据
         // 这个设计的就是不能lock type
-        private static void CacheTypeInfo(Type t, object obj = null)
+        public static void CacheTypeInfo(Type t, object obj = null)
         {
             void** monitorOffset = (void**)GetObjectAddr(t) + 1;
             if (*monitorOffset != null)
@@ -54,6 +54,7 @@ namespace IFix.Core
                 if (obj == null) obj = Activator.CreateInstance(t);
                 void** typeHead = (void**)GetObjectAddr(obj);
                 *info = *typeHead;
+                *((int*)((byte*)info + 12)) = UnsafeUtility.SizeOf(t);
             }
             else
             {
@@ -65,7 +66,7 @@ namespace IFix.Core
             *(bptr + 9) = t.IsPrimitive;
             *(bptr + 10) = t.IsValueType;
             *(bptr + 11) = isNullable;
-            *((int*)(bptr + 12)) = UnsafeUtility.SizeOf(t);
+
             if (isNullable)
             {
                 Type ut = Nullable.GetUnderlyingType(t);
@@ -222,7 +223,7 @@ namespace IFix.Core
             // bool isValueType = *(bool*)(typeInfo + 10);
             // if(isValueType)
             
-            return CreateBoxValue(t, ref p, true, true);
+            return CreateBoxValue(monitorOffset, ref p, true, true);
         }
         
         public static object CreateBoxValue(Type t, bool jumpNulable = false)
@@ -245,6 +246,11 @@ namespace IFix.Core
                 CacheTypeInfo(t);
             }
 
+            return CreateBoxValue(monitorOffset, ref objPtr, jumpNulable, clearObj);
+        }
+        
+        public static object CreateBoxValue(void** monitorOffset, ref void* objPtr, bool jumpNulable = false, bool clearObj = false)
+        {
             byte* typeInfo = (byte*)*monitorOffset;
             bool isValueType = *(bool*)(typeInfo + 10);
             if (!isValueType) return null;
@@ -254,13 +260,13 @@ namespace IFix.Core
                 bool isNullable = *(bool*)(typeInfo + 11);
                 if (isNullable)
                 {
-                    t = (Type)AddrToObject(*(void**)(typeInfo + 16));
+                    var ut = (Type)AddrToObject(*(void**)(typeInfo + 16));
                     
-                    monitorOffset = (void**)GetObjectAddr(t) + 1;
+                    monitorOffset = (void**)GetObjectAddr(ut) + 1;
                     // 没cache
                     if (*monitorOffset == null)
                     {
-                        CacheTypeInfo(t);
+                        CacheTypeInfo(ut);
                     }
                     typeInfo = (byte*)*monitorOffset;
                 } 
@@ -335,16 +341,35 @@ namespace IFix.Core
 
             void* p = null;
             int len = *(int*)(typeInfo + 12);
-            object result = CreateBoxValue(t, ref p);
+            object result = CreateBoxValue(monitorOffset, ref p);
             byte* source = (byte*)GetObjectAddr(value) + OBJ_OFFSET;
             UnsafeUtility.MemCpy((byte*)p + OBJ_OFFSET, source, len);
 
             return result;
         }
 
-        public static object GetFieldValue(object thisArg, FieldInfo fi)
+        public static object GetStaticFieldValue(FieldInfo fi, Type t)
         {
-            Type t = fi.FieldType;
+            void** monitorOffset = (void**)GetObjectAddr(t) + 1;
+            // 没cache
+            if (*monitorOffset == null)
+            {
+                CacheTypeInfo(t);
+            }
+            byte* typeInfo = (byte*)*monitorOffset;
+            bool isValueType = *(bool*)(typeInfo + 10);
+            if (!isValueType) return fi.GetValue(null);
+
+            bool isNullable = *(bool*)(typeInfo + 11);
+            void* p = null;
+            object ret = CreateBoxValue(monitorOffset, ref p,!isNullable, false);
+            UnsafeUtility.GetStaticFieldValue(fi, ret);
+
+            return ret;
+        }
+
+        public static object GetFieldValue(object thisArg, FieldInfo fi, Type t)
+        {
             void** monitorOffset = (void**)GetObjectAddr(t) + 1;
             // 没cache
             if (*monitorOffset == null)
@@ -363,14 +388,21 @@ namespace IFix.Core
             if (isNullable)
             {
                 var ut = (Type)AddrToObject(*(void**)(typeInfo + 16));
-                int offset = *(int*)(typeInfo + 24);
-                if (*(bool*)(source + filedOffset+ offset) == false) return null;
+                int nullableOffset = *(int*)(typeInfo + 24);
+                if (*(bool*)(source + filedOffset+ nullableOffset) == false) return null;
                 len = GetTypeSize(ut);
+
                 t = ut;
+                monitorOffset = (void**)GetObjectAddr(t) + 1;
+                // 没cache
+                if (*monitorOffset == null)
+                {
+                    CacheTypeInfo(t);
+                }
             }
 
             void* b = null;
-            object result = CreateBoxValue(t, ref b, true);
+            object result = CreateBoxValue(monitorOffset, ref b, true);
             source = source + filedOffset;
             
             UnsafeUtility.MemCpy((byte*)b + OBJ_OFFSET, source, len);
@@ -427,7 +459,7 @@ namespace IFix.Core
             }
 
             void* p = null;
-            object obj = CreateBoxValue(t, ref p, true);
+            object obj = CreateBoxValue(monitorOffset, ref p, true);
             UnsafeUtility.CopyStructureToPtr(ref dummpy, (byte*)p + OBJ_OFFSET);
 
             return obj;
@@ -444,8 +476,6 @@ namespace IFix.Core
             if (size == 0) return;
             // monitor的lock 会超过4096的，但是一般value type的长度不会
             if (size > 4096) return;
-            // 低位必须全部是0
-            if (*(sizePtr - 1) != 0) return;
             
             int idx = (size + 15) / 16 - 1;
 

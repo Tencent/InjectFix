@@ -793,16 +793,16 @@ namespace IFix.Core
                         case Code.Callvirt: //Callvirt: 5.156
                             {
                                 int narg = pc->Operand >> 16;
-                                var arg0 = evaluationStackPointer - narg;
-                                if (arg0->Type != ValueType.Object)
-                                {
-                                    throwRuntimeException(new InvalidProgramException(arg0->Type.ToString()
-                                        + " for Callvirt"), true);
-                                }
-                                if (managedStack[arg0->Value1] == null)
-                                {
-                                    throw new NullReferenceException("this is null");
-                                }
+                                //var arg0 = evaluationStackPointer - narg;
+                                // if (arg0->Type != ValueType.Object)
+                                // {
+                                //     throwRuntimeException(new InvalidProgramException(arg0->Type.ToString()
+                                //         + " for Callvirt"), true);
+                                // }
+                                // if (managedStack[arg0->Value1] == null)
+                                // {
+                                //     throw new NullReferenceException("this is null");
+                                // }
                                 //Console.WriteLine("narg:" + narg);
                                 //Console.WriteLine("before call ESP = " + (evaluationStackPointer - localBase
                                 //    - localsCount) + ", ESPV=" + (long)evaluationStackPointer);
@@ -1101,7 +1101,7 @@ namespace IFix.Core
                                     }
                                     else
                                     {
-                                        EvaluationStackOperation.PushField(evaluationStackBase, ptr, managedStack, obj, fieldInfo);
+                                        EvaluationStackOperation.PushField(evaluationStackBase, ptr, managedStack, obj, fieldInfo, fieldType);
                                         //fieldValue = fieldInfo.GetValue(obj);
                                     }
 
@@ -1263,12 +1263,12 @@ namespace IFix.Core
                                 evaluationStackPointer = a;
                                 switch (a->Type)//TODO: 通过修改指令优化掉
                                 {
+                                    case ValueType.Integer:
+                                        evaluationStackPointer->Value1 = a->Value1 + b->Value1;
+                                        break;
                                     case ValueType.Long:
                                         *((long*)&evaluationStackPointer->Value1)
                                             = *((long*)&a->Value1) + *((long*)&b->Value1);
-                                        break;
-                                    case ValueType.Integer:
-                                        evaluationStackPointer->Value1 = a->Value1 + b->Value1;
                                         break;
                                     case ValueType.Float:
                                         *((float*)&evaluationStackPointer->Value1)
@@ -1332,7 +1332,7 @@ namespace IFix.Core
                                     else
                                     {
                                         fieldType = fieldInfo.FieldType;
-                                        fieldValue = EvaluationStackOperation.GetStaticValueFromeCache(fieldInfo);
+                                        fieldValue = BoxUtils.GetStaticFieldValue(fieldInfo, fieldType);
                                     }
                                     
                                     EvaluationStackOperation.PushObject(evaluationStackBase, evaluationStackPointer,

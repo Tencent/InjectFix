@@ -94,10 +94,10 @@ namespace IFix.Core
     {
         internal static void UnboxPrimitive(Value* evaluationStackPointer, object obj, Type type)
         {
-            if (BoxUtils.GetTypeIsEnum(obj.GetType()))
-            {
-                obj = Convert.ChangeType(obj, type);
-            }
+            // if (BoxUtils.GetTypeIsEnum(obj.GetType()))
+            // {
+            //     obj = Convert.ChangeType(obj, type);
+            // }
 
             if (obj is int)
             {
@@ -506,27 +506,37 @@ namespace IFix.Core
         }
 
         public static void PushField(Value* evaluationStackBase, Value* evaluationStackPointer,
-            object[] managedStack, object obj, FieldInfo fieldInfo)
+            object[] managedStack, object obj, FieldInfo fieldInfo, Type fieldType)
         {
-            Type t = fieldInfo.FieldType;
-            object ret = BoxUtils.GetFieldValue(obj, fieldInfo);
-            PushObject(evaluationStackBase, evaluationStackPointer, managedStack, ret, t);
+            object ret = BoxUtils.GetFieldValue(obj, fieldInfo, fieldType);
+            PushObject(evaluationStackBase, evaluationStackPointer, managedStack, ret, fieldType);
         }
 
         public static void PushObject(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, object obj, Type type)
         {
+            bool isValueType = false;
             if (obj != null)
             {
-                if (BoxUtils.GetTypeIsPrimitive(type))
+                void** monitorOffset = (void**)BoxUtils.GetObjectAddr(type) + 1;
+                if (*monitorOffset == null)
+                {
+                    BoxUtils.CacheTypeInfo(type);
+                }
+                byte* typeInfo = (byte*)*monitorOffset;
+                bool isPrimitive = *(bool*)(typeInfo + 9);
+                bool isEnum = *(bool*)(typeInfo + 8);
+                isValueType = *(bool*)(typeInfo + 10);
+
+                if (isPrimitive)
                 {
                     UnboxPrimitive(evaluationStackPointer, obj, type);
                     BoxUtils.RecycleObject(obj);
                     return;
                 }
-                else if (BoxUtils.GetTypeIsEnum(type))
+                else if (isEnum)
                 {
-                    int size = UnsafeUtility.SizeOf(type);
+                    int size = *(int*)(typeInfo + 12);
                     byte* b = (byte*)BoxUtils.GetObjectAddr(obj)+ BoxUtils.OBJ_OFFSET;
 
                     if (size == 8)
@@ -550,7 +560,7 @@ namespace IFix.Core
             BoxUtils.RecycleObject(managedStack[pos]);
             managedStack[pos] = obj;
 
-            evaluationStackPointer->Type = (obj != null && BoxUtils.GetTypeIsValueType(type)) 
+            evaluationStackPointer->Type = (obj != null && isValueType) 
                 ? ValueType.ValueType : ValueType.Object;
         }
 

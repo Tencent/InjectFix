@@ -40,19 +40,22 @@ public class Calculator
     private Vector3? nullableV1 = null;
     private Vector3? nullableV2 = Vector3.left;
 
+    private static Vector3? nullableV3 = Vector3.left;
+
     private AllValueStruct astruct = new AllValueStruct();
 
     //修改成正确的逻辑后，打开如下注释，生成的补丁将修正该函数
     [Patch]
     public int Add(int a, int b)
     {
-        return
+        return 
         TestAllValueStruct(default(AllValueStruct)) + TestAllValueStruct(default(AllValueStruct)) +
         TestAllValueStruct(astruct) +
         TestVector3(default(Vector3)) + TestVector3(default(Vector3)) + TestVector3(v) + TestVector3(Vector3.one) +
         TestEnum(TestEnumValue.t2) + TestEnum(default(TestEnumValue)) + TestEnum(thisEnum) + TestEnum(TestEnumValue.t1) + 
         TestRefInt(ref a) + a +
-        TestNullable(null) + TestNullable(Vector3.left) + TestNullable(nullableV1) + TestNullable(nullableV2);
+        TestNullable(null) + TestNullable(Vector3.left) + TestNullable(nullableV1) + TestNullable(nullableV2)
+        + TestNullable(nullableV3);
         //return DoAdd(a, b); 
     }
 
