@@ -27,7 +27,8 @@ namespace IFix.Core
 
         Type[] rawTypes;
 
-        Stack<object[]> argsStack;
+        [ThreadStatic]
+        static Stack<object[]>[] argsPool = null;
 
         MethodBase method;
 
@@ -43,16 +44,36 @@ namespace IFix.Core
 		bool isNullableGetValueOrDefault = false;
         bool IsConstructor = false;
         bool declaringTypeIsValueType = false;
-        private object[] GetArgs()
+
+        private static object[] GetArgs(int paramCount)
         {
-            if (argsStack.Count > 0)
+            if (argsPool == null)
             {
-                //lock (argsStack)
+                argsPool = new Stack<object[]>[256];
+                for (int i = 0; i < 256; i++)
                 {
-                    return argsStack.Pop();
+                    argsPool[i] = new Stack<object[]>();
                 }
             }
+            
+            Stack<object[]> pool = argsPool[paramCount];
+            if (pool.Count > 0)
+            {
+                return pool.Pop();
+            }
             return new object[paramCount];
+        }
+
+        private static void RecycleArgsToPool(object[] args)
+        {
+            int paramCount = args.Length;
+            Stack<object[]> pool = argsPool[paramCount];
+            // if(pool == null)
+            // {
+            //     pool = new Stack<object[]>();
+            //     argsPool[paramCount] = pool;
+            // }
+            pool.Push(args);
         }
 
         private void RecycleArgs(object[] args)
@@ -65,10 +86,7 @@ namespace IFix.Core
                 args[i] = null;
             }
 
-            //lock (argsStack)
-            {
-                argsStack.Push(args);
-            }
+            RecycleArgsToPool(args);
         }
 
         public ReflectionMethodInvoker(MethodBase method)
@@ -79,9 +97,6 @@ namespace IFix.Core
             outFlags = new bool[paramCount];
             isValueFlags = new bool[paramCount];
             rawTypes = new Type[paramCount];
-            // 对象池，防止invoke 调用自己导致参数混乱
-            argsStack = new Stack<object[]>();
-            argsStack.Push(new object[paramCount]);
 
             for (int i = 0; i < paramerInfos.Length; i++)
             {
@@ -140,7 +155,7 @@ namespace IFix.Core
             var managedStack = call.managedStack;
             var pushResult = false;
             object ret = null;
-            var args = GetArgs();
+            var args = GetArgs(paramCount);
             // invoke中会自己调用自己
 
             try

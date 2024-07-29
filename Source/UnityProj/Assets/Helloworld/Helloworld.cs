@@ -13,6 +13,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using IFix;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -32,12 +33,7 @@ public unsafe class Helloworld : MonoBehaviour
     // check and load patchs
     void Start()
     {
-        
-        Type t = typeof(int);
-        void* addr = BoxUtils.GetObjectAddr(t);
-        print(BoxUtils.AddrToObject(addr));
-        
-        test();
+        //test();
         if(calc == null) calc = new Calculator();
     }
 
@@ -90,18 +86,16 @@ public unsafe class Helloworld : MonoBehaviour
     {
         if (calc == null) calc = new Calculator();
         //test calc.Add 
-        UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
-        UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
-        UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
-        //test calc.Sub
-        UnityEngine.Debug.Log("10 - 2 = " + calc.Sub(10, 2));
 
-        var anotherClass = new AnotherClass(1);
-        //AnotherClass in Assembly-CSharp-firstpass.dll
-        var ret = anotherClass.Call(i => i + 1);
-        UnityEngine.Debug.Log("anotherClass.Call, ret = " + ret);
-
-        //test for InjectFix/Fix(Android) InjectFix/Fix(IOS) Menu for unity 2018.3 or newer
+        // 测试多线程fix会不会出问题
+        Parallel.For(0, 100, (v) =>
+        {
+            UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
+            UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
+            UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
+        });
+        
+        
 #if UNITY_2018_3_OR_NEWER
 #if UNITY_IOS
         UnityEngine.Debug.Log("UNITY_IOS");

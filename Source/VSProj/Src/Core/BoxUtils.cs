@@ -20,9 +20,59 @@ namespace IFix.Core
             }
         }
 
-        private static Stack<object>[] objectPool = new Stack<object>[256];
+        [ThreadStatic]
+        private static Stack<object>[] objectPool_ = null;
+
+        internal static Stack<object>[] objectPool
+        {
+            get
+            {
+                //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
+                if (objectPool_ == null)
+                {
+                    objectPool_ = new Stack<object>[256];
+                }
+
+                return objectPool_;
+            }
+            
+        }
+
         public static readonly int OBJ_OFFSET = 2 * IntPtr.Size;
         public static readonly int ONE_OFFSET = IntPtr.Size;
+
+        [ThreadStatic] 
+        private static bool isDummpyInit = false;
+        
+        [ThreadStatic]
+        private static  Dummpy<object> d_;
+        [ThreadStatic]
+        private static void** objPPtr_ = null;
+
+        private static void InitD()
+        {
+            //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
+            if (!isDummpyInit)
+            {
+                d_ = new Dummpy<object>();
+                objPPtr_ = (void**)UnsafeUtility.AddressOf(ref d_);
+                isDummpyInit = true;
+            }
+        }
+
+        internal static void** objPPtr
+        {
+            get
+            {
+                //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
+                if (!isDummpyInit)
+                {
+                    InitD();
+                }
+
+                return objPPtr_;
+            }
+        }
 
         // 第二个位置 用来上锁的。但是一般不会上锁 type，所以拿来存储自定义数据
         // 这个设计的就是不能lock type
@@ -193,18 +243,24 @@ namespace IFix.Core
             return *((int*)monitorOffset) - OBJ_OFFSET;
         }
 
-        private static  Dummpy<object> d;
-        private static void** objPPtr = (void**)UnsafeUtility.AddressOf(ref d);
         public static void* GetObjectAddr(object obj)
         {
-            d.v = obj;
+            if (!isDummpyInit)
+            {
+                InitD();
+            }
+            d_.v = obj;
             return *objPPtr;
         }
         
         public static object AddrToObject(void* addr)
         {
+            if (!isDummpyInit)
+            {
+                InitD();
+            }
             *objPPtr = addr;
-            return d.v;
+            return d_.v;
         }
 
         public static object CreateDefaultBoxValue(Type t)
@@ -278,11 +334,8 @@ namespace IFix.Core
             var pool = objectPool[idx];
             if (pool == null)
             {
-                lock (objectPool)
-                {
-                    pool = new Stack<object>();
-                    objectPool[idx] = pool;
-                }
+                pool = new Stack<object>();
+                objectPool[idx] = pool;
             }
 
             object obj = null;
@@ -469,7 +522,7 @@ namespace IFix.Core
         {
             if (obj == null) return;
             byte* p = (byte*)GetObjectAddr(obj);
-            // 第二个字段是 lock的hash,一半我们不会用box对象lock
+            // 第二个字段是 lock的hash,一般我们不会用box对象lock
             // 所以这里直接拿来当是否 isInPool
             int* sizePtr = (int*)(p + ONE_OFFSET);
             int size = *sizePtr;
@@ -480,10 +533,7 @@ namespace IFix.Core
             int idx = (size + 15) / 16 - 1;
 
             var pool = objectPool[idx];
-            //lock (pool)
-            {
-                pool.Push(obj);
-            }
+            pool.Push(obj);
 
             //UnsafeUtility.MemClear(p + OBJ_OFFSET, size);
             *sizePtr = 0;
