@@ -4,17 +4,20 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using IFix.Utils;
+using IFix.Core;
 using Unity.Collections.LowLevel.Unsafe;
+using ValueType = System.ValueType;
 
 namespace IFix.Editor
 {
     public class ILFixCodeGen
     {
         #region static
+
         public Dictionary<string, Tuple<int, string>> delegateDict = new Dictionary<string, Tuple<int, string>>();
         public Dictionary<string, int> ctorCache = new Dictionary<string, int>();
         public Dictionary<string, int> publicInstanceStructCache = new Dictionary<string, int>();
+
         public void ClearMethod()
         {
             delegateDict.Clear();
@@ -25,8 +28,8 @@ namespace IFix.Editor
         public bool TryGetDelegateStr(MethodInfo mi, out string ret)
         {
             bool result = true;
-            var key = TypeNameUtils.GetUniqueMethodName(mi);
-            
+            var key = TypeNameUtils.GetMethodDelegateKey(mi);
+
             if (string.IsNullOrEmpty(key))
             {
                 ret = "";
@@ -38,8 +41,8 @@ namespace IFix.Editor
                 ret = "";
                 return true;
             }
-            
-            if(key.Contains(">d__"))
+
+            if (key.Contains(">d__"))
             {
                 ret = "";
                 return true;
@@ -50,7 +53,7 @@ namespace IFix.Editor
                 ret = "";
                 return true;
             }
-            
+
             if (!delegateDict.ContainsKey(key))
             {
                 result = false;
@@ -68,16 +71,13 @@ namespace IFix.Editor
         #endregion
 
         #region cal name
-        public string MethodInfoToDelegate(MethodBase method)
+
+        public string MethodInfoToDelegate(MethodInfo method)
         {
             List<string> args = new List<string>();
             var parameters = method.GetParameters();
-            if (!method.IsStatic && !(method is ConstructorInfo))
-            {
-                args.Add( TypeNameUtils.SimpleType(method.ReflectedType) +" arg0");
-            }
 
-            for (int i = 0, imax = parameters.Length; i<imax; i++)
+            for (int i = 0, imax = parameters.Length; i < imax; i++)
             {
                 var p = parameters[i];
                 if (p.ParameterType.IsByRef && p.IsOut)
@@ -87,13 +87,13 @@ namespace IFix.Editor
                 else
                     args.Add(TypeNameUtils.SimpleType(p.ParameterType) + string.Format(" arg{0}", i + 1));
             }
+
             var parameterTypeNames = string.Join(",", args);
 
-            Type retType = (method is MethodInfo)
-                ? (method as MethodInfo).ReturnType
-                : (method as ConstructorInfo).ReflectedType;
-            
-            return string.Format("public delegate {0} IFixCallDel{2}({1});", TypeNameUtils.SimpleType(retType), parameterTypeNames, methodCount);
+            Type retType = method.ReturnType;
+
+            return string.Format("public delegate {0} IFixCallDel{2}({1});", TypeNameUtils.SimpleType(retType),
+                parameterTypeNames, methodCount);
         }
 
         #endregion
@@ -116,6 +116,7 @@ namespace IFix.Editor
                     else
                         return method;
                 }
+
                 // only fixed here
                 return method.MakeGenericMethod(genericTypes);
             }
@@ -123,6 +124,7 @@ namespace IFix.Editor
             {
                 //Debug.LogError(e);
             }
+
             return method;
         }
 
@@ -150,15 +152,15 @@ namespace IFix.Editor
         MethodInfo[] GetValidMethodInfo(Type t)
         {
             List<MethodInfo> methods = new List<MethodInfo>();
-            
-            BindingFlags bf = BindingFlags.Public 
-                              | BindingFlags.DeclaredOnly | BindingFlags.NonPublic 
+
+            BindingFlags bf = BindingFlags.Public
+                              | BindingFlags.DeclaredOnly | BindingFlags.NonPublic
                               | BindingFlags.Instance | BindingFlags.Static;
 
             MethodInfo[] members = t.GetMethods(bf);
             foreach (MethodInfo mi in members)
             {
-                if(mi.ReturnType.IsNotPublic) continue;
+                if (mi.ReturnType.IsNotPublic) continue;
                 bool hasPrivateType = false;
                 foreach (var item in mi.GetParameters())
                 {
@@ -168,7 +170,8 @@ namespace IFix.Editor
                         break;
                     }
                 }
-                if(hasPrivateType)continue;
+
+                if (hasPrivateType) continue;
                 methods.Add(tryFixGenericMethod(mi));
             }
 
@@ -196,25 +199,17 @@ namespace IFix.Editor
         {
             string str = "";
             ParameterInfo[] pars = m.GetParameters();
-            if (!m.IsStatic && !(m is ConstructorInfo))
-            {
-                if (!(!m.IsStatic && m.ReflectedType.IsValueType && m.IsPublic))
-                {
-                    str += "a0";
-                    if (pars.Length > 0) str += ",";
-                }
-            }
 
-            for (int n = parOffset; n < pars.Length; n++)
+            for (int n = 0; n < pars.Length; n++)
             {
                 ParameterInfo p = pars[n];
-                int idx = (!m.IsStatic && !(m is ConstructorInfo)) ? n + 1 : n;
+                int idx = n + 1;
                 if (p.ParameterType.IsByRef && p.IsOut)
-                    str += string.Format("out a{0}", idx);
+                    str += string.Format("out arg{0}", idx);
                 else if (p.ParameterType.IsByRef)
-                    str += string.Format("ref a{0}", idx);
+                    str += string.Format("ref arg{0}", idx);
                 else
-                    str += string.Format("a{0}", idx);
+                    str += string.Format("arg{0}", idx);
                 if (n < pars.Length - 1)
                     str += ",";
             }
@@ -230,13 +225,6 @@ namespace IFix.Editor
 
         string FuncPushResult(Type t)
         {
-            try{
-                var enn = t.IsEnum;
-            }
-            catch
-            {
-                UnityEngine.Debug.Log(t);
-            }
             if (t.IsPrimitive)
             {
                 if (t == typeof(int))
@@ -300,7 +288,7 @@ namespace IFix.Editor
             {
                 return "call.PushIntPtr64AsResult((IntPtr)result);";
             }
-            else if (!t.IsGenericType && t.IsEnum)
+            else if (t.IsEnum)
             {
                 var underlyingType = Enum.GetUnderlyingType(t);
                 if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
@@ -312,14 +300,277 @@ namespace IFix.Editor
                     return "call.PushInt32AsResult((int)result);";
                 }
             }
-            else if(UnsafeUtility.IsUnmanaged(t)
-                    && Nullable.GetUnderlyingType(t) == null )
+            else if (t.IsValueType)
             {
                 return "call.PushValueUnmanagedAsResult(result);";
             }
+
             return $"call.PushObjectAsResult(result, typeof({TypeNameUtils.SimpleType(t)}));";
         }
 
+        string GetArg(Type t, int n)
+        {
+            if (t.IsPrimitive)
+            {
+                if (t == typeof(int))
+                {
+                    return $"var arg{n} = (curArgument++)->Value1;";
+                }
+                else if (t == typeof(uint))
+                {
+                    return $"var arg{n} = (uint)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(float))
+                {
+                    return $"var arg{n} = (float)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(ushort))
+                {
+                    return $"var arg{n} = (ushort)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(short))
+                {
+                    return $"var arg{n} = (short)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(char))
+                {
+                    return $"var arg{n} = (char)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(bool))
+                {
+                    return $"var arg{n} = (curArgument++)->Value1 == 0;";
+                }
+                else if (t == typeof(byte))
+                {
+                    return $"var arg{n} = (byte)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(sbyte))
+                {
+                    return $"var arg{n} = (sbyte)(curArgument++)->Value1;";
+                }
+                else if (t == typeof(double))
+                {
+                    return $"var arg{n} = *(double*)&(curArgument++)->Value1;";
+                }
+                else if (t == typeof(long))
+                {
+                    return $"var arg{n} = *(long*)&(curArgument++)->Value1;";
+                }
+                else if (t == typeof(ulong))
+                {
+                    return $"var arg{n} = *(ulong*)&(curArgument++)->Value1;";
+                }
+                else if (t == typeof(IntPtr))
+                {
+                    return $"var arg{n} = (IntPtr)(*(long*)&(curArgument++)->Value1);";
+                }
+                else if (t == typeof(UIntPtr))
+                {
+                    return $"var arg{n} = (UIntPtr)(*(long*)&(curArgument++)->Value1);";
+                }
+            }
+            else if (t.IsPointer)
+            {
+                return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})((IntPtr)(*(long*)&(curArgument++)->Value1)).ToPointer();";
+            }
+            else if (t.IsEnum)
+            {
+                var underlyingType = Enum.GetUnderlyingType(t);
+                if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
+                {
+                    return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})(*(long*)&(curArgument++)->Value1);";
+                }
+                else
+                {
+                    return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})(curArgument++)->Value1;";
+                }
+            }
+            // else if (t.IsValueType)
+            // {
+            //     
+            // }
+
+            return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})managedStack[(curArgument++)->Value1];";
+        }
+
+
+        string ToArgRef(int n)
+        {
+            return $"Value* arg{n}Ref = EvaluationStackOperation.ToBaseRef(curArgument++);";
+        }
+
+        string UpdateArgRef(Type t, int n, StreamWriter file)
+        {
+            string ret = "";
+            if (t.IsPrimitive)
+            {
+                if (t == typeof(int))
+                {
+                    return $"arg{n}Ref->Value1 = arg{n};";
+                }
+                else if (t == typeof(uint))
+                {
+                    return $"arg{n}Ref->Value1 = (int)arg{n};";
+                }
+                else if (t == typeof(float))
+                {
+                    return $"*(float*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(ushort))
+                {
+                    return $"*(ushort*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(short))
+                {
+                    return $"*(short*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(char))
+                {
+                    return $"*(char*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(bool))
+                {
+                    return $"arg{n}Ref->Value1 = arg{n} ? 1 : 0;";
+                }
+                else if (t == typeof(byte))
+                {
+                    return $"*(byte*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(sbyte))
+                {
+                    return $"*(sbyte*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(double))
+                {
+                    return $"*(double*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(long))
+                {
+                    return $"*(long*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(ulong))
+                {
+                    return $"*(ulong*)(&arg{n}Ref->Value1) = arg{n};";
+                }
+                else if (t == typeof(IntPtr))
+                {
+                    return $"*(long*)(&arg{n}Ref->Value1) = arg{n}.ToInt64();";
+                }
+                else if (t == typeof(UIntPtr))
+                {
+                    return $"*(ulong*)(&arg{n}Ref->Value1) = arg{n}.ToUInt64();";
+                }
+            }
+            else if (t.IsPointer)
+            {
+                return $"*(long*)(&arg{n}Ref->Value1) = (long)arg{n};";
+            }
+            else if (t.IsEnum)
+            {
+                var underlyingType = Enum.GetUnderlyingType(t);
+                if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
+                {
+                    return $"*(long*)(&arg{n}Ref->Value1) = (long)arg{n};";
+                }
+                else
+                {
+                    return $"arg{n}Ref->Value1 = (int)arg{n};";
+                }
+            }
+            else
+            {
+                if (t.IsValueType)
+                {
+                    Write(file, $"BoxUtils.RecycleObject(managedStack[arg{n}Ref->Value1]);");
+                }
+
+                ret = $"managedStack[arg{n}Ref->Value1] = BoxUtils.BoxObject(arg{n});";
+            }
+
+            return ret;
+        }
+
+        string GetRefArg(Type t, int n)
+        {
+            if (t.IsPrimitive)
+            {
+                if (t == typeof(int))
+                {
+                    return $"var arg{n} = arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(uint))
+                {
+                    return $"var arg{n} = (uint)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(float))
+                {
+                    return $"var arg{n} = (float)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(ushort))
+                {
+                    return $"var arg{n} = (ushort)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(short))
+                {
+                    return $"var arg{n} = (short)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(char))
+                {
+                    return $"var arg{n} = (char)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(bool))
+                {
+                    return $"var arg{n} = arg{n}Ref->Value1 == 0;";
+                }
+                else if (t == typeof(byte))
+                {
+                    return $"var arg{n} = (byte)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(sbyte))
+                {
+                    return $"var arg{n} = (sbyte)arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(double))
+                {
+                    return $"var arg{n} = *(double*)&arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(long))
+                {
+                    return $"var arg{n} = *(long*)&arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(ulong))
+                {
+                    return $"var arg{n} = *(ulong*)&arg{n}Ref->Value1;";
+                }
+                else if (t == typeof(IntPtr))
+                {
+                    return $"var arg{n} = (IntPtr)(*(long*)&arg{n}Ref->Value1);";
+                }
+                else if (t == typeof(UIntPtr))
+                {
+                    return $"var arg{n} = (UIntPtr)(*(long*)&arg{n}Ref->Value1);";
+                }
+            }
+            else if (t.IsPointer)
+            {
+                return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})((IntPtr)(*(long*)&arg{n}Ref->Value1)).ToPointer();";
+            }
+            else if (t.IsEnum)
+            {
+                var underlyingType = Enum.GetUnderlyingType(t);
+                if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
+                {
+                    return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})(*(long*)&arg{n}Ref->Value1);";
+                }
+                else
+                {
+                    return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})arg{n}Ref->Value1;";
+                }
+            }
+
+            return $"var arg{n} = ({TypeNameUtils.SimpleType(t)})managedStack[arg{n}Ref->Value1];";
+        }
+        
         
         #endregion
 
@@ -352,14 +603,13 @@ namespace IFix.Editor
             Write(file, "using IFix.Core;");
             Write(file, "using System.Collections.Generic;");
             Write(file, "using System.Reflection;");
-            Write(file, "using IFix.Utils;");
             Write(file, "#if UNITY_5_5_OR_NEWER");
             Write(file, "using UnityEngine.Profiling;");
             Write(file, "#else");
             Write(file, "using UnityEngine;");
             Write(file, "#endif");
 
-            Write(file, "namespace IFix.Binding");
+            Write(file, "namespace IFix.Core");
             Write(file, "{");
             Write(file, "public unsafe partial class IFixBindingCaller");
             Write(file, "{");
@@ -373,33 +623,22 @@ namespace IFix.Editor
             file.Flush();
             file.Close();
 
-            //GenFileDictionary();
+            GenFileDictionary();
         }
 
-        /*
         private void GenFileDictionary()
         {
-            string bindingDelDictPath = path + "/Resources/BindingDelDict.bytes";
-            FileDictionary<string, Tuple<int, bool>> file =
-                new FileDictionary<string, Tuple<int, bool>>(bindingDelDictPath, 1024, true);
+             string bindingDelDictPath = path + "/Resources/BindingDelDict.bytes";
+             FileDictionary<string, int> file =
+                 new FileDictionary<string, int>(bindingDelDictPath, 1024, true);
             
-            foreach (var item in delegateDict)
-            {
-                file.Add(item.Key, new Tuple<int, bool>(item.Value.Item1, true));
-            }
-            
-            foreach (var item in ctorCache)
-            {
-                file.Add(item.Key, new Tuple<int, bool>(item.Value, false));
-            }
-            
-            foreach (var item in publicInstanceStructCache)
-            {
-                file.Add(item.Key, new Tuple<int, bool>(item.Value, false));
-            }
+             foreach (var item in delegateDict)
+             {
+                 file.Add(item.Key, item.Value.Item1);
+             }
 
             file.Close();
-        }*/
+        }
 
         void WriteTry(StreamWriter file)
         {
@@ -424,7 +663,7 @@ namespace IFix.Editor
 
         private bool WriteMethodCaller(MethodBase mb, StreamWriter file)
         {
-            var key = TypeNameUtils.GetUniqueMethodName(mb);
+            var key = TypeNameUtils.GetMethodDelegateKey(mb);
             if (string.IsNullOrEmpty(key))
             {
                 return false;
@@ -434,8 +673,8 @@ namespace IFix.Editor
             {
                 return false;
             }
-            
-            if(key.Contains(">d__"))
+
+            if (key.Contains(">d__"))
             {
                 return false;
             }
@@ -446,189 +685,62 @@ namespace IFix.Editor
             }
 
             // class method
-            if (mb is MethodInfo &&
-                 !TypeNameUtils.MethodIsStructPublic(mb))
+            if (mb is MethodInfo)
             {
                 string delegateStr;
                 if (TryGetDelegateStr((MethodInfo)mb, out delegateStr))
                 {
                     return false;
                 }
+
                 Write(file, delegateStr);
-            }
-            else if (mb is ConstructorInfo)
-            {
-                var cr = TypeNameUtils.GetUniqueMethodName(mb);
-                if (cr == "") return false;
-                if (!ctorCache.ContainsKey(cr))
-                {
-                    ctorCache.Add(cr, methodCount);
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else if (TypeNameUtils.MethodIsStructPublic(mb))
-            {
-                if (!publicInstanceStructCache.ContainsKey(key))
-                {
-                    publicInstanceStructCache.Add(key, methodCount);
-                }
-                else
-                {
-                    return false;
-                }
             }
             else
             {
                 return false;
             }
-
+            
             Write(file, "");
             Write(file, "public void Invoke{0}(VirtualMachine vm, ref Call call, bool instantiate) {{", methodCount);
-
+            Write(file, "var curArgument = hasThis ? call.argumentBase + 1 : call.argumentBase;");
+            Write(file, "var managedStack = call.managedStack;");
             ParameterInfo[] pars = mb.GetParameters();
-            if (mb is ConstructorInfo)
+            var mi = mb as MethodInfo;
+            
+            for (int n = 0; n < pars.Length; n++)
             {
-                for (int n = 0; n < pars.Length; n++)
+                var p = pars[n];
+                int idx = n + 1;
+                if (!p.IsOut && !p.ParameterType.IsByRef)
                 {
-                    var p = pars[n];
-                    if (p.ParameterType.IsPointer)
-                    {
-                        Write(file, "var a{0} = ({1})((IntPtr)args[{0}]);", n, TypeNameUtils.SimpleType(p.ParameterType));
-                    }
-                    else
-                    {
-                        Write(file, "var a{0} = ({1})args[{0}];", n, TypeNameUtils.SimpleType(p.ParameterType));
-                    }
-                }
-
-                string retType = TypeNameUtils.SimpleType(mb.ReflectedType);
-                Write(file, "var result = new {0}({1});", retType, FuncCall(mb));
-                if (UnsafeUtility.IsUnmanaged(mb.ReflectedType)
-                    && Nullable.GetUnderlyingType(mb.ReflectedType) == null)
-                {
-                    Write(file, "ret = BoxUtils.BoxObject(result);");
+                    Write(file, GetArg(p.ParameterType, idx));
                 }
                 else
                 {
-                    Write(file, "ret = result;");
+                    Write(file, ToArgRef(idx));
+                    Write(file, GetRefArg(p.ParameterType.GetElementType(), idx));
                 }
+            }
+
+            if (mi.ReturnType != typeof(void))
+            {
+                Write(file, "var result = ((IFixCallDel{1})caller)({0});", FuncCall(mi), methodCount);
+                Write(file, FuncPushResult(mi.ReturnType));
             }
             else
             {
-                var mi = mb as MethodInfo;
-                
-                if (!mb.IsStatic)
-                {
-                    Write(file, "var a0 = ({0})instance;", TypeNameUtils.SimpleType(mb.DeclaringType));
-                }
+                Write(file, "((IFixCallDel{1})caller)({0});", FuncCall(mi), methodCount);
+            }
 
-                for (int n = 0; n < pars.Length; n++)
-                {
-                    var p = pars[n];
-                    var idx = mb.IsStatic ? n : n + 1;
-                    if (!p.IsOut)
-                    {
-                        if (p.ParameterType.IsPointer)
-                        {
-                            Write(file, "var a{0} = ({1})((IntPtr)args[{2}]);", idx, TypeNameUtils.SimpleType(p.ParameterType), n);
-                        }
-                        else
-                        {
-                            Write(file, "var a{0} = ({1})args[{2}];", idx, TypeNameUtils.SimpleType(p.ParameterType), n);
-                        }
-                    }
-                    else
-                    {
-                        Write(file, "{1} a{0};", idx, TypeNameUtils.SimpleType(p.ParameterType));
-                    }
-                }
 
-                if (TypeNameUtils.MethodIsStructPublic(mb))
+            for (int n = 0; n < pars.Length; n++)
+            {
+                var p = pars[n];
+                var idx = n + 1;
+                if (p.ParameterType.IsByRef)
                 {
-                    string methodName = mi.Name;
-                    if (methodName.Contains("get_"))
-                    {
-                        if (methodName == "get_Item")
-                        {
-                            Write(file, "var result = a0[a1];");
-                        }
-                        else
-                        {
-                            Write(file, "var result = a0.{0};", methodName.Remove(0, 4));
-                        }
-                    }
-                    else if (methodName.Contains("set_"))
-                    {
-                        if (methodName == "set_Item")
-                        {
-                            Write(file, "a0[a1] = a2;");
-                        }
-                        else
-                        {
-                            Write(file, "a0.{0} = a1;", methodName.Remove(0, 4));
-                        }
-                    }
-                    else
-                    {
-                        if (mi.ReturnType != typeof(void))
-                        {
-                            Write(file, "var result = a0.{0}({1});", methodName, FuncCall(mi));
-                            //Write(file, "call.PushObjectAsResult(result, result.GetType());");
-                        }
-                        else
-                        {
-                            Write(file, "a0.{0}({1});", methodName, FuncCall(mi));
-                        }
-                    }
-                }
-                else
-                {
-                    if (mi.ReturnType != typeof(void))
-                    {
-                        Write(file, "var result = ((IFixCallDel{1})caller)({0});", FuncCall(mi), methodCount);
-                        //Write(file, "call.PushObjectAsResult(result, result.GetType());");
-                    }
-                    else
-                    {
-                        Write(file, "((IFixCallDel{1})caller)({0});", FuncCall(mi), methodCount);
-                    }
-                }
-
-                
-                if(mi.ReturnType != typeof(void))
-                {
-                    if (UnsafeUtility.IsUnmanaged(mi.ReturnType)
-                        && Nullable.GetUnderlyingType(mi.ReturnType) == null)
-                    {
-                        Write(file, "ret = BoxUtils.BoxObject(result);");
-                    }
-                    else
-                    {
-                        Write(file, "ret = result;");
-                    }
-                }
-
-                
-                for (int n = 0; n < pars.Length; n++)
-                {
-                    var p = pars[n];
-                    var idx = mb.IsStatic ? n : n + 1;
-                    if (p.ParameterType.IsByRef)
-                    {
-                        Write(file, "BoxUtils.RecycleObject(args[{0}]);", n);
-                        if (UnsafeUtility.IsUnmanaged(p.ParameterType)
-                            && Nullable.GetUnderlyingType(p.ParameterType) == null)
-                        {
-                            Write(file, "args[{0}] = BoxUtils.BoxObject(a{1});", n, idx);
-                        }
-                        else
-                        {
-                            Write(file, "args[{0}] = a{1};", n, idx);
-                        }
-                    }
+                    string updateStr = UpdateArgRef(p.ParameterType.GetElementType(), idx, file);
+                    Write(file, updateStr);
                 }
             }
 
@@ -654,15 +766,15 @@ namespace IFix.Editor
 
         public void GenAll(List<MethodBase> mbList)
         {
-            var file = Begin(); 
+            var file = Begin();
             WriteHead(file);
-            
+
             for (int i = 0, imax = mbList.Count; i < imax; i++)
             {
-                if(WriteMethodCaller(mbList[i], file))
+                if (WriteMethodCaller(mbList[i], file))
                     methodCount++;
             }
-            
+
             End(file);
         }
 
@@ -681,7 +793,7 @@ namespace IFix.Editor
             }
 
             string bindingFile = path + "IFixBindingCaller.cs";
-            
+
             StreamWriter file = new StreamWriter(bindingFile, false, Encoding.UTF8);
             file.NewLine = NewLine;
             return file;

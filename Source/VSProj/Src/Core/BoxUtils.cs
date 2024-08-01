@@ -10,7 +10,7 @@ namespace IFix.Core
 {
     public static unsafe class BoxUtils
     {
-        struct Dummpy<T>
+        public struct Dummpy<T>
         {
             public T v;
             
@@ -22,7 +22,7 @@ namespace IFix.Core
 
         [ThreadStatic]
         private static Stack<object>[] objectPool_ = null;
-
+        
         internal static Stack<object>[] objectPool
         {
             get
@@ -48,7 +48,7 @@ namespace IFix.Core
         private static  Dummpy<object> d_;
         [ThreadStatic]
         private static void** objPPtr_ = null;
-
+        
         private static void InitD()
         {
             //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
@@ -57,20 +57,6 @@ namespace IFix.Core
                 d_ = new Dummpy<object>();
                 objPPtr_ = (void**)UnsafeUtility.AddressOf(ref d_);
                 isDummpyInit = true;
-            }
-        }
-
-        internal static void** objPPtr
-        {
-            get
-            {
-                //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
-                if (!isDummpyInit)
-                {
-                    InitD();
-                }
-
-                return objPPtr_;
             }
         }
 
@@ -223,7 +209,7 @@ namespace IFix.Core
             void* ptr = *(void**)((byte*)*monitorOffset + 16);
             return (Type)AddrToObject(ptr);
         }
-
+        
         public static int GetFieldOffset(FieldInfo fi)
         {
             long* monitorOffset = (long*)GetObjectAddr(fi) + 1;
@@ -242,7 +228,7 @@ namespace IFix.Core
 
             return *((int*)monitorOffset) - OBJ_OFFSET;
         }
-
+        
         public static void* GetObjectAddr(object obj)
         {
             if (!isDummpyInit)
@@ -250,7 +236,7 @@ namespace IFix.Core
                 InitD();
             }
             d_.v = obj;
-            return *objPPtr;
+            return *objPPtr_;
         }
         
         public static object AddrToObject(void* addr)
@@ -259,10 +245,10 @@ namespace IFix.Core
             {
                 InitD();
             }
-            *objPPtr = addr;
+            *objPPtr_ = addr;
             return d_.v;
         }
-
+        
         public static object CreateDefaultBoxValue(Type t)
         {
             void* p = null;
@@ -287,7 +273,7 @@ namespace IFix.Core
             void* p = null;
             return CreateBoxValue(t, ref p, jumpNulable);
         }
-
+        
         public static object CreateBoxValue(Type t, ref void* objPtr, bool jumpNulable = false, bool clearObj = false)
         {
             //if (t == typeof(void)) return null;
@@ -376,7 +362,7 @@ namespace IFix.Core
             void* p = null;
             return CreateBoxValue(returnType, ref p);
         }
-
+        
         public static object CloneObject(object value)
         {
             if (value == null) return null;
@@ -400,7 +386,7 @@ namespace IFix.Core
 
             return result;
         }
-
+        
         public static object GetStaticFieldValue(FieldInfo fi, Type t)
         {
             void** monitorOffset = (void**)GetObjectAddr(t) + 1;
@@ -420,7 +406,7 @@ namespace IFix.Core
 
             return ret;
         }
-
+        
         public static object GetFieldValue(object thisArg, FieldInfo fi, Type t)
         {
             void** monitorOffset = (void**)GetObjectAddr(t) + 1;
@@ -462,7 +448,7 @@ namespace IFix.Core
 
             return result;
         }
-
+        
         public static object BoxEnumObject(Type t, int value)
         {
             void* p = null;
@@ -480,7 +466,7 @@ namespace IFix.Core
 
             return obj;
         }
-
+        
         public static object BoxObject<T>(T value, bool jumpTypeCheck = false)
         {
             Type t = typeof(T);
@@ -517,7 +503,7 @@ namespace IFix.Core
 
             return obj;
         }
-
+        
         public static void RecycleObject(object obj)
         {
             if (obj == null) return;

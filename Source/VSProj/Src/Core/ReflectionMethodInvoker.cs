@@ -176,7 +176,7 @@ namespace IFix.Core
                     if (!outFlags[i])
                     {
                         args[i] = EvaluationStackOperation.ToObject(call.evaluationStackBase, pArg, managedStack,
-                            rawTypes[i], virtualMachine);
+                            rawTypes[i], virtualMachine, false);
                     }
                     pArg++;
                 }

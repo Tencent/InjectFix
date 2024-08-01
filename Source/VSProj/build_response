@@ -1,8 +1,8 @@
 /target:library
 /nowarn:0169
 /nowarn:0649
+/optimize+
 /out:../UnityProj/Assets/Plugins/IFix.Core.dll
-/debug:portable
 /unsafe
 /preferreduilang:en-US
 /langversion:latest

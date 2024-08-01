@@ -920,17 +920,16 @@ namespace IFix.Core
                             var externInvokeFunc = externInvokers[methodId];
                             if (externInvokeFunc == null)
                             {
-                                externInvokers[methodId] = externInvokeFunc
-                                    = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
-                                // if (externInvokersHandle != null && externInvokersHandle(externMethods[methodId], out externInvokeFunc))
-                                // {
-                                //     externInvokers[methodId] = externInvokeFunc;
-                                // }
-                                // else
-                                // {
-                                //     externInvokers[methodId] = externInvokeFunc
-                                //         = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
-                                // }
+                                var method = externMethods[methodId];
+                                if (externInvokersHandle != null && (method is MethodInfo) && externInvokersHandle(method, out externInvokeFunc))
+                                {
+                                    externInvokers[methodId] = externInvokeFunc;
+                                }
+                                else
+                                {
+                                    externInvokers[methodId] = externInvokeFunc
+                                        = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
+                                }
                             }
                             //Info("call extern: " + externMethods[methodId]);
                             var top = evaluationStackPointer - paramCount;

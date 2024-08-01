@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
-namespace IFix.Utils
+namespace IFix.Core
 {
     public static class TypeNameUtils
     {
@@ -126,7 +126,7 @@ namespace IFix.Utils
                 (!mb.IsStatic && mb.ReflectedType.IsValueType && mb.IsPublic);
         }
 
-        public static string GetUniqueMethodName(MethodBase method)
+        public static string GetMethodDelegateKey(MethodBase method)
         {
             if(TypeNameUtils.SimpleType(method.ReflectedType) == "!")
             {
@@ -145,23 +145,11 @@ namespace IFix.Utils
             string funName = "";
             List<string> args = new List<string>();
             var parameters = method.GetParameters();
-            if (!method.IsStatic && !(method is ConstructorInfo))
+            if (!method.ReflectedType.IsVisible)
             {
-                if (!method.ReflectedType.IsVisible)
-                {
-                    return "";
-                }
-
-                if (MethodIsStructPublic(method))
-                {
-                    funName = method.Name;
-                }
-                else
-                {
-                    args.Add( TypeNameUtils.SimpleType(method.ReflectedType));
-                }
+                return "";
             }
-            else if (method is ConstructorInfo)
+            if (method is ConstructorInfo)
             {
                 funName = "ctor";
             }

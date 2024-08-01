@@ -42,7 +42,7 @@ public class Calculator
 
     private static Vector3? nullableV3 = Vector3.left;
 
-    private AllValueStruct astruct = new AllValueStruct();
+    private AllValueStruct astruct = new AllValueStruct{x=1};
 
     //修改成正确的逻辑后，打开如下注释，生成的补丁将修正该函数
     [Patch]
@@ -59,6 +59,16 @@ public class Calculator
         //return DoAdd(a, b); 
     }
 
+    public int TestNullable(ref Vector3? v)
+    {
+        if (v == null)
+        {
+            return 9 * 1000000;
+        }
+
+        return (int)(v.Value.x + v.Value.y + v.Value.z) * 1000000;
+    }
+    
     public int TestNullable(Vector3? v)
     {
         if (v == null)

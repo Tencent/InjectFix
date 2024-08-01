@@ -374,7 +374,7 @@ namespace IFix.Core
                     }
                     else if (type == IntPtrType)
                     {
-                        var ret = BoxUtils.BoxObject<IntPtr>(new IntPtr(l), true);
+                        var ret = BoxUtils.BoxObject<IntPtr>((IntPtr)l, true);
                         return ret;
                     }
                     else if (type == UIntPtrType)
@@ -495,8 +495,19 @@ namespace IFix.Core
                     throw new NotImplementedException("get obj of " + evaluationStackPointer->Type);
             }
         }
-        
-        
+
+
+        public static Value* ToBaseRef(Value* sp)
+        {
+            if (sp->Type != ValueType.StackReference)
+            {
+                return sp;
+            }
+            else
+            {
+                return ToBaseRef(*(Value**)&sp->Value1);
+            }
+        }
 
         public static void PushValue<T>(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, T v)
@@ -953,7 +964,7 @@ namespace IFix.Core
             currentTop++;
         }
 
-        public void PushValueUnmanaged<T>(T v) where T : struct
+        public void PushValueUnmanaged<T>(T v)
         {
             var o = BoxUtils.BoxObject(v, true);
             PushObject(o);
@@ -1025,9 +1036,17 @@ namespace IFix.Core
             currentTop = argumentBase + 1;
         }
 
-        public void PushValueUnmanagedAsResult<T>(T v)  where T : struct//反射专用
+        public void PushValueUnmanagedAsResult<T>(T v)//反射专用
         {
-            EvaluationStackOperation.PushValue(evaluationStackBase, argumentBase, managedStack, v);
+            var o = BoxUtils.BoxObject(v, true);
+            
+            int pos = (int)(argumentBase - evaluationStackBase);
+            argumentBase->Value1 = pos;
+            argumentBase->Type = ValueType.ValueType;
+            BoxUtils.RecycleObject(managedStack[pos]);
+
+            managedStack[pos] = o;
+            
             currentTop = argumentBase + 1;
         }
 

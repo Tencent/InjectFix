@@ -2525,7 +2525,7 @@ namespace IFix
                             {
                                 if (paramRawType.IsValueType)
                                 {
-                                    var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
+                                    var rawType = parameterTypes[i];
                                     instructions.Add(Instruction.Create(OpCodes.Callvirt,
                                         makeGenericMethod(Call_PushValueUnmanaged, rawType))
                                     );

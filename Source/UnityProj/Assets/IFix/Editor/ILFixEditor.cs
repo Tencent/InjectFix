@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 using System.Text;
 using System.Reflection;
 using System.Reflection.Emit;
+using IFix.Core;
 using Debug = System.Diagnostics.Debug;
 #if UNITY_2018_3_OR_NEWER
 using UnityEditor.Build.Player;
@@ -942,7 +943,8 @@ namespace IFix.Editor
             EditorUtility.ClearProgressBar();
         }
 
-        //[MenuItem("InjectFix/GenBinding", false, 2)]
+
+        [MenuItem("InjectFix/GenBinding", false, 2)]
         public static void GenBinding()
         {
             ILFixCodeGen gen = new ILFixCodeGen();
@@ -976,7 +978,8 @@ namespace IFix.Editor
         public static List<MethodBase> FindAllMethod(Assembly assembly)
         {
             HashSet<MethodBase> result = new HashSet<MethodBase>();
-
+            Module[] modules = assembly.GetModules();
+            Module mainModule = modules[0];
             // 遍历程序集中的所有类型
             foreach (var type in assembly.GetTypes())
             {
@@ -1051,29 +1054,26 @@ namespace IFix.Editor
                                 // 解析元数据标记获取调用的方法信息
                                 try
                                 {
-                                    var calledMethod = methodInfo.Module.ResolveMethod(metadataToken);
-                                    //UnityEngine.Debug.Log($"find method: {calledMethod.ReflectedType.FullName}.{calledMethod.Name}");
+                                    var calledMethod = mainModule.ResolveMethod(metadataToken);
                                     if (!result.Contains(calledMethod))
                                     {
                                         if (calledMethod is ConstructorInfo)
                                         {
-                                            if (!calledMethod.ReflectedType.IsValueType)
-                                            {
-                                                //UnityEngine.Debug.Log($"class ctor:{calledMethod.ReflectedType}, {calledMethod.Name}");
-                                            }
-                                            else if(calledMethod.IsPublic)
-                                            {
-                                                result.Add(calledMethod);
-                                            }
-                                            // class对象的构造函数不处理
+                                            // 构造函数暂时不处理
+                                            // if (!calledMethod.ReflectedType.IsValueType)
+                                            // {
+                                            //     //UnityEngine.Debug.Log($"class ctor:{calledMethod.ReflectedType}, {calledMethod.Name}");
+                                            // }
+                                            // else if(calledMethod.IsPublic)
+                                            // {
+                                            //     result.Add(calledMethod);
+                                            // }
+
                                         }
                                         else
                                         {
-                                            // struct的instance方法很难用无GC方法创建委托，暂时不管，以后可以用 直接调用方法
-                                            if (!calledMethod.IsStatic && calledMethod.ReflectedType.IsValueType)
-                                            {
-                                            }
-                                            else if (calledMethod.ReflectedType.FullName.Contains("IFix.Core"))
+                                            // IFix.Core空间下不导出
+                                            if (calledMethod.ReflectedType.FullName.Contains("IFix.Core"))
                                             {
                                             }
                                             else
