@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections.LowLevel.Unsafe;
+using Unsafe.As;
 
 namespace IFix.Core
 {
@@ -81,7 +82,7 @@ namespace IFix.Core
                 else
                     caller = Delegate.CreateDelegate(delType, (MethodInfo)method);
 
-                callerPtr = (byte*)BoxUtils.GetObjectAddr(caller);
+                callerPtr = (byte*)UnsafeAsUtility.AsPoint(ref caller);
                 
                 isSuccess = true;
             }
@@ -102,24 +103,18 @@ namespace IFix.Core
             {
                 object instance = call.managedStack[call.argumentBase->Value1];
                 //targetField.SetValue(caller, instance);
-                void* p = BoxUtils.GetObjectAddr(instance);
+                void* p = UnsafeAsUtility.AsPoint(ref instance);
                 
-                *(void**)(callerPtr + targetOffset) = p;
 #if ENABLE_IL2CPP
                 *(void**)(callerPtr + methodCodeOffset) = p;
+#else
+                *(void**)(callerPtr + targetOffset) = p;
 #endif
             }
+            
+            // 这里走delegate创建
+            InvokeCall(virtualMachine, ref call, isInstantiate);
 
-            try
-            {
-                // 这里走delegate创建
-                InvokeCall(virtualMachine, ref call, isInstantiate);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-                throw e;
-            }
             // finally
             // {
             //     Value* pArg = call.argumentBase;

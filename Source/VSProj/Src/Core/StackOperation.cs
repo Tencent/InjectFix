@@ -8,6 +8,7 @@
 using System.Text;
 using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
+using Unsafe.As;
 
 namespace IFix.Core
 {
@@ -82,6 +83,7 @@ namespace IFix.Core
                 {
                     //VirtualMachine._Info("create thread stack");
                     stack = new ThreadStackInfo();
+                    BoxUtils.InitD();					
                     //Thread.SetData(localSlot, stack);
                 }
 
@@ -529,7 +531,7 @@ namespace IFix.Core
             bool isValueType = false;
             if (obj != null)
             {
-                void** monitorOffset = (void**)BoxUtils.GetObjectAddr(type) + 1;
+                void** monitorOffset = (void**)UnsafeAsUtility.AsPoint(ref type) + 1;
                 if (*monitorOffset == null)
                 {
                     BoxUtils.CacheTypeInfo(type);
@@ -548,7 +550,7 @@ namespace IFix.Core
                 else if (isEnum)
                 {
                     int size = *(int*)(typeInfo + 12);
-                    byte* b = (byte*)BoxUtils.GetObjectAddr(obj)+ BoxUtils.OBJ_OFFSET;
+                    byte* b = (byte*)UnsafeAsUtility.AsPoint(ref obj)+ BoxUtils.OBJ_OFFSET;
 
                     if (size == 8)
                     {

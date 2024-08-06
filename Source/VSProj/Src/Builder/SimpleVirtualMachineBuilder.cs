@@ -115,11 +115,9 @@ namespace IFix.Core
                 }
                 nativePointers.Add(nativePointer);
             }
-            var newTuple = typeof(Tuple<int, int>).GetConstructor(new []{typeof(int), typeof(int)});
             var newM = typeof(List<int>).GetMethod("get_Count", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             var externMethods = new MethodBase[3];
             externMethods[0] = typeof(SimpleVirtualMachineBuilder).GetMethod("GetValue");
-            externMethods[1] = newTuple;
             externMethods[2] = newM;
     
             var ret = new VirtualMachine(unmanagedCodes, () =>

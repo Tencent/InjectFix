@@ -18,8 +18,10 @@ using System.Threading.Tasks;
 using IFix;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Profiling;
 using UnityEngine.Assertions.Must;
 using UnityEngine.Profiling;
+using Unsafe.As;
 using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 
@@ -36,13 +38,15 @@ public class TestStruct
 // 跑不同仔细看文档Doc/example.md
 public unsafe class Helloworld : MonoBehaviour
 {
+    public static readonly ProfilerMarker  marker = new ProfilerMarker("marker");
+
     private Dictionary<Type, bool> dict = new Dictionary<Type, bool>();
     
     static FieldInfo methodCodeField = typeof(Delegate).GetField("method_code",BindingFlags.Instance | BindingFlags.NonPublic);
     static int methodCodeOffset = UnsafeUtility.GetFieldOffset(methodCodeField);
     static FieldInfo targetField = typeof(Delegate).GetField("m_target",BindingFlags.Instance | BindingFlags.NonPublic);
     static int targetOffset = UnsafeUtility.GetFieldOffset(targetField);
-
+    
     // check and load patchs
     void Start()
     {
@@ -54,8 +58,8 @@ public unsafe class Helloworld : MonoBehaviour
         
         ts = new TestStruct();
         ts.v = 114514;
-        void* p = BoxUtils.GetObjectAddr(ts);
-        byte* ap = (byte*)BoxUtils.GetObjectAddr(action);
+        void* p = UnsafeAsUtility.AsPoint(ref ts);
+        byte* ap = (byte*)UnsafeAsUtility.AsPoint(ref action);
 
         int v = 1;
         ref int vv = ref v;
@@ -93,24 +97,20 @@ public unsafe class Helloworld : MonoBehaviour
         { 
             UnityEngine.Debug.Log("loading Assembly-CSharp.patch ...");
             var sw = Stopwatch.StartNew(); 
-            var vm = PatchManager.Load(new MemoryStream(patch.bytes));
-            
-            vm.externInvokersHandle = (MethodBase mb, out ExternInvoker ei) =>
-            {
-                lock (vm)
+            var vm = PatchManager.Load(new MemoryStream(patch.bytes), false,
+                (MethodBase mb, out ExternInvoker ei) =>
                 {
-                    bool ret = false;
-                    if (mb is ConstructorInfo)
-                    {
-                        ei = null;
-                        return false;
-                    }
+                        bool ret = false;
+                        if (mb is ConstructorInfo)
+                        {
+                            ei = null;
+                            return false;
+                        }
                     
-                    var fb = new IFixBindingCaller(mb, out ret);
-                    ei = fb.Invoke;
-                    return ret;
-                }
-            };
+                        var fb = new IFixBindingCaller(mb, out ret);
+                        ei = fb.Invoke;
+                        return ret;
+                });
 
             UnityEngine.Debug.Log("patch Assembly-CSharp.patch, using " + sw.ElapsedMilliseconds + " ms");
         }
@@ -121,12 +121,48 @@ public unsafe class Helloworld : MonoBehaviour
 
     private void OnDestroy()
     {
-        IFixBindingCaller.UnInit();
+        try
+        {
+            if (!enabled)
+            {
+                using (marker.Auto())
+                {
+                    IFixBindingCaller.UnInit();
+                }
+            }
+            else
+            {
+                var m = new ProfilerMarker("marker2");
+                using (m.Auto())
+                {
+                    IFixBindingCaller.UnInit();
+                }
+            }
+
+            // using (new ProfilerMarker(enabled? "marker" : range + "marker " + range + Random.Range(0, 1)).Auto())
+            // {
+            //     IFixBindingCaller.UnInit();
+            //     Vector3 v = default;
+            //     using (new ProfilerMarker($"marker{range}").Auto())
+            //     {
+            //         IFixBindingCaller.UnInit();
+            //     }
+            // }
+        }
+        finally
+        {
+            IFixBindingCaller.UnInit();
+        }
     }
 
     public void TestRand()
     {
         var sw = Stopwatch.StartNew();
+        // for (int i = 0; i < 10000000; i++)
+        // {
+        //     DoTestRand();
+        // }
+
         DoTestRand();
         // for(int i = 0;i<1000;i++)
         //     calc.Add(10, 9);
@@ -134,13 +170,12 @@ public unsafe class Helloworld : MonoBehaviour
         UnityEngine.Debug.Log("Test call 1000 Struct, using " + (float)sw.ElapsedTicks / 10000 + " ms");
     }
 
+    private static int range = 10;
     [Patch]
-    public void DoTestRand()
+    public void DoTestRand() 
     {
-        for (int i = 0; i < 10000000; i++)
-        {
+        for(int i =0;i<10000000;++i)
             Random.Range(-500, 500);
-        }
     }
 
     //[IFix.Patch]

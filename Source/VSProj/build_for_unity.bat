@@ -14,6 +14,7 @@ call %CSC% /noconfig ^
 /reference:%UNITY_HOME_LIB%/mono/4.7.1-api/mscorlib.dll ^
 /reference:%UNITY_HOME_LIB%/mono/4.7.1-api/System.dll ^
 /reference:%UNITY_HOME_LIB%/mono/4.7.1-api/System.Core.dll ^
+/reference:ThirdParty/Unsafe.As.dll ^
 /reference:%UNITY_HOME%/Data/Managed/UnityEngine/UnityEngine.CoreModule.dll ^
 /reference:%UNITY_HOME%/Data/Managed/UnityEngine/UnityEngine.PhysicsModule.dll @build_response
 

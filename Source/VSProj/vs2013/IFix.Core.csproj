@@ -43,6 +43,9 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\ThirdParty\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="Unsafe.As">
+      <HintPath>..\ThirdParty\Unsafe.As.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Src\Builder\FileVirtualMachineBuilder.cs">
