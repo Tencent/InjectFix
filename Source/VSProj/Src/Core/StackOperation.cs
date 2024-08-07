@@ -758,6 +758,11 @@ namespace IFix.Core
 
         public Value** topWriteBack;
 
+        public static Call NewCall()
+        {
+            return new Call();
+        }
+
         public static Call Begin()
         {
             var stack = ThreadStackInfo.Stack;

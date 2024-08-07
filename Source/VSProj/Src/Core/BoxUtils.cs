@@ -483,11 +483,8 @@ namespace IFix.Core
             int size = *sizePtr;
             // monitor的lock 会超过4096的，但是一般value type的长度不会
             if (size == 0 || size > 4096) return;
-            
-            int idx = (size + 15) / 16 - 1;
 
-            var pool = objectPool[idx];
-            pool.Push(obj);
+            objectPool[(size + 15) / 16 - 1].Push(obj);
 
             //UnsafeUtility.MemClear(p + OBJ_OFFSET, size);
             *sizePtr = 0;

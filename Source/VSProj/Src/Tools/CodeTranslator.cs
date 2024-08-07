@@ -2903,7 +2903,7 @@ namespace IFix
                             {
                                 throw new NotImplementedException("no push for " + paramRawType + " at " + method);
                             }
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                            instructions.Add(Instruction.Create(OpCodes.Call, push));
                         }
                         else
                         {
@@ -2913,21 +2913,21 @@ namespace IFix
                             MethodReference push;
                             if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                             {
-                                instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                                instructions.Add(Instruction.Create(OpCodes.Call, push));
                             }
                             else
                             {
                                 if (paramRawType.IsValueType)
                                 {
                                     var rawType = parameterTypes[i];
-                                    instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                                    instructions.Add(Instruction.Create(OpCodes.Call,
                                         makeGenericMethod(Call_PushValueUnmanaged, rawType))
                                     );
                                     //instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
                                 }
                                 else
                                 {
-                                    instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                                    instructions.Add(Instruction.Create(OpCodes.Call,
                                         pushMap[assembly.MainModule.TypeSystem.Object]));
                                 }
                             }
@@ -2940,7 +2940,7 @@ namespace IFix
             {
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-                instructions.Add(Instruction.Create(OpCodes.Callvirt, pushMap[assembly.MainModule.TypeSystem.Object]));
+                instructions.Add(Instruction.Create(OpCodes.Call, pushMap[assembly.MainModule.TypeSystem.Object]));
             }
             else
             {
@@ -2953,7 +2953,7 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
                 instructions.Add(Instruction.Create(OpCodes.Ldfld, anonObj));
-                instructions.Add(Instruction.Create(OpCodes.Callvirt, pushMap[assembly.MainModule.TypeSystem.Object]));
+                instructions.Add(Instruction.Create(OpCodes.Call, pushMap[assembly.MainModule.TypeSystem.Object]));
                 instructions.Add(nop);
             }
 
@@ -2964,7 +2964,7 @@ namespace IFix
                 if (parameterTypes[i].IsByReference)
                 {
                     emitLdcI4(instructions, refPos[i]);
-                    instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushRef_Ref));
+                    instructions.Add(Instruction.Create(OpCodes.Call, Call_PushRef_Ref));
                 }
                 else
                 {
@@ -2973,14 +2973,14 @@ namespace IFix
                     MethodReference push;
                     if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                     {
-                        instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                        instructions.Add(Instruction.Create(OpCodes.Call, push));
                     }
                     else
                     {
                         if (paramRawType.IsValueType)
                         {
                             var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                            instructions.Add(Instruction.Create(OpCodes.Call,
                                 makeGenericMethod(Call_PushValueUnmanaged, rawType))
                             );
                             
@@ -2992,7 +2992,7 @@ namespace IFix
                         }
                         else
                         {
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                            instructions.Add(Instruction.Create(OpCodes.Call,
                                 pushMap[assembly.MainModule.TypeSystem.Object]));
                         }
                     }
