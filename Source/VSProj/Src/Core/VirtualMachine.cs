@@ -2489,18 +2489,19 @@ namespace IFix.Core
                                 {
                                     Value* src = *(Value**)&ptr->Value1;
                                     *ptr = *src;
-                                    if (src->Type == ValueType.Object)
+                                    if (src->Type == ValueType.Object || src->Type == ValueType.ValueType)
                                     {
                                         BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                                         managedStack[ptr - evaluationStackBase] = managedStack[src->Value1];
                                         ptr->Value1 = (int)(ptr - evaluationStackBase);
                                     }
-                                    else if (src->Type == ValueType.ValueType)
-                                    {
-                                        managedStack[ptr - evaluationStackBase]
-                                            = BoxUtils.CloneObject(managedStack[src->Value1]);
-                                        ptr->Value1 = (int)(ptr - evaluationStackBase);
-                                    }
+                                    // else if (src->Type == ValueType.ValueType)
+                                    // {
+                                    //     BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                                    //     managedStack[ptr - evaluationStackBase]
+                                    //         = BoxUtils.CloneObject(managedStack[src->Value1]);
+                                    //     ptr->Value1 = (int)(ptr - evaluationStackBase);
+                                    // }
                                 }
                                     break;
                                 default:
@@ -4116,26 +4117,47 @@ namespace IFix.Core
                         case Code.Nop: //0.0270415% but被过滤了
                             break;
                         case Code.Unaligned:
+                            break;
                         case Code.Cpblk:
+                            break;
                         case Code.Conv_I:
+                            break;
                         case Code.Sizeof:
+                            break;
                         case Code.Localloc:
+                            break;
                         case Code.Ckfinite:
+                            break;
                         case Code.No:
+                            break;
                         case Code.Tail:
+                            break;
                         case Code.Initblk:
+                            break;
                         case Code.Readonly:
+                            break;
                         case Code.Sub_Ovf_Un:
+                            break;
                         case Code.Refanyval:
+                            break;
                         case Code.Break:
+                            break;
                         case Code.Sub_Ovf:
+                            break;
                         case Code.Jmp:
+                            break;
                         case Code.Cpobj:
+                            break;
                         case Code.Conv_Ovf_U:
+                            break;
                         case Code.Refanytype:
+                            break;
                         case Code.Endfilter:
+                            break;
                         case Code.Conv_Ovf_U_Un:
+                            break;
                         case Code.Arglist:
+                            break;
                         default:
                             throwRuntimeException(new NotImplementedException(code.ToString() + " " + pc->Operand),
                                 true);
