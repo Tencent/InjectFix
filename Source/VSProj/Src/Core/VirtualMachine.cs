@@ -3704,7 +3704,7 @@ namespace IFix.Core
                             var idx = (evaluationStackPointer - 1 - 1)->Value1;
                             var ptr = evaluationStackPointer - 1 - 1 - 1;
                             var obj = managedStack[ptr->Value1];
-                            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                            //BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                             managedStack[ptr - evaluationStackBase] = null;
                             evaluationStackPointer = ptr;
                             IntPtr[] intPtrArr = obj as IntPtr[];
@@ -3728,7 +3728,7 @@ namespace IFix.Core
                             var idx = (evaluationStackPointer - 1 - 1)->Value1;
                             var ptr = evaluationStackPointer - 1 - 1 - 1;
                             var arr = managedStack[ptr->Value1] as double[];
-                            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                            //BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                             managedStack[ptr - evaluationStackBase] = null;
                             evaluationStackPointer = ptr;
                             arr[idx] = val;
@@ -3739,7 +3739,7 @@ namespace IFix.Core
                             var idx = (evaluationStackPointer - 1)->Value1;
                             var ptr = evaluationStackPointer - 1 - 1;
                             var obj = managedStack[ptr->Value1];
-                            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
+                            //BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
                             managedStack[ptr - evaluationStackBase] = null;
                             evaluationStackPointer--;
                             ptr->Type = ValueType.Long;
@@ -4115,6 +4115,27 @@ namespace IFix.Core
                             throw throwExcepton;
                         case Code.Nop: //0.0270415% but被过滤了
                             break;
+                        case Code.Unaligned:
+                        case Code.Cpblk:
+                        case Code.Conv_I:
+                        case Code.Sizeof:
+                        case Code.Localloc:
+                        case Code.Ckfinite:
+                        case Code.No:
+                        case Code.Tail:
+                        case Code.Initblk:
+                        case Code.Readonly:
+                        case Code.Sub_Ovf_Un:
+                        case Code.Refanyval:
+                        case Code.Break:
+                        case Code.Sub_Ovf:
+                        case Code.Jmp:
+                        case Code.Cpobj:
+                        case Code.Conv_Ovf_U:
+                        case Code.Refanytype:
+                        case Code.Endfilter:
+                        case Code.Conv_Ovf_U_Un:
+                        case Code.Arglist:
                         default:
                             throwRuntimeException(new NotImplementedException(code.ToString() + " " + pc->Operand),
                                 true);
