@@ -196,7 +196,7 @@ namespace IFix.Core
 
         Action onDispose;
 
-        ExternInvoker[] externInvokers;
+        Delegate[] externInvokers;
 
         MethodBase[] externMethods;
         bool?[] externIsNewDelegate;
@@ -242,24 +242,7 @@ namespace IFix.Core
             set
             {
                 externMethods = value;
-                externInvokers = new ExternInvoker[externMethods.Length];
-                for (int i = 0, imax = externMethods.Length; i < imax; i++)
-                {
-                    var methodId = i;
-                    ExternInvoker externInvokeFunc = null;
-                    var method = externMethods[methodId];
-                    if (method == null) continue;
-                    if (externInvokersHandle != null && (method is MethodInfo) &&
-                        externInvokersHandle(method, out externInvokeFunc))
-                    {
-                        externInvokers[methodId] = externInvokeFunc;
-                    }
-                    else
-                    {
-                        externInvokers[methodId] = externInvokeFunc
-                            = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
-                    }
-                }
+                externInvokers = new Delegate[externMethods.Length];
 
                 externIsNewDelegate = new bool?[externMethods.Length];
             }
@@ -868,12 +851,30 @@ namespace IFix.Core
                             pm->Type = ValueType.Integer;
                         }
                             break;
+                        case Code.CallStaticR_I4_I4_I4_Extern:
+                        {
+                            var externInvokeFunc = externInvokers[pc->Operand];
+                            if (externInvokeFunc == null)
+                            {
+                                externInvokeFunc =
+                                    (CallR_I4_I4_I4)Delegate.CreateDelegate(typeof(CallR_I4_I4_I4), null, (MethodInfo)externMethods[pc->Operand]);
+                                externInvokers[pc->Operand] = externInvokeFunc;
+                            }
+                            evaluationStackPointer--;
+                            (evaluationStackPointer - 1)->Value1 = ((CallR_I4_I4_I4)externInvokeFunc)((evaluationStackPointer - 1)->Value1, evaluationStackPointer->Value1);
+                        }
+                            break;
                         case Code.CallExtern: //部分来自Call部分来自Callvirt
                         {
                             int methodId = pc->Operand & 0xFFFF;
                             int paramCount = pc->Operand >> 16;
-                            var externInvokeFunc = externInvokers[methodId];
-
+                            var externInvokeFunc = (ExternInvoker)externInvokers[methodId];
+                            if (externInvokeFunc == null)
+                            {
+                                externInvokers[methodId] = externInvokeFunc
+                                    = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
+                            }
+                            
                             var top = evaluationStackPointer - paramCount;
                             Call call = new Call()
                             {
@@ -941,7 +942,12 @@ namespace IFix.Core
                             }
 
                             int paramCount = pc->Operand >> 16;
-                            var externInvokeFunc = externInvokers[methodId];
+                            var externInvokeFunc = (ExternInvoker)externInvokers[methodId];
+                            if (externInvokeFunc == null)
+                            {
+                                externInvokers[methodId] = externInvokeFunc
+                                    = (new ReflectionMethodInvoker(externMethods[methodId])).Invoke;
+                            }
 
                             var top = evaluationStackPointer - paramCount;
                             Call call = new Call()
@@ -962,30 +968,11 @@ namespace IFix.Core
                         {
                             var src = localBase + pc->Operand;
                             *evaluationStackPointer = *src;
-                            switch (evaluationStackPointer->Type)
+                            if (evaluationStackPointer->Type == ValueType.ChainFieldReference)
                             {
-                                // case ValueType.ValueType:
-                                // {
-                                //     object obj = null;
-                                //     if (managedStack[src->Value1] != null) //Nullable box后可能为空
-                                //         obj = BoxUtils.CloneObject(managedStack[src->Value1]);
-                                //
-                                //     var dstPos = evaluationStackPointer->Value1 = (int)(evaluationStackPointer - evaluationStackBase);
-                                //     BoxUtils.RecycleObject(managedStack[dstPos]);
-                                //     managedStack[dstPos] = obj;
-                                // }
-                                //     break;
-                                case ValueType.ChainFieldReference:
-                                {
-                                    BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
-                                    managedStack[evaluationStackPointer - evaluationStackBase] = managedStack[src - evaluationStackBase];
-                                }
-                                    break;
+                                BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                                managedStack[evaluationStackPointer - evaluationStackBase] = managedStack[src - evaluationStackBase];
                             }
-
-                            //
-                            // copy(evaluationStackBase, evaluationStackPointer, localBase + pc->Operand, 
-                            //     managedStack);
                             evaluationStackPointer++;
                         }
                             break;
@@ -1062,10 +1049,6 @@ namespace IFix.Core
                                 {
                                     BoxUtils.RecycleObject(managedStack[dst - evaluationStackBase]); //field addr
                                     managedStack[dst - evaluationStackBase] = managedStack[evaluationStackPointer - evaluationStackBase];
-
-                                    int srcIndex = (int)(evaluationStackPointer - evaluationStackBase);
-                                    BoxUtils.RecycleObject(managedStack[srcIndex]);
-                                    managedStack[srcIndex] = null;
                                 }
                                     break;
                                 case ValueType.Object:
@@ -1076,10 +1059,6 @@ namespace IFix.Core
                                     var dstPos = dst->Value1 = (int)(dst - evaluationStackBase);
                                     BoxUtils.RecycleObject(managedStack[dstPos]);
                                     managedStack[dstPos] = obj;
-                    
-                                    int srcIndex = (int)(evaluationStackPointer - evaluationStackBase);
-                                    BoxUtils.RecycleObject(managedStack[srcIndex]);
-                                    managedStack[srcIndex] = null;
                                 }
                                     break;
                             }
@@ -1268,6 +1247,17 @@ namespace IFix.Core
                                 pc += pc->Operand;
                                 continue;
                             }
+                        }
+                            break;
+                        case Code.Add1_Loc:
+                            (localBase + pc->Operand)->Value1 += 1;
+                            break;
+                        case Code.Add_I4:
+                        {
+                            // evaluationStackPointer->Value1 = pc->Operand; //高位不清除
+                            // evaluationStackPointer->Type = ValueType.Integer;
+                            // evaluationStackPointer++;
+                            (evaluationStackPointer - 1)->Value1 += pc->Operand;
                         }
                             break;
                         case Code.Add: //1.356345%
@@ -1474,18 +1464,18 @@ namespace IFix.Core
                             }
 
                             arr[idx] = managedStack[valPtr->Value1];
-                            BoxUtils.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
-                            managedStack[arrPtr - evaluationStackBase] = null; //清理，如果有的话
-                            BoxUtils.RecycleObject(managedStack[valPtr - evaluationStackBase]);
-                            managedStack[valPtr - evaluationStackBase] = null;
+                            // BoxUtils.RecycleObject(managedStack[arrPtr - evaluationStackBase]);
+                            // managedStack[arrPtr - evaluationStackBase] = null; //清理，如果有的话
+                            // BoxUtils.RecycleObject(managedStack[valPtr - evaluationStackBase]);
+                            // managedStack[valPtr - evaluationStackBase] = null;
                             evaluationStackPointer = arrPtr;
                         }
                             break;
                         case Code.Pop: //0.4614846%
                         {
                             evaluationStackPointer--;
-                            BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
-                            managedStack[evaluationStackPointer - evaluationStackBase] = null;
+                            //BoxUtils.RecycleObject(managedStack[evaluationStackPointer - evaluationStackBase]);
+                            //managedStack[evaluationStackPointer - evaluationStackBase] = null;
                         }
                             break;
                         case Code.Bne_Un: //Bne_Un_S:0.4565032% Bne_Un:0.02793102%

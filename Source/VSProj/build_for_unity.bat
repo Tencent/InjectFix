@@ -20,5 +20,5 @@ call %CSC% /noconfig ^
 
 md %TOOL_KIT_PATH%
 copy /Y ThirdParty\Mono.Cecil* %TOOL_KIT_PATH%
-call %GMCS% -define:UNITY_IPHONE -unsafe -reference:ThirdParty\Mono.Cecil.dll,ThirdParty\Mono.Cecil.Mdb.dll,ThirdParty\Mono.Cecil.Pdb.dll -out:%TOOL_KIT_PATH%\IFix.exe -debug Instruction.cs Src\Tools\*.cs Src\Version.cs
+call %GMCS% -define:UNITY_IPHONE -unsafe -reference:ThirdParty\Mono.Cecil.dll,ThirdParty\Mono.Cecil.Mdb.dll,ThirdParty\Mono.Cecil.Pdb.dll -out:%TOOL_KIT_PATH%\IFix.exe -debug Src\Core\Instruction.cs Src\Tools\*.cs Src\Version.cs
 pause

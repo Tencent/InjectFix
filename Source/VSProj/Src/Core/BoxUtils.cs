@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -473,6 +474,7 @@ namespace IFix.Core
             }
         }
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RecycleObject(object obj)
         {
             if (obj == null) return;

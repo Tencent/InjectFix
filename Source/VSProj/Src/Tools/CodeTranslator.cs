@@ -415,6 +415,7 @@ namespace IFix
             Mono.Collections.Generic.Collection<Instruction> instructions,
             Dictionary<Instruction, int> ilOffset, out int stopPos)
         {
+            var localVars = method.Body.Variables;
             int offset = 0;
             stopPos = 0;
             for (int i = 0; i < instructions.Count; i++)
@@ -442,6 +443,43 @@ namespace IFix
                                 return false;
                             }
                         }
+                    case Code.Ldloc_0:
+                    case Code.Ldloc_1:
+                    case Code.Ldloc_2:
+                    case Code.Ldloc_3:
+                    {
+                        string strCode = instructions[i].OpCode.Code.ToString();
+                        int op = int.Parse(strCode.Substring(strCode.Length - 1));
+                        if (i + 3 < instructions.Count 
+                            && instructions[i+1].OpCode.Code == Code.Ldc_I4_1
+                            && instructions[i+2].OpCode.Code == Code.Add
+                            && instructions[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                            && localVars[op].VariableType == intType
+                           )
+                        {
+                            i += 3;
+                        }
+                        offset += 1;
+                    }
+                        break;
+                    case Code.Ldloc:
+                    case Code.Ldloc_S:
+                    {
+                        string strCode = instructions[i].OpCode.Code.ToString();
+                        int op = (instructions[i].Operand as VariableDefinition).Index;
+                        if (i + 3 < instructions.Count 
+                            && instructions[i+1].OpCode.Code == Code.Ldc_I4_1
+                            && instructions[i+2].OpCode.Code == Code.Add
+                            && instructions[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                            && (instructions[i+3].Operand as VariableDefinition).Index == op
+                            && (instructions[i+3].Operand as VariableDefinition).VariableType == intType
+                           )
+                        {
+                            i += 3;
+                        }
+                        offset += 1;
+                    }
+                        break;
                     case Code.Ldc_I8:
                     case Code.Ldc_R8:
                     case Code.Leave:
@@ -1548,6 +1586,7 @@ namespace IFix
             tryAddBaseProxy(method.DeclaringType, method);
             var body = method.Body;
             var msIls = body.Instructions;
+            var localVars = body.Variables;
             var ilOffset = new Dictionary<Instruction, int>();
 
             //Console.WriteLine("process method id:" + codes.Count);
@@ -1818,6 +1857,7 @@ namespace IFix
                                 Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),
                                 Operand = ilOffset[msIl.Operand as Instruction] - ilOffset[msIl]
                             });
+                            //Console.WriteLine($"jump offset {ilOffset[msIl.Operand as Instruction] - ilOffset[msIl]}");
                             //if (msIl.OpCode.Code == Code.Br_S || msIl.OpCode.Code == Code.Br)
                             //{
                             //    Console.WriteLine("il:" + msIl + ",jump to:" + msIl.Operand);
@@ -1863,10 +1903,38 @@ namespace IFix
                                 });
                             }
                             break;
-                        case Code.Stloc:
-                        case Code.Stloc_S:
                         case Code.Ldloc:
                         case Code.Ldloc_S:
+                        {
+                            int op = (msIl.Operand as VariableDefinition).Index;
+                            if (i + 3 < msIls.Count 
+                                && msIls[i+1].OpCode.Code == Code.Ldc_I4_1
+                                && msIls[i+2].OpCode.Code == Code.Add
+                                && msIls[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                                && (msIls[i+3].Operand as VariableDefinition).Index == op
+                                && (msIls[i+3].Operand as VariableDefinition).VariableType == intType
+                               )
+                            {
+                                Console.WriteLine($"convert to add1_loc");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add1_Loc,
+                                    Operand = op,
+                                });
+                                i += 3;
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),
+                                    Operand = op
+                                });
+                            }
+                        }
+                            break;
+                        case Code.Stloc:
+                        case Code.Stloc_S:
                         case Code.Ldloca:
                         case Code.Ldloca_S:
                             code.Add(new Core.Instruction
@@ -1901,11 +1969,32 @@ namespace IFix
                         case Code.Ldloc_1:
                         case Code.Ldloc_2:
                         case Code.Ldloc_3:
-                            code.Add(new Core.Instruction
+                        {
+                            int op = int.Parse(strCode.Substring(strCode.Length - 1));
+                            if (i + 3 < msIls.Count 
+                                && msIls[i+1].OpCode.Code == Code.Ldc_I4_1
+                                && msIls[i+2].OpCode.Code == Code.Add
+                                && msIls[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                                && localVars[op].VariableType == intType
+                                )
                             {
-                                Code = Core.Code.Ldloc,
-                                Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
-                            });
+                                Console.WriteLine($"convert to add1_loc");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add1_Loc,
+                                    Operand = op,
+                                });
+                                i += 3;
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Ldloc,
+                                    Operand = op,
+                                });
+                            }
+                        }
                             break;
                         case Code.Stloc_0:
                         case Code.Stloc_1:
@@ -1926,11 +2015,27 @@ namespace IFix
                         case Code.Ldc_I4_6:
                         case Code.Ldc_I4_7:
                         case Code.Ldc_I4_8:
-                            code.Add(new Core.Instruction
+                        {
+                            // if next is add,jump
+                            if(msIls[i+1] != null && msIls[i+1].OpCode.Code == Code.Add)
                             {
-                                Code = Core.Code.Ldc_I4,
-                                Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
-                            });
+                                Console.WriteLine($"{msIl.OpCode} to add_i4");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add_I4,
+                                    Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
+                                });
+                                i++; // jump add
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Ldc_I4,
+                                    Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
+                                });
+                            }
+                        }
                             break;
                         case Code.Ldc_I4_M1:
                             code.Add(new Core.Instruction
@@ -2046,12 +2151,28 @@ namespace IFix
                                 }
                                 else if (methodIdInfo.Type == CallType.Extern)
                                 {
-                                    code.Add(new Core.Instruction
+                                    if (!methodToCall.HasThis && methodToCall.Parameters.Count == 2
+                                        && methodToCall.Parameters[0].ParameterType == intType
+                                        && methodToCall.Parameters[1].ParameterType == intType
+                                        && methodToCall.ReturnType == intType)
                                     {
-                                        Code = msIl.OpCode.Code == Code.Newobj ? Core.Code.Newobj :
-                                            Core.Code.CallExtern,
-                                        Operand = (paramCount << 16) | methodIdInfo.Id
-                                    });
+                                        Console.WriteLine($"call i4 i4 method {methodToCall.FullName}");
+                                        code.Add(new Core.Instruction
+                                        {
+                                            Code = Core.Code.CallStaticR_I4_I4_I4_Extern,
+                                            Operand = methodIdInfo.Id
+                                        });
+                                    }
+                                    else
+                                    {
+                                        code.Add(new Core.Instruction
+                                        {
+                                            Code = msIl.OpCode.Code == Code.Newobj ? Core.Code.Newobj :
+                                                Core.Code.CallExtern,
+                                            Operand = (paramCount << 16) | methodIdInfo.Id
+                                        });
+                                    }
+
                                 }
                                 else if (methodIdInfo.Type == CallType.InteralVirtual)
                                 {
@@ -2381,6 +2502,7 @@ namespace IFix
 
         AssemblyDefinition assembly;
 
+        private TypeReference intType;
         private TypeReference boolType;
         private TypeReference objType;
         private TypeReference voidType;
@@ -3224,6 +3346,8 @@ namespace IFix
             }
             voidType = assembly.MainModule.TypeSystem.Void;
             boolType = assembly.MainModule.TypeSystem.Boolean;
+            intType = assembly.MainModule.TypeSystem.Int32;
+
             wrapperType = new TypeDefinition("IFix", DYNAMICWRAPPER, Mono.Cecil.TypeAttributes.Class
                 | Mono.Cecil.TypeAttributes.Public, objType);
             assembly.MainModule.Types.Add(wrapperType);

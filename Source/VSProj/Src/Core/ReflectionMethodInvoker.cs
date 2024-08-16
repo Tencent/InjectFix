@@ -16,6 +16,7 @@ namespace IFix.Core
     {
         int paramCount;
         bool hasThis;
+        bool valueInstance;
 
         bool hasReturn;
 
@@ -138,6 +139,8 @@ namespace IFix.Core
                 }
             }
             hasThis = !method.IsStatic;
+            valueInstance = hasThis && method.DeclaringType.IsValueType;
+
             bool isNullableMethod = method.DeclaringType.IsGenericType
                 && method.DeclaringType.GetGenericTypeDefinition() == typeof(Nullable<>);
             isNullableHasValue = isNullableMethod && method.Name == "get_HasValue";
@@ -251,8 +254,14 @@ namespace IFix.Core
                         }
                     }
 
-                    BoxUtils.RecycleObject(instance);
+                    if (valueInstance)
+                    {
+                        BoxUtils.RecycleObject(instance);
+                    }
+
                 }
+
+
 
                 for (int i = 0; i < paramCount; i++)
                 {
@@ -283,18 +292,18 @@ namespace IFix.Core
             {
                 RecycleArgs(args);
                 
-                Value* pArg = call.argumentBase;
-                if (pushResult)
-                {
-                    pArg++;
-                }
-                
-                for (int i = (pushResult ? 1 : 0),imax=paramCount + ((hasThis && !isInstantiate) ? 1 : 0); i < imax; i++)
-                {
-                    BoxUtils.RecycleObject(managedStack[pArg - call.evaluationStackBase]);
-                    managedStack[pArg - call.evaluationStackBase] = null;
-                    pArg++;
-                }
+                // Value* pArg = call.argumentBase;
+                // if (pushResult)
+                // {
+                //     pArg++;
+                // }
+                //
+                // for (int i = (pushResult ? 1 : 0),imax=paramCount + ((hasThis && !isInstantiate) ? 1 : 0); i < imax; i++)
+                // {
+                //     BoxUtils.RecycleObject(managedStack[pArg - call.evaluationStackBase]);
+                //     managedStack[pArg - call.evaluationStackBase] = null;
+                //     pArg++;
+                // }
             }
         }
     }

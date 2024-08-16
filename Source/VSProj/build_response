@@ -2,15 +2,16 @@
 /nowarn:0169
 /nowarn:0649
 /optimize+
+/debug:portable
 /out:../UnityProj/Assets/Plugins/IFix.Core.dll
 /unsafe
 /preferreduilang:en-US
 /langversion:latest
 /define:UNITY_IPHONE
 /define:ENABLE_PROFILER
-Instruction.cs
 Src\Builder\*.cs
 Src\Version.cs
+Src\Core\Instruction.cs
 Src\Core\AnonymousStorey.cs
 Src\Core\BoxUtils.cs
 Src\Core\DataDefine.cs

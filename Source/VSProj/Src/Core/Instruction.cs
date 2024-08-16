@@ -46,6 +46,14 @@ namespace IFix.Core
 				Stelem_I,
 				Or,
 				Blt,
+				Ble,
+				Ble_Un,
+				Blt_Un,
+				Bgt,
+				Bge,
+				Bge_Un,
+				Bgt_Un,
+				Bne_Un,
 				Ldelema,
 				Ldftn,
 				No,
@@ -55,12 +63,10 @@ namespace IFix.Core
 				Initblk,
 				Readonly,
 				Stelem_I1,
-				Bgt,
 				Sub_Ovf_Un,
 				Ldtoken,
 				Ldelem_I1,
 				Refanyval,
-				Ble,
 				Stind_I1,
 				Div_Un,
 				Ldarg,
@@ -103,7 +109,6 @@ namespace IFix.Core
 				Ldelem_I8,
 				Ldind_U4,
 				Break,
-				Bne_Un,
 				Sub_Ovf,
 				Conv_R8,
 				Mul_Ovf,
@@ -145,12 +150,10 @@ namespace IFix.Core
 				Stind_I8,
 				Ldelem_U4,
 				Conv_Ovf_U8,
-				Ble_Un,
 				Ldc_I8,
 				Stind_I,
 				Unbox,
 				Beq,
-				Blt_Un,
 				Switch,
 				Callvirt,
 				Constrained,
@@ -173,25 +176,27 @@ namespace IFix.Core
 				Stfld,
 				Ceq,
 				Box,
-				Bge,
 				Ldind_I2,
 				Shr,
 				Arglist,
 				Conv_R_Un,
 				Stelem_I2,
-				Bge_Un,
+
 				Ldind_Ref,
 				Ldc_R8,
 				Ldelem_I4,
 				Conv_Ovf_U2_Un,
-				Bgt_Un,
 				Stind_R4,
 				Ldlen,
 				Ldloca,
 				Ldelem_I2,
 				
 				//Pseudo instruction
-				Isinst
+				Isinst,
+				
+				CallStaticR_I4_I4_I4_Extern,
+				Add1_Loc,
+				Add_I4,
     }
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
@@ -213,6 +218,8 @@ namespace IFix.Core
         public int Operand;
     }
 
+    public delegate int CallR_I4_I4_I4(int arg1, int arg2);
+    
     public enum ExceptionHandlerType
     {
         Catch = 0,
