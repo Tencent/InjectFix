@@ -5,6 +5,8 @@
  * This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this source code package.
  */
 
+using System.Reflection;
+
 namespace IFix.Core
 {
     using System.Collections.Generic;
@@ -13,6 +15,40 @@ namespace IFix.Core
 
     public class SimpleVirtualMachineBuilder
     {
+        public unsafe int GetValue(long* a, long* b)
+        {
+            long ret = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                ret = *a + *b;
+            }
+
+            return (int)ret;
+        }
+        
+        public unsafe int CallTest(List<int> v)
+        {
+            var l = new List<int>();
+            l.Add(1);
+            l[0] = 1;
+            var c = l.Count;
+            
+            return v.Count;
+        }
+
+        public unsafe int CallGetValue(long a, long b)
+        {
+            KeyValuePair<long, long> v = default(KeyValuePair<long, long>);
+            return (int)v.Value;
+        }
+        
+        public static string GetUniqueStringForMethod(MethodBase method)
+        {
+            var parameters = method.GetParameters();
+            var parameterTypeNames = string.Join(",", Array.ConvertAll(parameters, p => p.ParameterType.FullName));
+            return $"{method.DeclaringType.FullName}.{method.Name}({parameterTypeNames})";
+        }
+
         unsafe static public VirtualMachine CreateVirtualMachine(int loopCount)
         {
             Instruction[][] methods = new Instruction[][]
@@ -48,6 +84,16 @@ namespace IFix.Core
                     new Instruction {Code = Code.Blt, Operand = -10 }, //14
 
                     new Instruction {Code = Code.Ret, Operand = 0 }
+                },
+                new Instruction[] // call extern fun
+                {
+                    new Instruction {Code = Code.StackSpace, Operand = (1 << 16) | 1 },
+                    new Instruction {Code = Code.Ldarg, Operand = 1 },
+
+                    new Instruction {Code = Code.CallExtern, Operand = (1 << 16) | 2},
+                    // new Instruction {Code = Code.Stloc, Operand = 0 },
+                    // new Instruction {Code = Code.Ldloc, Operand = 0 },
+                    new Instruction {Code = Code.Ret, Operand = 1 }
                 }
             };
 
@@ -69,14 +115,23 @@ namespace IFix.Core
                 }
                 nativePointers.Add(nativePointer);
             }
-
-            return new VirtualMachine(unmanagedCodes, () =>
+            var newM = typeof(List<int>).GetMethod("get_Count", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var externMethods = new MethodBase[3];
+            externMethods[0] = typeof(SimpleVirtualMachineBuilder).GetMethod("GetValue");
+            externMethods[2] = newM;
+    
+            var ret = new VirtualMachine(unmanagedCodes, () =>
             {
                 for (int i = 0; i < nativePointers.Count; i++)
                 {
                     System.Runtime.InteropServices.Marshal.FreeHGlobal(nativePointers[i]);
                 }
-            });
+            })
+            {
+                ExternMethods = externMethods,
+            };
+
+            return ret;
         }
     }
 }

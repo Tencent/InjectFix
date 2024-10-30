@@ -348,6 +348,7 @@ namespace IFix
             }
             externMethodToId[callee] = methodId;
             externMethods.Add(callee);
+
             return methodId;
         }
 
@@ -414,6 +415,7 @@ namespace IFix
             Mono.Collections.Generic.Collection<Instruction> instructions,
             Dictionary<Instruction, int> ilOffset, out int stopPos)
         {
+            var localVars = method.Body.Variables;
             int offset = 0;
             stopPos = 0;
             for (int i = 0; i < instructions.Count; i++)
@@ -441,6 +443,43 @@ namespace IFix
                                 return false;
                             }
                         }
+                    case Code.Ldloc_0:
+                    case Code.Ldloc_1:
+                    case Code.Ldloc_2:
+                    case Code.Ldloc_3:
+                    {
+                        string strCode = instructions[i].OpCode.Code.ToString();
+                        int op = int.Parse(strCode.Substring(strCode.Length - 1));
+                        if (i + 3 < instructions.Count 
+                            && instructions[i+1].OpCode.Code == Code.Ldc_I4_1
+                            && instructions[i+2].OpCode.Code == Code.Add
+                            && instructions[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                            && localVars[op].VariableType == intType
+                           )
+                        {
+                            i += 3;
+                        }
+                        offset += 1;
+                    }
+                        break;
+                    case Code.Ldloc:
+                    case Code.Ldloc_S:
+                    {
+                        string strCode = instructions[i].OpCode.Code.ToString();
+                        int op = (instructions[i].Operand as VariableDefinition).Index;
+                        if (i + 3 < instructions.Count 
+                            && instructions[i+1].OpCode.Code == Code.Ldc_I4_1
+                            && instructions[i+2].OpCode.Code == Code.Add
+                            && instructions[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                            && (instructions[i+3].Operand as VariableDefinition).Index == op
+                            && (instructions[i+3].Operand as VariableDefinition).VariableType == intType
+                           )
+                        {
+                            i += 3;
+                        }
+                        offset += 1;
+                    }
+                        break;
                     case Code.Ldc_I8:
                     case Code.Ldc_R8:
                     case Code.Leave:
@@ -979,10 +1018,11 @@ namespace IFix
         void idAccessInject(InjectType injectType, MethodDefinition method, int methodId)
         {
             addRedirectIdInfo(method, methodId);
+            //RemoveProfilerUsingBlock(method);
             var body = method.Body;
             var msIls = body.Instructions;
             var ilProcessor = body.GetILProcessor();
-
+                
             var redirectTo = getWrapperMethod(wrapperType, anonObjOfWrapper, method, false, false);
             Instruction insertPoint;
             if (injectType == InjectType.Redirect)
@@ -998,8 +1038,21 @@ namespace IFix
             {
                 ilProcessor.InsertBefore(msIls[0], Instruction.Create(OpCodes.Ret));
                 insertPoint = msIls[0];
-                ilProcessor.InsertBefore(insertPoint, createLdcI4(methodId));
-                ilProcessor.InsertBefore(insertPoint, ilProcessor.Create(OpCodes.Call, isPatched));
+                FieldDefinition fd;
+                if (!isMethodPatchDict.TryGetValue(methodId, out fd))
+                {
+                    fd = new FieldDefinition(
+                        $"isPatched_{methodId}", 
+                        FieldAttributes.Static | FieldAttributes.Public,
+                        boolType
+                    );
+                    wrapperMgrImpl.Fields.Add(fd);
+                    isMethodPatchDict.Add(methodId, fd);
+                }
+
+                ilProcessor.InsertBefore(insertPoint, ilProcessor.Create(OpCodes.Ldsfld, fd));
+                //ilProcessor.InsertBefore(insertPoint, createLdcI4(methodId));
+                //ilProcessor.InsertBefore(insertPoint, ilProcessor.Create(OpCodes.Call, isPatched));
                 ilProcessor.InsertBefore(insertPoint, ilProcessor.Create(OpCodes.Brfalse, insertPoint.Next));
             }
 
@@ -1023,7 +1076,377 @@ namespace IFix
                     ilProcessor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Box, ptype));
                 }
             }
-            ilProcessor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Callvirt, redirectTo));
+            ilProcessor.InsertBefore(insertPoint, Instruction.Create(OpCodes.Call, redirectTo));
+        }
+
+        Instruction GetProfilerStart(Instruction markerInstr, MethodDefinition method)
+        {
+            Instruction result = markerInstr.Previous;
+            switch (result.OpCode.Code)
+            {
+                case Code.Ldloca_S:
+                {
+                    method.Body.Variables.Remove((VariableDefinition)result.Operand);
+                    return GetProfilerStart(result, method);
+                }
+                case Code.Stloc_0:
+                case Code.Stloc_1:
+                case Code.Stloc_2:
+                case Code.Stloc_3:
+                case Code.Stloc_S:
+                    if (markerInstr.OpCode.Code == Code.Ldloca_S)
+                    {
+                        return GetProfilerStart(result, method);
+                    }
+                    break;
+                case Code.Ldsfld:
+                case Code.Ldfld:
+                case Code.Ldflda:
+                case Code.Ldsflda:
+                    return result;
+                case Code.Newobj:
+                    if (((MethodReference)result.Operand).DeclaringType.FullName == "Unity.Profiling.ProfilerMarker")
+                    {
+                        return result.Previous;
+                    }
+                    break;
+                case Code.Call:
+                    if (((MethodReference)result.Operand).DeclaringType.FullName == "Unity.Profiling.ProfilerMarker")
+                    {
+                        return result.Previous.Previous;
+                    }
+                    break;
+                default:
+                    throw new Exception($"don't know how to deal with Instruction:{result}");
+            }
+            throw new Exception($"don't know how to deal with Instruction:{result}");
+        }
+
+        void RemoveProfilerUsingBlock(MethodDefinition method)
+        {
+            var ilProcessor = method.Body.GetILProcessor();
+            var instructions = method.Body.Instructions;
+
+            // Find and remove instructions related to ProfilerMarker.Auto()
+            var markersToRemove = instructions
+                .Where(instr => instr.OpCode == OpCodes.Call &&
+                                ((MethodReference)instr.Operand).Name == "Auto" &&
+                                ((MethodReference)instr.Operand).DeclaringType.FullName == "Unity.Profiling.ProfilerMarker")
+                .ToList();
+
+            if (markersToRemove.Count > 0)
+            {
+                Console.WriteLine($"method:{method.FullName} find instructions {markersToRemove.Count}");
+            }
+            
+            foreach (var markerInstr in markersToRemove)
+            {
+                // Assuming the pattern of: ldsfld, stloc, ldloca.s, call Auto, stloc
+                
+                var start = GetProfilerStart(markerInstr, method);
+                var end = markerInstr.Next;
+
+                // Collect all instructions that reference the target instructions
+                var references = instructions
+                    .Where(instr => instr.Operand is Instruction target &&
+                                    (target == start || target == markerInstr.Previous || target == markerInstr ||
+                                     target == end))
+                    .ToList();
+
+                // Find the next valid instruction to replace the removed ones
+                var nextValidInstruction = end.Next;//FindNextValidInstruction(end, instructions);
+
+                // Update all references to point to the next valid instruction
+                foreach (var reference in references)
+                {
+                    reference.Operand = nextValidInstruction;
+                }
+
+                // Remove instructions from start to end
+                var curInstr = start;
+                while (curInstr != nextValidInstruction)
+                {
+                    var next = curInstr.Next;
+                    ilProcessor.Remove(curInstr);
+                    curInstr = next;
+                }
+                
+                // Adjust the instructions to ensure the correct control flow
+                // If there's a finally handler, adjust accordingly
+                var exceptionHandlers = method.Body.ExceptionHandlers;
+                ExceptionHandler finallyHandler = null;
+                foreach (var eh in exceptionHandlers)
+                {
+                    if (eh.HandlerType == ExceptionHandlerType.Finally)
+                    {
+                        if (eh.TryStart == nextValidInstruction)
+                        {
+                            finallyHandler = eh;
+                            break;
+                        }
+                    }
+                }
+                
+                // remove finnalyhandler
+                if (finallyHandler != null)
+                {
+                    // Ensure the control flow is correct
+                    // Remove the instructions in the try block and finally block
+
+                    var current = finallyHandler.HandlerStart.Previous;
+                    while (current != finallyHandler.HandlerEnd)
+                    {
+                        var next = current.Next;
+                        ilProcessor.Remove(current);
+                        current = next;
+                    }
+                    ilProcessor.Remove(finallyHandler.HandlerEnd);
+                    
+                    method.Body.ExceptionHandlers.Remove(finallyHandler);
+                }
+
+            }
+
+            if (markersToRemove.Count > 0)
+            {
+                // remove nop
+                RemoveNop(method);
+            }
+        }
+        
+        void ShowStackBehaviour(MethodDefinition method)
+        {
+            var instructions = method.Body.Instructions;
+            int stackCount = 0;
+            var start = instructions[0];
+            
+            var inst = start;
+            int pushCount;
+            int popCount;
+
+            while (inst.Next != null)
+            {
+                int instCount = GetInstructionStackBehaviour(inst, method, out pushCount, out popCount);
+                stackCount += instCount;
+                Console.WriteLine($"{inst}: instCount:{instCount},stackCount:{stackCount} StackBehaviourPop:{inst.OpCode.StackBehaviourPop}, StackBehaviourPush:{inst.OpCode.StackBehaviourPush}");
+
+                if (inst.OpCode.Code == Code.Br_S || inst.OpCode.Code == Code.Br)
+                {
+                    inst = (Instruction)inst.Operand;
+                }
+                else
+                {
+                    inst = inst.Next;
+                }
+            }
+        }
+
+        // void DeleteInstruction(Instruction inst, MethodDefinition method)
+        // {
+        //     int pushCount;
+        //     int popCount;
+        //
+        //     GetInstructionStackBehaviour(inst, method, out pushCount, out popCount);
+        //     
+        //     if (pushCount > 0)
+        //     {
+        //         var needPopCount = pushCount;
+        //         var nextInst = inst.Next;
+        //         while (needPopCount > 0 && nextInst != null)
+        //         {
+        //             GetInstructionStackBehaviour(nextInst, method, out pushCount, out popCount);
+        //             needPopCount -= popCount;
+        //             nextInst = nextInst.Next;
+        //         }
+        //     }
+        //
+        // }
+
+
+        int GetInstructionStackBehaviour(Instruction inst, MethodDefinition method, out int pushCount, out int popCount)
+        {
+            pushCount = 0;
+            popCount = 0;
+            // TODO call 函数
+            if (
+                inst.OpCode.Code == Code.Call ||
+                inst.OpCode.Code == Code.Calli ||
+                inst.OpCode.Code == Code.Callvirt)
+            {
+                var methodReference = (MethodReference)inst.Operand;
+                // Parameters are pushed onto the stack
+                popCount += methodReference.Parameters.Count;
+                if (methodReference.HasThis)
+                {
+                    popCount += 1;
+                }
+
+                pushCount += methodReference.ReturnType != voidType ? 1 : 0;
+            }
+            else if (inst.OpCode.Code == Code.Newobj)
+            {
+                pushCount = 1;
+                var methodReference = (MethodReference)inst.Operand;
+                popCount += methodReference.Parameters.Count;
+            }
+            else if (inst.OpCode.Code == Code.Ret)
+            {
+                popCount = method.ReturnType == voidType ? 0 : 1;
+            }
+            else
+            {
+                StackBehaviour pushBehaviour = inst.OpCode.StackBehaviourPush;
+                StackBehaviour popBehaviour = inst.OpCode.StackBehaviourPop;
+                switch (pushBehaviour)
+                {
+                    case StackBehaviour.Push0:
+                        break;
+                    case StackBehaviour.Push1:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Push1_push1:
+                        pushCount = 2;
+                        break;
+                    case StackBehaviour.Pushi:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Pushi8:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Pushr4:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Pushr8:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Pushref:
+                        pushCount = 1;
+                        break;
+                    case StackBehaviour.Varpop:
+                    case StackBehaviour.Varpush:
+                    default:
+                        throw new ArgumentOutOfRangeException($"Instruction:{inst}");
+                }
+
+                switch (popBehaviour)
+                {
+                    case StackBehaviour.Pop0:
+                        break;
+                    case StackBehaviour.Pop1_pop1:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Pop1:
+                        popCount = 1;
+                        break;
+                    case StackBehaviour.Popi:
+                        popCount = 1;
+                        break;
+                    case StackBehaviour.Popi_pop1:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popi_popi:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popi_popi8:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popi_popi_popi:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.Popi_popr4:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popi_popr8:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popref:
+                        popCount = 1;
+                        break;
+                    case StackBehaviour.Popref_pop1:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popref_popi:
+                        popCount = 2;
+                        break;
+                    case StackBehaviour.Popref_popi_popi:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.Popref_popi_popi8:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.Popref_popi_popr4:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.Popref_popi_popr8:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.Popref_popi_popref:
+                        popCount = 3;
+                        break;
+                    case StackBehaviour.PopAll:
+                        popCount = 0;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+
+            return pushCount - popCount;
+        }
+
+        void RemoveNop(MethodDefinition method)
+        {
+            var ilProcessor = method.Body.GetILProcessor();
+            var instructions = method.Body.Instructions;
+
+            // Find Nop
+            var markersToRemove = instructions
+                .Where(instr => instr.OpCode == OpCodes.Nop)
+                .ToList();
+
+            var exceptionHandlers = method.Body.ExceptionHandlers;
+            foreach (var markerInstr in markersToRemove)
+            {
+                
+                // Collect all instructions that reference the target instructions
+                var references = instructions
+                    .Where(instr => instr.Operand is Instruction target && target == markerInstr)
+                    .ToList();
+
+                var nextValidInstruction = markerInstr.Next;
+                
+                foreach (var reference in references)
+                {
+                    reference.Operand = nextValidInstruction;
+                }
+                
+                foreach (var eh in exceptionHandlers)
+                {
+                    if (eh.TryStart == markerInstr)
+                    {
+                        eh.TryStart = nextValidInstruction;
+                    }
+                    if (eh.TryEnd == markerInstr)
+                    {
+                        eh.TryEnd = nextValidInstruction;
+                    }
+                    if (eh.HandlerStart == markerInstr)
+                    {
+                        eh.HandlerStart = nextValidInstruction;
+                    }
+                    if (eh.HandlerEnd == markerInstr)
+                    {
+                        eh.HandlerEnd = nextValidInstruction;
+                    }
+                    
+                    if (eh.FilterStart == markerInstr)
+                    {
+                        eh.FilterStart = nextValidInstruction;
+                    }
+                }
+                
+                ilProcessor.Remove(markerInstr);
+            }
         }
 
         void injectMethod(MethodDefinition method, int methodId)
@@ -1052,6 +1475,13 @@ namespace IFix
 
             methodToId.Add(method, methodId);
 
+            FieldDefinition f = new FieldDefinition(
+                $"isPatched_{methodId}", 
+                FieldAttributes.Static | FieldAttributes.Public,
+                boolType
+            );
+            wrapperMgrImpl.Fields.Add(f);
+            isMethodPatchDict.Add(methodId, f);
             if (mode == ProcessMode.Patch && methodId > ushort.MaxValue)
             {
                 throw new OverflowException("too many internal methods");
@@ -1156,6 +1586,7 @@ namespace IFix
             tryAddBaseProxy(method.DeclaringType, method);
             var body = method.Body;
             var msIls = body.Instructions;
+            var localVars = body.Variables;
             var ilOffset = new Dictionary<Instruction, int>();
 
             //Console.WriteLine("process method id:" + codes.Count);
@@ -1426,6 +1857,7 @@ namespace IFix
                                 Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),
                                 Operand = ilOffset[msIl.Operand as Instruction] - ilOffset[msIl]
                             });
+                            //Console.WriteLine($"jump offset {ilOffset[msIl.Operand as Instruction] - ilOffset[msIl]}");
                             //if (msIl.OpCode.Code == Code.Br_S || msIl.OpCode.Code == Code.Br)
                             //{
                             //    Console.WriteLine("il:" + msIl + ",jump to:" + msIl.Operand);
@@ -1471,10 +1903,38 @@ namespace IFix
                                 });
                             }
                             break;
-                        case Code.Stloc:
-                        case Code.Stloc_S:
                         case Code.Ldloc:
                         case Code.Ldloc_S:
+                        {
+                            int op = (msIl.Operand as VariableDefinition).Index;
+                            if (i + 3 < msIls.Count 
+                                && msIls[i+1].OpCode.Code == Code.Ldc_I4_1
+                                && msIls[i+2].OpCode.Code == Code.Add
+                                && msIls[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                                && (msIls[i+3].Operand as VariableDefinition).Index == op
+                                && (msIls[i+3].Operand as VariableDefinition).VariableType == intType
+                               )
+                            {
+                                Console.WriteLine($"convert to add1_loc");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add1_Loc,
+                                    Operand = op,
+                                });
+                                i += 3;
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = (Core.Code)Enum.Parse(typeof(Core.Code), strCode),
+                                    Operand = op
+                                });
+                            }
+                        }
+                            break;
+                        case Code.Stloc:
+                        case Code.Stloc_S:
                         case Code.Ldloca:
                         case Code.Ldloca_S:
                             code.Add(new Core.Instruction
@@ -1509,11 +1969,32 @@ namespace IFix
                         case Code.Ldloc_1:
                         case Code.Ldloc_2:
                         case Code.Ldloc_3:
-                            code.Add(new Core.Instruction
+                        {
+                            int op = int.Parse(strCode.Substring(strCode.Length - 1));
+                            if (i + 3 < msIls.Count 
+                                && msIls[i+1].OpCode.Code == Code.Ldc_I4_1
+                                && msIls[i+2].OpCode.Code == Code.Add
+                                && msIls[i+3].OpCode.Code == (Code)Enum.Parse(typeof(Code), strCode.Replace("Ld", "St"))
+                                && localVars[op].VariableType == intType
+                                )
                             {
-                                Code = Core.Code.Ldloc,
-                                Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
-                            });
+                                Console.WriteLine($"convert to add1_loc");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add1_Loc,
+                                    Operand = op,
+                                });
+                                i += 3;
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Ldloc,
+                                    Operand = op,
+                                });
+                            }
+                        }
                             break;
                         case Code.Stloc_0:
                         case Code.Stloc_1:
@@ -1534,11 +2015,27 @@ namespace IFix
                         case Code.Ldc_I4_6:
                         case Code.Ldc_I4_7:
                         case Code.Ldc_I4_8:
-                            code.Add(new Core.Instruction
+                        {
+                            // if next is add,jump
+                            if(msIls[i+1] != null && msIls[i+1].OpCode.Code == Code.Add)
                             {
-                                Code = Core.Code.Ldc_I4,
-                                Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
-                            });
+                                Console.WriteLine($"{msIl.OpCode} to add_i4");
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Add_I4,
+                                    Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
+                                });
+                                i++; // jump add
+                            }
+                            else
+                            {
+                                code.Add(new Core.Instruction
+                                {
+                                    Code = Core.Code.Ldc_I4,
+                                    Operand = int.Parse(strCode.Substring(strCode.Length - 1)),
+                                });
+                            }
+                        }
                             break;
                         case Code.Ldc_I4_M1:
                             code.Add(new Core.Instruction
@@ -1654,12 +2151,28 @@ namespace IFix
                                 }
                                 else if (methodIdInfo.Type == CallType.Extern)
                                 {
-                                    code.Add(new Core.Instruction
+                                    if (!methodToCall.HasThis && methodToCall.Parameters.Count == 2
+                                        && methodToCall.Parameters[0].ParameterType == intType
+                                        && methodToCall.Parameters[1].ParameterType == intType
+                                        && methodToCall.ReturnType == intType)
                                     {
-                                        Code = msIl.OpCode.Code == Code.Newobj ? Core.Code.Newobj :
-                                            Core.Code.CallExtern,
-                                        Operand = (paramCount << 16) | methodIdInfo.Id
-                                    });
+                                        Console.WriteLine($"call i4 i4 method {methodToCall.FullName}");
+                                        code.Add(new Core.Instruction
+                                        {
+                                            Code = Core.Code.CallStaticR_I4_I4_I4_Extern,
+                                            Operand = methodIdInfo.Id
+                                        });
+                                    }
+                                    else
+                                    {
+                                        code.Add(new Core.Instruction
+                                        {
+                                            Code = msIl.OpCode.Code == Code.Newobj ? Core.Code.Newobj :
+                                                Core.Code.CallExtern,
+                                            Operand = (paramCount << 16) | methodIdInfo.Id
+                                        });
+                                    }
+
                                 }
                                 else if (methodIdInfo.Type == CallType.InteralVirtual)
                                 {
@@ -1989,6 +2502,8 @@ namespace IFix
 
         AssemblyDefinition assembly;
 
+        private TypeReference intType;
+        private TypeReference boolType;
         private TypeReference objType;
         private TypeReference voidType;
         private TypeDefinition wrapperType;
@@ -2018,6 +2533,7 @@ namespace IFix
         private TypeReference VirtualMachineType;
         private TypeReference WrappersManagerType;
         private TypeDefinition wrapperMgrImpl;
+        private Dictionary<int, FieldDefinition> isMethodPatchDict = new Dictionary<int, FieldDefinition>();
         private MethodDefinition ctorOfWrapperMgrImpl;
         private MethodReference VirtualMachine_Execute_Ref;
 
@@ -2037,6 +2553,7 @@ namespace IFix
             new Dictionary<string, TypeReference>();
 
         private MethodReference Call_PushValueType_Ref;
+        private MethodReference Call_PushValueUnmanaged;
         TypeReference wrapperParamerterType(TypeReference type)
         {
             if (type.IsByReference)
@@ -2508,7 +3025,7 @@ namespace IFix
                             {
                                 throw new NotImplementedException("no push for " + paramRawType + " at " + method);
                             }
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                            instructions.Add(Instruction.Create(OpCodes.Call, push));
                         }
                         else
                         {
@@ -2518,17 +3035,21 @@ namespace IFix
                             MethodReference push;
                             if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                             {
-                                instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                                instructions.Add(Instruction.Create(OpCodes.Call, push));
                             }
                             else
                             {
                                 if (paramRawType.IsValueType)
                                 {
-                                    instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
+                                    var rawType = parameterTypes[i];
+                                    instructions.Add(Instruction.Create(OpCodes.Call,
+                                        makeGenericMethod(Call_PushValueUnmanaged, rawType))
+                                    );
+                                    //instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
                                 }
                                 else
                                 {
-                                    instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                                    instructions.Add(Instruction.Create(OpCodes.Call,
                                         pushMap[assembly.MainModule.TypeSystem.Object]));
                                 }
                             }
@@ -2541,7 +3062,7 @@ namespace IFix
             {
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-                instructions.Add(Instruction.Create(OpCodes.Callvirt, pushMap[assembly.MainModule.TypeSystem.Object]));
+                instructions.Add(Instruction.Create(OpCodes.Call, pushMap[assembly.MainModule.TypeSystem.Object]));
             }
             else
             {
@@ -2554,7 +3075,7 @@ namespace IFix
                 instructions.Add(Instruction.Create(OpCodes.Ldloca_S, call));
                 instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
                 instructions.Add(Instruction.Create(OpCodes.Ldfld, anonObj));
-                instructions.Add(Instruction.Create(OpCodes.Callvirt, pushMap[assembly.MainModule.TypeSystem.Object]));
+                instructions.Add(Instruction.Create(OpCodes.Call, pushMap[assembly.MainModule.TypeSystem.Object]));
                 instructions.Add(nop);
             }
 
@@ -2565,7 +3086,7 @@ namespace IFix
                 if (parameterTypes[i].IsByReference)
                 {
                     emitLdcI4(instructions, refPos[i]);
-                    instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushRef_Ref));
+                    instructions.Add(Instruction.Create(OpCodes.Call, Call_PushRef_Ref));
                 }
                 else
                 {
@@ -2574,21 +3095,26 @@ namespace IFix
                     MethodReference push;
                     if (pushMap.TryGetValue(tryGetUnderlyingType(paramRawType), out push))
                     {
-                        instructions.Add(Instruction.Create(OpCodes.Callvirt, push));
+                        instructions.Add(Instruction.Create(OpCodes.Call, push));
                     }
                     else
                     {
                         if (paramRawType.IsValueType)
                         {
-                            instructions.Add(Instruction.Create(OpCodes.Box, paramRawType));
+                            var rawType = tryGetUnderlyingType(getRawType(parameterTypes[i]));
+                            instructions.Add(Instruction.Create(OpCodes.Call,
+                                makeGenericMethod(Call_PushValueUnmanaged, rawType))
+                            );
+                            
+                            //instructions.Add(Instruction.Create(OpCodes.Box, paramRawType));
                             //Console.WriteLine("Call_PushValueType_Ref for " + method.Name + ", pidx:" + i
                             //    + ", ptype:" + parameterTypes[i] + ", paramRawType:" + paramRawType + ",wrap:"
                             //    + wrapperMethod.Name);
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
+                            //instructions.Add(Instruction.Create(OpCodes.Callvirt, Call_PushValueType_Ref));
                         }
                         else
                         {
-                            instructions.Add(Instruction.Create(OpCodes.Callvirt,
+                            instructions.Add(Instruction.Create(OpCodes.Call,
                                 pushMap[assembly.MainModule.TypeSystem.Object]));
                         }
                     }
@@ -2819,6 +3345,8 @@ namespace IFix
                 virtualMethodToIndex.Add(ObjectVirtualMethodDefinitionList[methodIdx], methodIdx);
             }
             voidType = assembly.MainModule.TypeSystem.Void;
+            boolType = assembly.MainModule.TypeSystem.Boolean;
+            intType = assembly.MainModule.TypeSystem.Int32;
 
             wrapperType = new TypeDefinition("IFix", DYNAMICWRAPPER, Mono.Cecil.TypeAttributes.Class
                 | Mono.Cecil.TypeAttributes.Public, objType);
@@ -2907,7 +3435,10 @@ namespace IFix
             Call_Ref = assembly.MainModule.ImportReference(Call);
             Call_Begin_Ref = importMethodReference(Call, "Begin");
             Call_PushRef_Ref = importMethodReference(Call, "PushRef");
+            
             Call_PushValueType_Ref = importMethodReference(Call, "PushValueType");
+            Call_PushValueUnmanaged = importMethodReference(Call, "PushValueUnmanaged");
+
             Call_GetAsType_Ref = importMethodReference(Call, "GetAsType");
 
             VirtualMachine_Execute_Ref = assembly.MainModule.ImportReference(
@@ -3132,22 +3663,6 @@ namespace IFix
             instructions.Add(Instruction.Create(OpCodes.Ret));
 
             assembly.MainModule.Types.Add(wrapperMgrImpl);
-
-            var initWrapperArray = new MethodDefinition("InitWrapperArray", MethodAttributes.Public
-                | MethodAttributes.HideBySig
-                | MethodAttributes.NewSlot
-                | MethodAttributes.Virtual
-                | MethodAttributes.Final, assembly.MainModule.TypeSystem.Object);
-            wrapperMgrImpl.Methods.Add(initWrapperArray);
-            initWrapperArray.Parameters.Add(new ParameterDefinition("len", ParameterAttributes.None,
-                assembly.MainModule.TypeSystem.Int32));
-            instructions = initWrapperArray.Body.Instructions;
-            instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
-            instructions.Add(Instruction.Create(OpCodes.Newarr, wrapperType));
-            instructions.Add(Instruction.Create(OpCodes.Stsfld, wrapperArray));
-            instructions.Add(Instruction.Create(OpCodes.Ldsfld, wrapperArray));
-            instructions.Add(Instruction.Create(OpCodes.Ret));
-
         }
 
         //void makeCloneFast(AssemblyDefinition ilfixAassembly)
@@ -3442,7 +3957,7 @@ namespace IFix
             {
                 processMethod(kv.Key);
             }
-
+            
             genCodeForCustomBridge();
 
             emitCCtor();
@@ -3458,9 +3973,35 @@ namespace IFix
                 }
                 
                 EmitAsyncBuilderStartMethod(allTypes);
-            } 
+            }
 
+            emitInitWrapperArray();
+            
             return ProcessResult.OK;
+        }
+
+        void emitInitWrapperArray()
+        {
+            var initWrapperArray = new MethodDefinition("InitWrapperArray", MethodAttributes.Public
+                                                                            | MethodAttributes.HideBySig
+                                                                            | MethodAttributes.NewSlot
+                                                                            | MethodAttributes.Virtual
+                                                                            | MethodAttributes.Final, assembly.MainModule.TypeSystem.Object);
+            wrapperMgrImpl.Methods.Add(initWrapperArray);
+            initWrapperArray.Parameters.Add(new ParameterDefinition("len", ParameterAttributes.None,
+                assembly.MainModule.TypeSystem.Int32));
+
+            var instructions = initWrapperArray.Body.Instructions;
+            foreach (var item in isMethodPatchDict)
+            {
+                instructions.Add(Instruction.Create(OpCodes.Ldc_I4_0));
+                instructions.Add(Instruction.Create(OpCodes.Stsfld, item.Value));
+            }
+            instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+            instructions.Add(Instruction.Create(OpCodes.Newarr, wrapperType));
+            instructions.Add(Instruction.Create(OpCodes.Stsfld, wrapperArray));
+            instructions.Add(Instruction.Create(OpCodes.Ldsfld, wrapperArray));
+            instructions.Add(Instruction.Create(OpCodes.Ret));
         }
 
         void emitFieldCtor(FieldDefinition field, Mono.Collections.Generic.Collection<Instruction> insertInstructions)

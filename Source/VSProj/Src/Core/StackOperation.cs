@@ -5,6 +5,11 @@
  * This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this source code package.
  */
 
+using System.Text;
+using Unity.Collections.LowLevel.Unsafe;
+using UnityEngine;
+using Unsafe.As;
+
 namespace IFix.Core
 {
     using System;
@@ -14,13 +19,13 @@ namespace IFix.Core
     using System.Collections.Generic;
 
     [StructLayout(LayoutKind.Sequential)]
-    unsafe struct UnmanagedStack
+    public unsafe struct UnmanagedStack
     {
         public Value* Base;
         public Value* Top;
     }
 
-    unsafe class ThreadStackInfo
+    public unsafe class ThreadStackInfo
     {
         public UnmanagedStack* UnmanagedStack;
         public object[] ManagedStack;
@@ -64,35 +69,38 @@ namespace IFix.Core
         //This is a known limitation of the liveness check, as the we don't handle thread static or
         //context static variables as roots when performing the collection. 
         //The crash will happen in mono_unity_liveness_calculation_from_statics
-        //[ThreadStatic]
-        //internal static ThreadStackInfo Stack = null;
+        [ThreadStatic]
+        private static ThreadStackInfo stack = null;
 
-        static LocalDataStoreSlot localSlot = Thread.AllocateDataSlot();
+        //static LocalDataStoreSlot localSlot = Thread.AllocateDataSlot();
 
         internal static ThreadStackInfo Stack
         {
             get
             {
-                var stack = Thread.GetData(localSlot) as ThreadStackInfo;
+                //var stack = Thread.GetData(localSlot) as ThreadStackInfo;
                 if (stack == null)
                 {
-                    VirtualMachine._Info("create thread stack");
+                    //VirtualMachine._Info("create thread stack");
                     stack = new ThreadStackInfo();
-                    Thread.SetData(localSlot, stack);
+                    BoxUtils.InitD();					
+                    //Thread.SetData(localSlot, stack);
                 }
+
                 return stack;
             }
         }
     }
 
-    unsafe internal static class EvaluationStackOperation
+    unsafe public static class EvaluationStackOperation
     {
         internal static void UnboxPrimitive(Value* evaluationStackPointer, object obj, Type type)
         {
-            if (obj.GetType().IsEnum)
-            {
-                obj = Convert.ChangeType(obj, type);
-            }
+            // if (BoxUtils.GetTypeIsEnum(obj.GetType()))
+            // {
+            //     obj = Convert.ChangeType(obj, type);
+            // }
+
             if (obj is int)
             {
                 evaluationStackPointer->Type = ValueType.Integer;
@@ -167,7 +175,8 @@ namespace IFix.Core
                 throw new NotImplementedException("Unbox a " + obj.GetType() + " to " + type);
         }
 
-        internal static object mGet(bool isArray, object root, int layer, int[] fieldIdList, FieldInfo[] fieldInfos, Dictionary<int, NewFieldInfo> newFieldInfos)
+        internal static object mGet(bool isArray, object root, int layer, int[] fieldIdList, FieldInfo[] fieldInfos,
+            Dictionary<int, NewFieldInfo> newFieldInfos)
         {
             //Console.WriteLine("mGet " + root);
             var fieldId = fieldIdList[layer];
@@ -180,8 +189,8 @@ namespace IFix.Core
                 else
                 {
                     var fieldInfo = fieldInfos[fieldId];
-                    
-                    if(fieldInfo == null)
+
+                    if (fieldInfo == null)
                     {
                         return newFieldInfos[fieldId].GetValue(root);
                     }
@@ -193,13 +202,14 @@ namespace IFix.Core
             {
                 var fieldInfo = fieldInfos[fieldId];
 
-                if(fieldInfo == null)
+                if (fieldInfo == null)
                 {
-                    return newFieldInfos[fieldId].GetValue(mGet(isArray, root, layer - 1, fieldIdList, fieldInfos, newFieldInfos));
+                    return newFieldInfos[fieldId]
+                        .GetValue(mGet(isArray, root, layer - 1, fieldIdList, fieldInfos, newFieldInfos));
                 }
-                
+
                 //VirtualMachine._Info("before --- " + fieldInfo);
-                var ret =  fieldInfo.GetValue(mGet(isArray, root, layer - 1, fieldIdList, fieldInfos, newFieldInfos));
+                var ret = fieldInfo.GetValue(mGet(isArray, root, layer - 1, fieldIdList, fieldInfos, newFieldInfos));
                 //VirtualMachine._Info("after --- " + fieldInfo);
                 return ret;
             }
@@ -219,7 +229,7 @@ namespace IFix.Core
                 {
                     var fieldInfo = fieldInfos[fieldId];
 
-                    if(fieldInfo == null)
+                    if (fieldInfo == null)
                     {
                         newFieldInfos[fieldId].SetValue(root, val);
                     }
@@ -228,6 +238,7 @@ namespace IFix.Core
                         //VirtualMachine._Info("set1 " + val.GetType() + " to " + fieldInfo + " of " + root.GetType()
                         //    + ", root.hc = " + root.GetHashCode());
                         fieldInfo.SetValue(root, val);
+                        BoxUtils.RecycleObject(val);
                     }
                 }
             }
@@ -238,22 +249,62 @@ namespace IFix.Core
                 var parent = mGet(isArray, root, layer - 1, fieldIdList, fieldInfos, newFieldInfos);
                 //VirtualMachine._Info("after get " + fieldInfo);
                 //VirtualMachine._Info("before set " + fieldInfo);
-                if(fieldInfo == null)
+                if (fieldInfo == null)
                 {
                     newFieldInfos[fieldId].SetValue(parent, val);
                 }
                 else
                 {
                     fieldInfo.SetValue(parent, val);
+                    BoxUtils.RecycleObject(val);
                 }
+
                 //VirtualMachine._Info("set2 " + val.GetType() + " to " + fieldInfo + " of " + parent.GetType());
                 //VirtualMachine._Info("after set " + fieldInfo);
                 mSet(isArray, root, parent, layer - 1, fieldIdList, fieldInfos, newFieldInfos);
             }
         }
 
+        private static Dictionary<FieldInfo, object> readonlyStaticFieldCache = new Dictionary<FieldInfo, object>();
+        private static HashSet<object> readonlyStaticObjectCache = new HashSet<object>();
+        public static object GetStaticValueFromeCache(FieldInfo fi)
+        {
+            if (BoxUtils.GetTypeIsValueType(fi.FieldType) && (fi.IsInitOnly || fi.IsLiteral))
+            {
+                object result = null;
+                lock (readonlyStaticFieldCache)
+                {
+                    if (!readonlyStaticFieldCache.TryGetValue(fi, out result))
+                    {
+                        result = fi.GetValue(null);
+                        readonlyStaticFieldCache.Add(fi, result);
+                        readonlyStaticObjectCache.Add(result);
+                    }
+                }
+
+                return result;
+            }
+
+            return fi.GetValue(null);
+        }
+
+        private static Type intType = typeof(int);
+        private static Type boolType = typeof(bool);
+        private static Type sbyteType = typeof(sbyte);
+        private static Type byteType = typeof(byte);
+        private static Type charType = typeof(char);
+        private static Type shortType = typeof(short);
+        private static Type ushortType = typeof(ushort);
+        private static Type uintType = typeof(uint);
+        private static Type longType = typeof(long);
+        private static Type ulongType = typeof(ulong);
+        private static Type IntPtrType = typeof(IntPtr);
+        private static Type UIntPtrType = typeof(UIntPtr);
+        private static Type floatType = typeof(float);
+        private static Type doubleType = typeof(double);
+
         // #lizard forgives
-        internal static unsafe object ToObject(Value* evaluationStackBase, Value* evaluationStackPointer,
+        public static unsafe object ToObject(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, Type type, VirtualMachine virtualMachine, bool valueTypeClone = true)
         {
             //未初始化的local引用可能作为out参数反射调用
@@ -261,192 +312,346 @@ namespace IFix.Core
             switch (evaluationStackPointer->Type)
             {
                 case ValueType.Integer:
+                {
+                    int i = evaluationStackPointer->Value1;
+                    if (type == intType)
                     {
-                        int i = evaluationStackPointer->Value1;
-                        if (type == typeof(int))
-                            return i;
-                        else if (type == typeof(bool))
-                            return i == 1;
-                        else if (type == typeof(sbyte))
-                            return (sbyte)i;
-                        else if (type == typeof(byte))
-                            return (byte)i;
-                        else if (type == typeof(char))
-                            return (char)i;
-                        else if (type == typeof(short))
-                            return (short)i;
-                        else if (type == typeof(ushort))
-                            return (ushort)i;
-                        else if (type == typeof(uint))
-                            return (uint)i;
-                        else if (type.IsEnum)
-                        {
-                            return Enum.ToObject(type, i);
-                        }
-                        else 
-                            return null;
+                        var ret = BoxUtils.BoxObject<int>(i, true);
+                        return ret;
                     }
+                    else if (type == boolType)
+                    {
+                        var ret = BoxUtils.BoxObject<bool>(i == 1, true);
+                        return ret;
+                    }
+                    else if (type == byteType)
+                    {
+                        var ret = BoxUtils.BoxObject<byte>((byte)i, true);
+                        return ret;
+                    }
+                    else if (BoxUtils.GetTypeIsEnum(type))
+                    {
+                        return BoxUtils.BoxEnumObject(type, i);
+                    }
+                    else if (type == charType)
+                    {
+                        var ret = BoxUtils.BoxObject<char>((char)i, true);
+                        return ret;
+                    }
+                    else if (type == uintType)
+                    {
+                        var ret = BoxUtils.BoxObject<uint>((uint)i, true);
+                        return ret;
+                    }
+                    else if (type == shortType)
+                    {
+                        var ret = BoxUtils.BoxObject<short>((short)i, true);
+                        return ret;
+                    }
+                    else if (type == ushortType)
+                    {
+                        var ret = BoxUtils.BoxObject<ushort>((ushort)i, true);
+                        return ret;
+                    }
+                    else if (type == sbyteType)
+                    {
+                        var ret = BoxUtils.BoxObject<sbyte>((sbyte)i, true);
+                        return ret;
+                    }
+                    else
+                        return null;
+                }
                 case ValueType.Long:
+                {
+                    long l = *(long*)&evaluationStackPointer->Value1;
+                    if (type == longType)
                     {
-                        long l = *(long*)&evaluationStackPointer->Value1;
-                        if (type == typeof(long))
-                        {
-                            return l;
-                        }
-                        else if (type == typeof(ulong))
-                        {
-                            return (ulong)l;
-                        }
-                        else if (type == typeof(IntPtr))
-                        {
-                            return new IntPtr(l);
-                        }
-                        else if (type == typeof(UIntPtr))
-                        {
-                            return new UIntPtr((ulong)l);
-                        }
-                        else if (type.IsEnum)
-                        {
-                            return Enum.ToObject(type, l);
-                        }
-                        else
-                        {
-                            return null;
-                        }
+                        var ret = BoxUtils.BoxObject<long>((long)l, true);
+                        return ret;
                     }
+                    else if (type == ulongType)
+                    {
+                        var ret = BoxUtils.BoxObject<ulong>((ulong)l, true);
+                        return ret;
+                    }
+                    else if (type == IntPtrType)
+                    {
+                        var ret = BoxUtils.BoxObject<IntPtr>((IntPtr)l, true);
+                        return ret;
+                    }
+                    else if (type == UIntPtrType)
+                    {
+                        var ret = BoxUtils.BoxObject<UIntPtr>(new UIntPtr((ulong)l), true);
+                        return ret;
+                    }
+                    else if (BoxUtils.GetTypeIsEnum(type))
+                    {
+                        return BoxUtils.BoxEnumObject(type, l);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 case ValueType.Float:
+                {
+                    if (type == floatType)
                     {
-                        if (type == typeof(float))
-                        {
-                            return *(float*)&evaluationStackPointer->Value1;
-                        }
-                        else
-                        {
-                            return null;
-                        }
+                        var ret = BoxUtils.BoxObject(*(float*)&evaluationStackPointer->Value1, true);
+                        return ret;
                     }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 case ValueType.Double:
+                {
+                    if (type == doubleType)
                     {
-                        if (type == typeof(double))
-                        {
-                            return *(double*)&evaluationStackPointer->Value1;
-                        }
-                        else
-                        {
-                            return null;
-                        }
+                        var ret = BoxUtils.BoxObject(*(double*)&evaluationStackPointer->Value1, true);
+                        return ret;
                     }
+                    else
+                    {
+                        return null;
+                    }
+                }
                 case ValueType.Object:
                     return managedStack[evaluationStackPointer->Value1];
                 case ValueType.ValueType:
                     if (valueTypeClone && managedStack[evaluationStackPointer->Value1] != null)
                     {
-                        return virtualMachine.objectClone.Clone(managedStack[evaluationStackPointer->Value1]);
+                        return BoxUtils.CloneObject(managedStack[evaluationStackPointer->Value1]);
                     }
                     else
                     {
                         return managedStack[evaluationStackPointer->Value1];
                     }
                 case ValueType.StackReference:
-                    {
-                        return ToObject(evaluationStackBase, (*(Value**)&evaluationStackPointer->Value1),
-                            managedStack, type, virtualMachine, valueTypeClone);
-                    }
+                {
+                    return ToObject(evaluationStackBase, (*(Value**)&evaluationStackPointer->Value1),
+                        managedStack, type, virtualMachine, valueTypeClone);
+                }
                 case ValueType.FieldReference:
                 case ValueType.ChainFieldReference:
+                {
+                    //VirtualMachine._Info("ToObject FieldReference:" + evaluationStackPointer->Value2
+                    //    + "," + evaluationStackPointer->Value1);
+                    if (evaluationStackPointer->Type == ValueType.ChainFieldReference)
                     {
-                        //VirtualMachine._Info("ToObject FieldReference:" + evaluationStackPointer->Value2
-                        //    + "," + evaluationStackPointer->Value1);
-                        if (evaluationStackPointer->Type == ValueType.ChainFieldReference)
+                        var fieldAddr = managedStack[evaluationStackPointer - evaluationStackBase] as FieldAddr;
+                        var fieldIdList = fieldAddr.FieldIdList;
+                        return mGet(evaluationStackPointer->Value2 != -1,
+                            fieldAddr.Object, fieldIdList.Length - 1,
+                            fieldIdList, virtualMachine.fieldInfos, virtualMachine.newFieldInfos);
+                    }
+                    else
+                    {
+                        if (evaluationStackPointer->Value2 >= 0)
                         {
-                            var fieldAddr = managedStack[evaluationStackPointer - evaluationStackBase] as FieldAddr;
-                            var fieldIdList = fieldAddr.FieldIdList;
-                            return mGet(evaluationStackPointer->Value2 != -1,
-                                fieldAddr.Object, fieldIdList.Length - 1,
-                                fieldIdList, virtualMachine.fieldInfos, virtualMachine.newFieldInfos);
+                            var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value2];
+                            var obj = managedStack[evaluationStackPointer->Value1];
+                            if (fieldInfo == null)
+                            {
+                                virtualMachine.newFieldInfos[evaluationStackPointer->Value2]
+                                    .CheckInit(virtualMachine, obj);
+                                return virtualMachine.newFieldInfos[evaluationStackPointer->Value2].GetValue(obj);
+                            }
+
+                            return fieldInfo.GetValue(obj);
                         }
                         else
                         {
-                            if (evaluationStackPointer->Value2 >= 0)
-                            {
-                                var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value2];
-                                var obj = managedStack[evaluationStackPointer->Value1];
-                                if(fieldInfo == null)
-                                {
-                                    virtualMachine.newFieldInfos[evaluationStackPointer->Value2].CheckInit(virtualMachine, obj);
-                                    return virtualMachine.newFieldInfos[evaluationStackPointer->Value2].GetValue(obj);
-                                }
-                                return fieldInfo.GetValue(obj);
-                            }
-                            else
-                            {
-                                var obj = managedStack[evaluationStackPointer->Value1] as AnonymousStorey;
-                                return obj.Get(-(evaluationStackPointer->Value2 + 1), type,
-                                    virtualMachine, valueTypeClone);
-                            }
+                            var obj = managedStack[evaluationStackPointer->Value1] as AnonymousStorey;
+                            return obj.Get(-(evaluationStackPointer->Value2 + 1), type,
+                                virtualMachine, valueTypeClone);
                         }
                     }
+                }
                 case ValueType.ArrayReference:
                     var arr = managedStack[evaluationStackPointer->Value1] as Array;
                     return arr.GetValue(evaluationStackPointer->Value2);
                 case ValueType.StaticFieldReference:
+                {
+                    var fieldIndex = evaluationStackPointer->Value1;
+                    if (fieldIndex >= 0)
                     {
-                        var fieldIndex = evaluationStackPointer->Value1;
-                        if (fieldIndex >= 0)
+                        var fieldInfo = virtualMachine.fieldInfos[fieldIndex];
+                        if (fieldInfo == null)
                         {
-                            var fieldInfo = virtualMachine.fieldInfos[fieldIndex];
-                            if(fieldInfo == null)
-                            {
-                                virtualMachine.newFieldInfos[fieldIndex].CheckInit(virtualMachine, null);
-                                
-                                return virtualMachine.newFieldInfos[fieldIndex].GetValue(null);
-                            }
-                            return fieldInfo.GetValue(null);
+                            virtualMachine.newFieldInfos[fieldIndex].CheckInit(virtualMachine, null);
+
+                            return virtualMachine.newFieldInfos[fieldIndex].GetValue(null);
                         }
-                        else
-                        {
-                            fieldIndex = -(fieldIndex + 1);
-                            return virtualMachine.staticFields[fieldIndex];
-                        }
+
+                        return GetStaticValueFromeCache(fieldInfo);
                     }
+                    else
+                    {
+                        fieldIndex = -(fieldIndex + 1);
+                        return virtualMachine.staticFields[fieldIndex];
+                    }
+                }
                 default:
                     throw new NotImplementedException("get obj of " + evaluationStackPointer->Type);
             }
         }
 
+
+        public static Value* ToBaseRef(Value* sp)
+        {
+            if (sp->Type != ValueType.StackReference)
+            {
+                return sp;
+            }
+            else
+            {
+                return ToBaseRef(*(Value**)&sp->Value1);
+            }
+        }
+
+        public static void PushValue<T>(Value* evaluationStackBase, Value* evaluationStackPointer,
+            object[] managedStack, T v)
+        {
+            var o = BoxUtils.BoxObject(v, true);
+            PushObject(evaluationStackBase, evaluationStackPointer, managedStack, o, typeof(T));
+        }
+
+        public static void PushField(Value* evaluationStackBase, Value* evaluationStackPointer,
+            object[] managedStack, object obj, FieldInfo fieldInfo, Type fieldType)
+        {
+            object ret = BoxUtils.GetFieldValue(obj, fieldInfo, fieldType);
+            PushObject(evaluationStackBase, evaluationStackPointer, managedStack, ret, fieldType);
+        }
+
         public static void PushObject(Value* evaluationStackBase, Value* evaluationStackPointer,
             object[] managedStack, object obj, Type type)
         {
+            bool isValueType = false;
             if (obj != null)
             {
-                if (type.IsPrimitive)
+                void** monitorOffset = (void**)UnsafeAsUtility.AsPoint(ref type) + 1;
+                if (*monitorOffset == null)
+                {
+                    BoxUtils.CacheTypeInfo(type);
+                }
+                byte* typeInfo = (byte*)*monitorOffset;
+                bool isPrimitive = *(bool*)(typeInfo + 9);
+                bool isEnum = *(bool*)(typeInfo + 8);
+                isValueType = *(bool*)(typeInfo + 10);
+
+                if (isPrimitive)
                 {
                     UnboxPrimitive(evaluationStackPointer, obj, type);
+                    BoxUtils.RecycleObject(obj);
                     return;
                 }
-                else if (type.IsEnum)
+                else if (isEnum)
                 {
-                    var underlyingType = Enum.GetUnderlyingType(type);
-                    if (underlyingType == typeof(long) || underlyingType == typeof(ulong))
+                    int size = *(int*)(typeInfo + 12);
+                    byte* b = (byte*)UnsafeAsUtility.AsPoint(ref obj)+ BoxUtils.OBJ_OFFSET;
+
+                    if (size == 8)
                     {
                         evaluationStackPointer->Type = ValueType.Long;
-                        *(long*)(&evaluationStackPointer->Value1) = underlyingType == typeof(long) ? 
-                            Convert.ToInt64(obj) : (long)Convert.ToUInt64(obj) ;
+                        *(long*)(&evaluationStackPointer->Value1) =  *(long*)b;
                     }
                     else
                     {
                         evaluationStackPointer->Type = ValueType.Integer;
-                        evaluationStackPointer->Value1 = Convert.ToInt32(obj);
+                        evaluationStackPointer->Value1 = *(int*)b;
                     }
+
+                    BoxUtils.RecycleObject(obj);
                     return;
                 }
             }
+
             int pos = (int)(evaluationStackPointer - evaluationStackBase);
             evaluationStackPointer->Value1 = pos;
+            BoxUtils.RecycleObject(managedStack[pos]);
             managedStack[pos] = obj;
 
-            evaluationStackPointer->Type = (obj != null && type.IsValueType) ?
-                ValueType.ValueType : ValueType.Object;
+            evaluationStackPointer->Type = (obj != null && isValueType) 
+                ? ValueType.ValueType : ValueType.Object;
+        }
+
+
+        public static void PushDouble(Value* evaluationStackPointer, double d)
+        {
+            evaluationStackPointer->Type = ValueType.Double;
+            *(double*)(&evaluationStackPointer->Value1) = d;
+        }
+
+        public static void PushInt64(Value* evaluationStackPointer, Int64 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Long;
+            *(long*)(&evaluationStackPointer->Value1) = obj;
+        }
+
+        public static void PushUInt64(Value* evaluationStackPointer, UInt64 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Long;
+            *(UInt64*)(&evaluationStackPointer->Value1) = obj;
+        }
+
+        public static void PushSingle(Value* evaluationStackPointer, float f)
+        {
+            evaluationStackPointer->Type = ValueType.Float;
+            *(float*)(&evaluationStackPointer->Value1) = f;
+        }
+
+        public static void PushInt32(Value* evaluationStackPointer, Int32 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Integer;
+            evaluationStackPointer->Value1 = (int)obj;
+        }
+
+        public static void PushIntPtr(Value* evaluationStackPointer, IntPtr i)
+        {
+            PushInt64(evaluationStackPointer, i.ToInt64());
+        }
+
+        public static void PushUIntPtr(Value* evaluationStackPointer, UIntPtr i)
+        {
+            PushUInt64(evaluationStackPointer, i.ToUInt64());
+        }
+
+        public static void PushUInt32(Value* evaluationStackPointer, UInt32 obj)
+        {
+            evaluationStackPointer->Type = ValueType.Integer;
+            evaluationStackPointer->Value1 = (int)obj;
+        }
+
+        public static void PushInt16(Value* evaluationStackPointer, short us)
+        {
+            PushInt32(evaluationStackPointer, us);
+        }
+
+        public static void PushUInt16(Value* evaluationStackPointer, ushort us)
+        {
+            PushInt32(evaluationStackPointer, us);
+        }
+
+        public static void PushChar(Value* evaluationStackPointer, char c)
+        {
+            PushInt32(evaluationStackPointer, c);
+        }
+
+        public static void PushSByte(Value* evaluationStackPointer, sbyte sb)
+        {
+            PushInt32(evaluationStackPointer, sb);
+        }
+
+        public static void PushByte(Value* evaluationStackPointer, byte b)
+        {
+            PushInt32(evaluationStackPointer, b);
+        }
+
+        public static void PushBoolean(Value* evaluationStackPointer, bool b)
+        {
+            PushInt32(evaluationStackPointer, b ? 1 : 0);
         }
 
         public static void UpdateReference(Value* evaluationStackBase, Value* evaluationStackPointer,
@@ -466,87 +671,97 @@ namespace IFix.Core
                     break;
                 case ValueType.FieldReference:
                 case ValueType.ChainFieldReference:
+                {
+                    if (evaluationStackPointer->Type == ValueType.ChainFieldReference)
                     {
-                        if (evaluationStackPointer->Type == ValueType.ChainFieldReference)
-                        {
-                            var fieldAddr = managedStack[evaluationStackPointer - evaluationStackBase] as FieldAddr;
-                            var fieldIdList = fieldAddr.FieldIdList;
-                            //for(int i = 0; i < fieldIdList.Length; i++)
-                            //{
-                            //    VirtualMachine._Info("fid " + i + ": " + fieldIdList[i] + ", "
-                            //        + virtualMachine.fieldInfos[fieldIdList[i]]);
-                            //}
-                            mSet(evaluationStackPointer->Value2 != -1,
-                                fieldAddr.Object, obj, fieldIdList.Length - 1,
-                                fieldIdList, virtualMachine.fieldInfos, virtualMachine.newFieldInfos);
-                        }
-                        else
-                        {
-                            if (evaluationStackPointer->Value2 >= 0)
-                            {
-
-
-                                var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value2];
-                                if(fieldInfo == null)
-                                {
-                                    virtualMachine.newFieldInfos[evaluationStackPointer->Value2].SetValue(managedStack[evaluationStackPointer->Value1], obj);;
-                                }
-                                else
-                                {
-                                    //VirtualMachine._Info("update field: " + fieldInfo);
-                                    //VirtualMachine._Info("update field of: " + fieldInfo.DeclaringType);
-                                    //VirtualMachine._Info("update ref obj: "
-                                    //    + managedStack[evaluationStackPointer->Value1]);
-                                    //VirtualMachine._Info("update ref obj idx: " + evaluationStackPointer->Value1);
-                                    fieldInfo.SetValue(managedStack[evaluationStackPointer->Value1], obj);
-                                }
-                            }
-                            else
-                            {
-                                var anonymousStorey = managedStack[evaluationStackPointer->Value1]
-                                    as AnonymousStorey;
-                                anonymousStorey.Set(-(evaluationStackPointer->Value2 + 1), obj, type, virtualMachine);
-                            }
-                        }
-                        break;
+                        var fieldAddr = managedStack[evaluationStackPointer - evaluationStackBase] as FieldAddr;
+                        var fieldIdList = fieldAddr.FieldIdList;
+                        //for(int i = 0; i < fieldIdList.Length; i++)
+                        //{
+                        //    VirtualMachine._Info("fid " + i + ": " + fieldIdList[i] + ", "
+                        //        + virtualMachine.fieldInfos[fieldIdList[i]]);
+                        //}
+                        mSet(evaluationStackPointer->Value2 != -1,
+                            fieldAddr.Object, obj, fieldIdList.Length - 1,
+                            fieldIdList, virtualMachine.fieldInfos, virtualMachine.newFieldInfos);
                     }
-                case ValueType.StaticFieldReference://更新完毕，直接return
+                    else
                     {
-                        var fieldIndex = evaluationStackPointer->Value1;
-                        if (fieldIndex >= 0)
+                        if (evaluationStackPointer->Value2 >= 0)
                         {
-                            var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value1];
-                            if(fieldInfo == null)
+                            var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value2];
+                            if (fieldInfo == null)
                             {
-                                virtualMachine.newFieldInfos[evaluationStackPointer->Value1].SetValue(null, obj);;
+                                virtualMachine.newFieldInfos[evaluationStackPointer->Value2]
+                                    .SetValue(managedStack[evaluationStackPointer->Value1], obj);
+                                ;
                             }
                             else
                             {
-                                fieldInfo.SetValue(null, obj);
+                                //VirtualMachine._Info("update field: " + fieldInfo);
+                                //VirtualMachine._Info("update field of: " + fieldInfo.DeclaringType);
+                                //VirtualMachine._Info("update ref obj: "
+                                //    + managedStack[evaluationStackPointer->Value1]);
+                                //VirtualMachine._Info("update ref obj idx: " + evaluationStackPointer->Value1);
+                                fieldInfo.SetValue(managedStack[evaluationStackPointer->Value1], obj);
+                                BoxUtils.RecycleObject(obj);
                             }
                         }
                         else
                         {
-                            fieldIndex = -(fieldIndex + 1);
-                            virtualMachine.staticFields[fieldIndex] = obj;
+                            var anonymousStorey = managedStack[evaluationStackPointer->Value1]
+                                as AnonymousStorey;
+                            anonymousStorey.Set(-(evaluationStackPointer->Value2 + 1), obj, type, virtualMachine);
                         }
-                        break;
                     }
+
+                    break;
+                }
+                case ValueType.StaticFieldReference: //更新完毕，直接return
+                {
+                    var fieldIndex = evaluationStackPointer->Value1;
+                    if (fieldIndex >= 0)
+                    {
+                        var fieldInfo = virtualMachine.fieldInfos[evaluationStackPointer->Value1];
+                        if (fieldInfo == null)
+                        {
+                            virtualMachine.newFieldInfos[evaluationStackPointer->Value1].SetValue(null, obj);
+                            ;
+                        }
+                        else
+                        {
+                            fieldInfo.SetValue(null, obj);
+                            BoxUtils.RecycleObject(obj);
+                        }
+                    }
+                    else
+                    {
+                        fieldIndex = -(fieldIndex + 1);
+                        virtualMachine.staticFields[fieldIndex] = obj;
+                    }
+
+                    break;
+                }
             }
         }
     }
 
     unsafe public struct Call
     {
-        internal Value* argumentBase;
+        public Value* argumentBase;
 
-        internal Value* evaluationStackBase;
+        public Value* evaluationStackBase;
 
-        internal object[] managedStack;
+        public object[] managedStack;
 
-        internal Value* currentTop;//用于push状态
+        public Value* currentTop; //用于push状态
 
-        internal Value** topWriteBack;
+        public Value** topWriteBack;
+
+        public static Call NewCall()
+        {
+            return new Call();
+        }
 
         public static Call Begin()
         {
@@ -557,20 +772,27 @@ namespace IFix.Core
                 currentTop = stack.UnmanagedStack->Top,
                 argumentBase = stack.UnmanagedStack->Top,
                 evaluationStackBase = stack.UnmanagedStack->Base,
-                topWriteBack = &(stack.UnmanagedStack->Top)
+                topWriteBack = &(stack.UnmanagedStack->Top),
             };
         }
 
-        internal static Call BeginForStack(ThreadStackInfo stack)
+        public static void BeginRef(ref Call ret)
         {
-            return new Call()
-            {
-                managedStack = stack.ManagedStack,
-                currentTop = stack.UnmanagedStack->Top,
-                argumentBase = stack.UnmanagedStack->Top,
-                evaluationStackBase = stack.UnmanagedStack->Base,
-                topWriteBack = &(stack.UnmanagedStack->Top)
-            };
+            var stack = ThreadStackInfo.Stack;
+            ret.managedStack = stack.ManagedStack;
+            ret.currentTop = stack.UnmanagedStack->Top;
+            ret.argumentBase = stack.UnmanagedStack->Top;
+            ret.evaluationStackBase = stack.UnmanagedStack->Base;
+            ret.topWriteBack = &(stack.UnmanagedStack->Top);
+        }
+
+        public static void BeginForStack(ThreadStackInfo stack, ref Call ret)
+        {
+            ret.managedStack = stack.ManagedStack;
+            ret.currentTop = stack.UnmanagedStack->Top;
+            ret.argumentBase = stack.UnmanagedStack->Top;
+            ret.evaluationStackBase = stack.UnmanagedStack->Base;
+            ret.topWriteBack = &(stack.UnmanagedStack->Top);
         }
 
         public void PushBoolean(bool b)
@@ -713,6 +935,22 @@ namespace IFix.Core
             return new IntPtr(GetInt64(offset));
         }
 
+        public int* GetInt32Point(int offset = 0)
+        {
+            IntPtr p = new IntPtr(GetInt64(offset));
+            int* v = (int*)((byte*)p.ToPointer() + 4);
+
+            return v;
+        }
+
+        public long* GetInt64Point(int offset = 0)
+        {
+            IntPtr p = new IntPtr(GetInt64(offset));
+            long* v = (long*)((byte*)p.ToPointer() + 4);
+
+            return v;
+        }
+
         public void PushUIntPtr(UIntPtr i)
         {
             PushUInt64(i.ToUInt64());
@@ -728,8 +966,15 @@ namespace IFix.Core
             int pos = (int)(currentTop - evaluationStackBase);
             currentTop->Type = ValueType.Object;
             currentTop->Value1 = pos;
+            BoxUtils.RecycleObject(managedStack[pos]);
             managedStack[pos] = o;
             currentTop++;
+        }
+
+        public void PushValueUnmanaged<T>(T v)
+        {
+            var o = BoxUtils.BoxObject(v, true);
+            PushObject(o);
         }
 
         public void PushValueType(object o)
@@ -737,15 +982,32 @@ namespace IFix.Core
             int pos = (int)(currentTop - evaluationStackBase);
             currentTop->Type = ValueType.ValueType;
             currentTop->Value1 = pos;
+            BoxUtils.RecycleObject(managedStack[pos]);
             managedStack[pos] = o;
             currentTop++;
+        }
+
+        public object GetEveryObject(VirtualMachine vm, Type rawType, int offset = 0)
+        {
+            object obj = EvaluationStackOperation.ToObject(evaluationStackBase, evaluationStackBase + offset, managedStack,
+                rawType, vm);
+            return obj;
         }
 
         public object GetObject(int offset = 0)
         {
             var ptr = argumentBase + offset;
             object ret = managedStack[ptr->Value1];
+
+            // 因为拿出去之后就被unbox掉了所以这里可以回收
+            if (ptr->Type == ValueType.ValueType)
+            {
+                BoxUtils.RecycleObject(ret);
+            }
+
+            BoxUtils.RecycleObject(managedStack[ptr - evaluationStackBase]);
             managedStack[ptr - evaluationStackBase] = null;
+
             return ret;
         }
 
@@ -781,6 +1043,104 @@ namespace IFix.Core
             currentTop = argumentBase + 1;
         }
 
+        public void PushValueUnmanagedAsResult<T>(T v)//反射专用
+        {
+            var o = BoxUtils.BoxObject(v, true);
+            
+            int pos = (int)(argumentBase - evaluationStackBase);
+            argumentBase->Value1 = pos;
+            argumentBase->Type = ValueType.ValueType;
+            BoxUtils.RecycleObject(managedStack[pos]);
+
+            managedStack[pos] = o;
+            
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushInt32AsResult(int value)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushUInt32AsResult(uint value)
+        {
+            EvaluationStackOperation.PushUInt32(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushUIntPtr64AsResult(UIntPtr value)
+        {
+            EvaluationStackOperation.PushUIntPtr(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushIntPtr64AsResult(IntPtr value)
+        {
+            EvaluationStackOperation.PushIntPtr(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushUInt64AsResult(ulong value)
+        {
+            EvaluationStackOperation.PushUInt64(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushInt64AsResult(long value)
+        {
+            EvaluationStackOperation.PushInt64(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushDoubleAsResult(double value)
+        {
+            EvaluationStackOperation.PushDouble(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushSingleAsResult(float value)
+        {
+            EvaluationStackOperation.PushSingle(argumentBase, value);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushInt16AsResult(short s)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, s);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushUInt16AsResult(ushort us)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, us);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushCharAsResult(char c)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, c);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushSByteAsResult(sbyte sb)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, sb);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushByteAsResult(byte b)
+        {
+            EvaluationStackOperation.PushInt32(argumentBase, b);
+            currentTop = argumentBase + 1;
+        }
+
+        public void PushBooleanAsResult(bool b)
+        {
+            EvaluationStackOperation.PushBoolean(argumentBase, b);
+            currentTop = argumentBase + 1;
+        }
+
         public void PushRef(int offset)
         {
             //Console.WriteLine("PushRef:" + offset + " address:" + new IntPtr(argumentBase + offset));
@@ -801,5 +1161,4 @@ namespace IFix.Core
             //ThreadStackInfo.Stack.UnmanagedStack->Top = call.argumentBase;
         }
     }
-
 }

@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>IFix.Core</RootNamespace>
     <AssemblyName>IFix.Core</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -40,6 +40,12 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>..\ThirdParty\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="Unsafe.As">
+      <HintPath>..\ThirdParty\Unsafe.As.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Src\Builder\FileVirtualMachineBuilder.cs">
@@ -50,6 +56,9 @@
     </Compile>
     <Compile Include="..\Src\Core\AnonymousStorey.cs">
       <Link>Src\Core\AnonymousStorey.cs</Link>
+    </Compile>
+    <Compile Include="..\Src\Core\BoxUtils.cs">
+      <Link>Src\Core\BoxUtils.cs</Link>
     </Compile>
     <Compile Include="..\Src\Core\DataDefine.cs">
       <Link>Src\Core\DataDefine.cs</Link>

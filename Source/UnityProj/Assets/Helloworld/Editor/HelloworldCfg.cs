@@ -22,9 +22,9 @@ public class HelloworldCfg
             return new List<Type>()
             {
                 typeof(Helloworld),
-                typeof(IFix.Test.Calculator),
-                //AnotherClass在Pro Standard Assets下，会编译到Assembly-CSharp-firstpass.dll下，用来演示多dll的修复
-                typeof(AnotherClass),
+                typeof(Calculator),
+                // //AnotherClass在Pro Standard Assets下，会编译到Assembly-CSharp-firstpass.dll下，用来演示多dll的修复
+                // typeof(AnotherClass),
             };
         }
     }

@@ -7,7 +7,7 @@
 
 namespace IFix.Core
 {
-    public enum ValueType
+    public enum ValueType : int
     {
         Integer,
         Long,
@@ -25,8 +25,8 @@ namespace IFix.Core
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
     public struct Value
     {
-        public ValueType Type;
         public int Value1;
         public int Value2;
+        public ValueType Type;
     }
 }
