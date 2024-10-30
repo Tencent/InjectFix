@@ -7,7 +7,7 @@
 
 namespace IFix.Core
 {
-    public enum ValueType
+    public enum ValueType : int
     {
         Integer,
         Long,

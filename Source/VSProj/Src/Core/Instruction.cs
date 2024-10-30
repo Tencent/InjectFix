@@ -7,7 +7,7 @@
 
 namespace IFix.Core
 {
-    public enum Code
+    public enum Code : int
     {
 		Cgt,
 				Stelem_R8,

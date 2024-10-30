@@ -23,6 +23,7 @@ using UnityEngine.Assertions.Must;
 using UnityEngine.Profiling;
 using Unsafe.As;
 using Debug = UnityEngine.Debug;
+using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 public class TestStruct
@@ -46,7 +47,11 @@ public unsafe class Helloworld : MonoBehaviour
     static int methodCodeOffset = UnsafeUtility.GetFieldOffset(methodCodeField);
     static FieldInfo targetField = typeof(Delegate).GetField("m_target",BindingFlags.Instance | BindingFlags.NonPublic);
     static int targetOffset = UnsafeUtility.GetFieldOffset(targetField);
-    
+
+    public Transform parent;
+    public int xxx;
+
+    private GameObject prefab;
     // check and load patchs
     void Start()
     {
@@ -67,7 +72,6 @@ public unsafe class Helloworld : MonoBehaviour
         
         *(void**)(ap + targetOffset) = p;
         *(void**)(ap + methodCodeOffset) = p;
-
         
         //field.SetValue(action,  (IntPtr));
         action();
@@ -77,6 +81,8 @@ public unsafe class Helloworld : MonoBehaviour
         UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
         UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
         UnityEngine.Debug.Log("10 + 9 = " + calc.Add(10, 9));
+        
+        prefab = Resources.Load<GameObject>("Button");
     }
 
 
@@ -88,6 +94,22 @@ public unsafe class Helloworld : MonoBehaviour
     {
         for(int i = 0;i<10;i++)
             calc.Add(10, 9);
+    }
+
+    static Vector3[] vecs = new Vector3[] { Vector3.zero, Vector3.one, 100 *Vector3.forward, 200 *Vector3.forward, 300 *Vector3.forward, 400 *Vector3.forward,};
+    public void TestAsyncInstance()
+    {
+        Profiler.BeginSample("TestAsyncInstance");
+        InstantiateAsync<GameObject>(prefab, 6, parent, vecs);
+        Profiler.EndSample();
+    }
+    
+    public void TestSyncInstance()
+    {
+        Profiler.BeginSample("TestSyncInstance");
+        for(int i =0;i<6;i++)
+            Instantiate(prefab, Vector3.zero,  Quaternion.identity, parent);
+        Profiler.EndSample();
     }
 
     public void LoadPatch()
@@ -172,10 +194,15 @@ public unsafe class Helloworld : MonoBehaviour
 
     private static int range = 10;
     [Patch]
-    public void DoTestRand() 
+    public void DoTestRand()
     {
-        for(int i =0;i<10000000;++i)
+        int i = 0;
+        for (i = 0; i < 10000000; ++i)
+        {
             Random.Range(-500, 500);
+        }
+        
+        print(i);
     }
 
     //[IFix.Patch]

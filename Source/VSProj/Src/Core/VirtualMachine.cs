@@ -721,18 +721,6 @@ namespace IFix.Core
                 try
                 {
                     var code = pc->Code;
-                    //if (methodIndex == 527 || methodIndex == 528)
-                    //{
-                    //    _Info("** Method Id = " + methodIndex + ", Start Code = " + code + ", Oprand = "
-                    //        + pc->Operand + ", ESP = " + (evaluationStackPointer - localBase - localsCount)
-                    //        + ", ABS = " + (evaluationStackPointer - evaluationStackBase));
-                    //if (methodIndex == 84 && code == Code.Ldfld) throw new Exception("stop");
-                    //}
-                    //if (traceValue != null)
-                    //{
-                    //    _Info("before:" + traceValue->Type + "," + traceValue->Value1 + (traceValue->Type
-                    //        == ValueType.Object ? ("," + managedStack[traceValue->Value1]) : ""));
-                    //}
                     switch (code)
                     {
                         //Ldarg_0: 10.728% Ldarg_1: 4.4% Ldarg_2: 1.87% Ldarg_S:0.954%  Ldarg_3:0.93%

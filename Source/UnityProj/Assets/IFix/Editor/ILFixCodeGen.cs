@@ -1,17 +1,244 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using IFix.Core;
 using Unity.Collections.LowLevel.Unsafe;
 using ValueType = System.ValueType;
+using System.Reflection.Emit;
+using UnityEditor;
+using Debug = System.Diagnostics.Debug;
+
+public static class OpCodeLookup
+{
+    // 单字节操作码集合
+    public static readonly OpCode[] SingleByteOpCodes;
+
+    // 多字节操作码集合
+    public static readonly OpCode[] MultiByteOpCodes;
+
+    // 静态构造函数，用于初始化操作码集合
+    static OpCodeLookup()
+    {
+        // 获取所有操作码
+        var opcodes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+        // 初始化单字节操作码集合
+        SingleByteOpCodes = new OpCode[256];
+        foreach (var opcode in opcodes)
+        {
+            var code = (OpCode)opcode.GetValue(null);
+            if (code.Size == 1)
+            {
+                SingleByteOpCodes[code.Value] = code;
+            }
+        }
+
+        // 初始化多字节操作码集合
+        MultiByteOpCodes = new OpCode[256];
+        foreach (var opcode in opcodes)
+        {
+            var code = (OpCode)opcode.GetValue(null);
+            if (code.Size == 2)
+            {
+                MultiByteOpCodes[code.Value & 0xff] = code;
+            }
+        }
+    }
+}
 
 namespace IFix.Editor
 {
     public class ILFixCodeGen
     {
+        #region menu
+        
+        [MenuItem("InjectFix/GenBinding", false, 2)]
+        public static void GenBinding()
+        {
+            ILFixCodeGen gen = new ILFixCodeGen();
+            gen.path = "Assets/IFix/Binding/";
+            gen.methodCount = 0;
+            gen.ClearMethod();
+            gen.DeleteAll();
+            // custom type
+            //gen.Generate(typeof(List<int>));
+            //gen.Generate(typeof(string));
+
+            // search by dll caller
+            List<MethodBase> mbList = new List<MethodBase>();
+            var asses = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var assembly in IFixEditor.injectAssemblys)
+            {
+                foreach (var ass in asses)
+                {
+                    if (!(ass.ManifestModule is System.Reflection.Emit.ModuleBuilder)
+                        && (ass.GetName().Name == assembly))
+                    {
+                        UnityEngine.Debug.Log( string.Format("Scan {0} assembly", ass.GetName().Name));
+                        mbList.AddRange(FindAllMethod(ass));
+                    }
+                }
+            }
+            
+            gen.GenAll(mbList);
+        }
+        
+        public static List<MethodBase> FindAllMethod(Assembly assembly)
+        {
+            HashSet<MethodBase> result = new HashSet<MethodBase>();
+            Module[] modules = assembly.GetModules();
+            Module mainModule = modules[0];
+            // 遍历程序集中的所有类型
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.FullName == "IFix.ILFixDynamicMethodWrapper")
+                {
+                    throw new Exception("You can't gen binding when dll is injected");
+                }
+
+                if (type.IsSubclassOf(typeof(Delegate)))
+                    continue;
+                // 遍历类型中的所有方法
+                var methods = type.GetMethods(BindingFlags.Public 
+                                              | BindingFlags.DeclaredOnly | BindingFlags.NonPublic 
+                                              | BindingFlags.Instance | BindingFlags.Static);
+
+                var constructors = type.GetConstructors(BindingFlags.Public
+                                     | BindingFlags.DeclaredOnly | BindingFlags.NonPublic
+                                     | BindingFlags.Instance | BindingFlags.Static);
+
+                List<MethodBase> mbList = new List<MethodBase>();
+                mbList.AddRange(methods);
+                mbList.AddRange(constructors);
+                
+                foreach (var methodInfo in mbList)
+                {
+                    if (methodInfo == null) continue;
+                    if(methodInfo.ReflectedType == null) continue;
+                    if (!string.IsNullOrEmpty(methodInfo.ReflectedType.Namespace))
+                    {
+                        if(methodInfo.ReflectedType.Namespace == "IFix.Core") continue;
+                        if(methodInfo.ReflectedType.Namespace == "IFix.Binding") continue;
+                        if(methodInfo.ReflectedType.Namespace.Contains("UnityEditor")) continue;
+                    }
+                    // 输出方法的名称
+
+
+                    // 获取方法体
+                    var methodBody = methodInfo.GetMethodBody();
+
+                    // 检查方法是否有方法体
+                    if (methodBody != null)
+                    {
+                        // 获取方法体中的 IL 字节码
+                        var ilBytes = methodBody.GetILAsByteArray();
+
+                        // 创建一个指向 IL 字节码的索引
+                        int ilIndex = 0;
+
+                        // 遍历 IL 字节码
+                        while (ilIndex < ilBytes.Length)
+                        {
+                            // 从 IL 字节码中读取操作码
+                            var opcodeValue = ilBytes[ilIndex++];
+                            var opcode = OpCodes.Nop; // 默认为 Nop，以防止未知操作码
+                            if (opcodeValue != 0xFE) // 如果操作码的值不在 0xFE 开头的范围内
+                            {
+                                opcode = OpCodeLookup.SingleByteOpCodes[opcodeValue]; // 使用单字节操作码查找表
+                            }
+                            else // 如果操作码的值在 0xFE 开头的范围内
+                            {
+                                opcodeValue = ilBytes[ilIndex++];
+                                opcode = OpCodeLookup.MultiByteOpCodes[opcodeValue]; // 使用多字节操作码查找表
+                            }
+
+                            // 检查是否是方法调用指令
+                            if (opcode == OpCodes.Call || opcode == OpCodes.Callvirt || opcode == OpCodes.Newobj)
+                            {
+                                // 读取调用的方法的元数据标记
+                                int metadataToken = BitConverter.ToInt32(ilBytes, ilIndex);
+                                //ilIndex += 4;
+
+                                // 解析元数据标记获取调用的方法信息
+                                try
+                                {
+                                    var calledMethod = mainModule.ResolveMethod(metadataToken);
+                                    if (!result.Contains(calledMethod))
+                                    {
+                                        if (calledMethod is ConstructorInfo)
+                                        {
+                                            // 构造函数暂时不处理
+                                            // if (!calledMethod.ReflectedType.IsValueType)
+                                            // {
+                                            //     //UnityEngine.Debug.Log($"class ctor:{calledMethod.ReflectedType}, {calledMethod.Name}");
+                                            // }
+                                            // else if(calledMethod.IsPublic)
+                                            // {
+                                            //     result.Add(calledMethod);
+                                            // }
+
+                                        }
+                                        else
+                                        {
+                                            // IFix.Core空间下不导出
+                                            if (calledMethod.ReflectedType.FullName.Contains("IFix.Core"))
+                                            {
+                                            }
+                                            else
+                                            {
+                                                result.Add(calledMethod);
+                                            }
+                                        }
+                                   
+                                        // 输出调用的方法信息
+                                        //UnityEngine.Debug.Log($"    调用方法: {ILFixCodeGen.GetUniqueStringForMethod(calledMethod)}");
+                                    }
+                                }
+                                catch //(Exception e)
+                                {
+                                    //UnityEngine.Debug.LogError(e);
+                                }
+
+                            }
+
+                            // 检查是否有操作数，并根据操作码的操作数类型移动索引
+                            switch (opcode.OperandType)
+                            {
+                                case OperandType.InlineBrTarget:
+                                case OperandType.InlineField:
+                                case OperandType.InlineI:
+                                case OperandType.InlineI8:
+                                case OperandType.InlineMethod:
+                                case OperandType.InlineR:
+                                case OperandType.InlineSig:
+                                case OperandType.InlineString:
+                                case OperandType.InlineSwitch:
+                                case OperandType.InlineTok:
+                                case OperandType.InlineType:
+                                case OperandType.InlineVar:
+                                    ilIndex += 4;
+                                    break;
+                                case OperandType.ShortInlineBrTarget:
+                                case OperandType.ShortInlineI:
+                                case OperandType.ShortInlineR:
+                                case OperandType.ShortInlineVar:
+                                    ilIndex += 1;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result.ToList();
+        }
+        
+        #endregion
+        
         #region static
 
         public Dictionary<string, Tuple<int, string>> delegateDict = new Dictionary<string, Tuple<int, string>>();
