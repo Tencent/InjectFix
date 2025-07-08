@@ -1137,6 +1137,15 @@ namespace IFix
                 };
             }
 
+            if (method.IsSpecialName && (method.IsAddOn || method.IsRemoveOn || method.IsGetter || method.IsSetter) && !isNewMethod(method) && !isNewClass(method.DeclaringType) && isCompilerGenerated(method))
+            {
+                return new MethodIdInfo()
+                {
+                    Id = addExternMethod(callee, caller),
+                    Type = CallType.Extern
+                };
+            }
+
             if (method.Parameters.Any(p => p.ParameterType.IsPointer) || method.ReturnType.IsPointer)
             {
                 Console.WriteLine("Warning: unsafe method, " + method + " in " + method.DeclaringType);
