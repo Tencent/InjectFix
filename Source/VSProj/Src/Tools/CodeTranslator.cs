@@ -266,6 +266,17 @@ namespace IFix
             return id;
         }
 
+        private static bool IsMemberReferenceEqual(MemberReference t1, MemberReference t2)
+        {
+            return t1.FullName == t2.FullName &&
+                   t1.Module.Assembly.FullName == t2.Module.Assembly.FullName;
+        }
+
+        private static bool IsAsyncMethodBuilderMethodEqual(GenericInstanceMethod m1, GenericInstanceMethod m2)
+        {
+            return IsMemberReferenceEqual(m1.GenericArguments[0], m2.GenericArguments[0]) && m1.DeclaringType?.FullName == m2.DeclaringType?.FullName;
+        }
+
         //原生方法的引用
         int addExternMethod(MethodReference callee, MethodDefinition caller)
         {
@@ -276,8 +287,7 @@ namespace IFix
 
             if (callee.Name == "AwaitUnsafeOnCompleted")
             {
-                
-                if (!awaitUnsafeOnCompletedMethods.Any(m => ((GenericInstanceMethod)callee).GenericArguments[0] == ((GenericInstanceMethod)m).GenericArguments[0]))
+                if (awaitUnsafeOnCompletedMethods.All(m => !IsAsyncMethodBuilderMethodEqual((GenericInstanceMethod)callee, (GenericInstanceMethod)m)))
                 {
                     awaitUnsafeOnCompletedMethods.Add(callee);
                 }
