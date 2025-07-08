@@ -3859,6 +3859,13 @@ namespace IFix
                 for (int i = 0; i < fields.Count; i++)
                 {
                     var fieldType = fields[i].FieldType;
+
+                    if (fieldType.IsArray || fieldType.IsGenericInstance)
+                    {
+                        addExternType(fieldType, fields[i].DeclaringType);
+                        continue;
+                    }
+
                     if (fieldType.IsGenericParameter)
                     {
                         var resolveType = ((GenericParameter)fieldType).ResolveGenericArgument(fields[i].DeclaringType);
